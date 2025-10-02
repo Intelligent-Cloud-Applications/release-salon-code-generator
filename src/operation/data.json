@@ -1,0 +1,7 @@
+{
+  "institutionId": "tekkzysalon",
+  "s3BucketName": "templatesalon.awsaiapp.com",
+  "cloudFrontId": "E2D1GDOQNTUYKR",
+  "domain": "https://templatesalon.awsaiapp.com",
+  "printPaperSize": "55"
+}

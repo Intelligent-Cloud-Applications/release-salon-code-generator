@@ -1,0 +1,6 @@
+aws s3 sync ./dist s3://themirrorsalonandmakeupstudio.tekkzy.com --delete
+aws cloudfront create-invalidation --distribution-id E3MFZF6X30BUBP --path "/*"
+
+
+aws s3 sync ./dist s3://templatesalon.awsaiapp.com --delete
+aws cloudfront create-invalidation --distribution-id E2D1GDOQNTUYKR --path "/*"
