@@ -93,7 +93,7 @@ jobs:
         if: steps.config.outputs.should_deploy == 'true'
         run: |
           export NODE_OPTIONS=--max_old_space_size=4096
-          yarn build
+          npm run build
 
       - name: Set up AWS CLI
         if: steps.config.outputs.should_deploy == 'true'
@@ -107,7 +107,7 @@ jobs:
         if: steps.config.outputs.should_deploy == 'true'
         run: |
           echo "Starting S3 sync to bucket: ${{ steps.config.outputs.s3_bucket }}"
-          aws s3 sync ./build s3://${{ steps.config.outputs.s3_bucket }} --delete
+          aws s3 sync ./dist s3://${{ steps.config.outputs.s3_bucket }} --delete
           echo "S3 sync completed"
 
       - name: Cloudfront Invalidation
