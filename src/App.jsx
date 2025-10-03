@@ -116,7 +116,7 @@ const App = () => {
     setTimeout(() => {
       verifyMetaTags();
     }, 1000);
-  }, [metaTitle, metaDescription, metaKeywords]);
+  }, [metaTitle, metaDescription, metaKeywords, institutionData]);
 
   // Google Tag Manager Integration
   useEffect(() => {
