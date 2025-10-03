@@ -27,6 +27,7 @@ import VendorManagementPage from "./development/dashboard/VendorManagementPage";
 import ExpenseManagementPage from "./development/dashboard/ExpenseManagementPage";
 import LoyaltyPointsPage from "./development/dashboard/LoyaltyPointsPage";
 import { Toaster } from "./development/components/toaster";
+import metaTagsData from "./operation/metatags.json";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -47,6 +48,23 @@ const Home = () => (
   </>
 );
 
+const verifyMetaTags = () => {
+  const metaTags = {
+    title: document.querySelector('meta[name="title"]')?.content,
+    description: document.querySelector('meta[name="description"]')?.content,
+    keywords: document.querySelector('meta[name="keywords"]')?.content,
+    documentTitle: document.title,
+  };
+
+  console.log("Current Meta Tags:", metaTags);
+
+  return metaTags;
+};
+
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
 const App = () => {
   const { institutionData } = useContext(Context);
 
@@ -54,21 +72,86 @@ const App = () => {
 
   useEffect(() => {
     if (institutionData?.companyName) {
-      document.title = institutionData.companyName;
+      document.title = `Welcome to ${capitalizeFirstLetter(institutionData.companyName)}`;
     }
-
+    const logoUrl = institutionData?.logoUrl;
     const setFavicon = () => {
-      const favicon = document.querySelector("link[rel='icon']");
-      if (favicon && institutionData?.logoUrl) {
-        favicon.href = institutionData.logoUrl;
-      }
+      if (!logoUrl) return;
+      let link =
+        document.querySelector("link[rel*='icon']") ||
+        document.createElement("link");
+      link.type = "image/x-icon";
+      link.rel = "shortcut icon";
+      link.href = logoUrl;
+      document.head.appendChild(link);
     };
     setFavicon();
   }, [institutionData]);
 
+  const metaTitle =
+    metaTagsData?.seo?.title ||
+    `Welcome to ${capitalizeFirstLetter(institutionData?.companyName || "Our Salon")}`;
+  const metaDescription =
+    metaTagsData?.seo?.description || "Best salon services in town.";
+  const metaKeywords =
+    metaTagsData?.seo?.keywords?.join(", ") || "salon, beauty, hair, spa";
+  const gtmId = metaTagsData?.gtmId || "GTM-XXXXXXX";
+
+  // Meta tags management
+  useEffect(() => {
+    const updateOrCreateMetaTag = (name, content) => {
+      let tag = document.querySelector(`meta[name='${name}']`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.name = name;
+        document.head.appendChild(tag);
+      }
+      tag.content = content;
+    };
+
+    updateOrCreateMetaTag("title", metaTitle);
+    updateOrCreateMetaTag("description", metaDescription);
+    updateOrCreateMetaTag("keywords", metaKeywords);
+
+    setTimeout(() => {
+      verifyMetaTags();
+    }, 1000);
+  }, [metaTitle, metaDescription, metaKeywords]);
+
+  // Google Tag Manager Integration
+  useEffect(() => {
+    if (!gtmId) return;
+    const existingScript = document.querySelector(
+      'script[src*="googletagmanager"]',
+    );
+    if (existingScript) existingScript.remove();
+    const script = document.createElement("script");
+    script.innerHTML = `
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','${gtmId}');
+      `;
+    document.head.appendChild(script);
+    const noscript = document.createElement("noscript");
+    noscript.innerHTML = `
+        <iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+        height="0" width="0" style="display:none;visibility:hidden"></iframe>
+      `;
+    document.body.appendChild(noscript);
+  }, [gtmId]);
+
   // Check if the current route is dashboard, login, or logout to hide Footer
   const location = useLocation();
-  const hideFooterRoutes = ["/dashboard", "/login", "/logout", "/redirect" , "/", "/bill"];
+  const hideFooterRoutes = [
+    "/dashboard",
+    "/login",
+    "/logout",
+    "/redirect",
+    "/",
+    "/bill",
+  ];
   const shouldHideFooter = hideFooterRoutes.some((route) =>
     location.pathname.startsWith(route),
   );
@@ -96,15 +179,30 @@ const App = () => {
           <Route index element={<NewDashboard />} />
           <Route path="/dashboard/staffs" element={<StaffsPage />} />
           <Route path="/dashboard/clients" element={<ClientsPage />} />
-          <Route path="/dashboard/appointments" element={<AppointmentsPage />} />
+          <Route
+            path="/dashboard/appointments"
+            element={<AppointmentsPage />}
+          />
           <Route path="/dashboard/billing" element={<BillingPage />} />
-          <Route path="/dashboard/billing/preview/:id" element={<BillPreview />} />
+          <Route
+            path="/dashboard/billing/preview/:id"
+            element={<BillPreview />}
+          />
           <Route path="/dashboard/service" element={<Services />} />
           <Route path="/dashboard/inventory" element={<InventoryPage />} />
           <Route path="/dashboard/reports" element={<ReportsPage />} />
-          <Route path="/dashboard/vendor-management" element={<VendorManagementPage />} />
-          <Route path="/dashboard/expense-management" element={<ExpenseManagementPage />} />
-          <Route path="/dashboard/loyalty-points" element={<LoyaltyPointsPage />} />
+          <Route
+            path="/dashboard/vendor-management"
+            element={<VendorManagementPage />}
+          />
+          <Route
+            path="/dashboard/expense-management"
+            element={<ExpenseManagementPage />}
+          />
+          <Route
+            path="/dashboard/loyalty-points"
+            element={<LoyaltyPointsPage />}
+          />
         </Route>
         <Route path="/redirect" element={<Redirect />} />
       </Routes>
