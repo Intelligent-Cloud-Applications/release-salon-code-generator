@@ -24,6 +24,11 @@ import {
   Droplets,
   Palette,
   Shield,
+  FileText,
+  FileSpreadsheet,
+  ChevronDown,
+  CalendarIcon,
+  CurrencyIcon,
 } from "lucide-react";
 import {
   Card,
@@ -42,6 +47,13 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../components/ui/popover";
+import { Calendar as CalendarComponent } from "../components/ui/calendar";
+import { cn } from "../lib/utils";
 import Context from "../Context/Context";
 import ScissorsLoader from "../components/Loader";
 import { useToast } from "../hooks/use-toast";
@@ -53,6 +65,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "../components/ui/dialog";
+import { format } from "date-fns";
+import { FaBook, FaCreditCard, FaDollarSign, FaMoneyBill, FaMoneyBillWave } from "react-icons/fa";
 
 // Bill print/reprint modal
 const BillPrintModal = ({
@@ -88,131 +102,170 @@ const BillPrintModal = ({
   };
 
   return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-  <div className="w-full max-w-3xl rounded-lg bg-white shadow-lg flex flex-col max-h-[90vh]">
-    {/* Scrollable content */}
-    <div className="overflow-y-auto px-6 py-6 flex-1 space-y-6">
-      {/* Header */}
-      <div className="border-b border-stone-200 pb-4">
-        <h2 className="text-2xl font-bold text-stone-800">Salon Invoice</h2>
-        <p className="text-sm text-stone-600">
-          Phone: (555) 123-4567 | Email: info@mirrorsalon.com
-        </p>
-      </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-2xl font-bold text-stone-800">
+            Salon Invoice
+          </DialogTitle>
+          <p className="text-sm text-stone-600">
+            Phone: (555) 123-4567 | Email: info@mirrorsalon.com
+          </p>
+        </DialogHeader>
 
-      {/* Bill Details */}
-      <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* Client Information */}
-        <div>
-          <h3 className="mb-4 text-lg font-semibold text-stone-800">Bill To:</h3>
-          <div className="space-y-2">
-            <p className="text-stone-700"><strong>Name:</strong> {bill.clientName}</p>
-            <p className="text-stone-700"><strong>Invoice ID:</strong> {bill.id}</p>
-            <p className="text-stone-700"><strong>Date:</strong> {formatDate(bill.date)}</p>
-            <p className="text-stone-700"><strong>Staff:</strong> {bill.staff}</p>
-          </div>
-        </div>
+        {/* Scrollable content */}
+        <div className="flex-1 space-y-6 overflow-y-auto pr-2">
+          {/* Bill Details */}
+          <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2">
+            {/* Client Information */}
+            <div>
+              <h3 className="mb-4 text-lg font-semibold text-stone-800">
+                Bill To:
+              </h3>
+              <div className="space-y-2">
+                <p className="text-stone-700">
+                  <strong>Name:</strong> {bill.clientName}
+                </p>
+                <p className="text-stone-700">
+                  <strong>Invoice ID:</strong> {bill.id}
+                </p>
+                <p className="text-stone-700">
+                  <strong>Date:</strong> {formatDate(bill.date)}
+                </p>
+                <p className="text-stone-700">
+                  <strong>Staff:</strong> {bill.staff}
+                </p>
+              </div>
+            </div>
 
-        {/* Service Details */}
-        <div>
-          <h3 className="mb-4 text-lg font-semibold text-stone-800">Service Details:</h3>
-          <div className="space-y-2">
-            <p className="text-stone-700"><strong>Payment Method:</strong> {bill.paymentMethod}</p>
-            <p className="text-stone-700">
-              <strong>Status:</strong> <span className="capitalize">{bill.status}</span>
-            </p>
-            {bill.duration != null && (
-              <p className="text-stone-700"><strong>Duration:</strong> {bill.duration} minutes</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Services Table */}
-      <div className="mb-8">
-        <h3 className="mb-4 text-lg font-semibold text-stone-800">Services Provided:</h3>
-        <div className="overflow-hidden rounded-lg border border-stone-200">
-          <table className="w-full">
-            <thead className="bg-stone-50">
-              <tr>
-                <th className="p-4 text-left font-semibold text-stone-700">Service</th>
-                <th className="p-4 text-right font-semibold text-stone-700">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bill.services?.map((service, index) => (
-                <tr key={index} className="border-t border-stone-200">
-                  <td className="p-4 text-stone-700">{service}</td>
-                  <td className="p-4 text-right text-stone-700">
-                    {formatCurrency((bill.subtotal || 0) / (bill.services?.length || 1))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Financial Summary */}
-      <div className="rounded-lg bg-stone-50 p-6">
-        <div className="ml-auto max-w-md space-y-3">
-          <div className="flex justify-between"><span className="text-stone-700">Subtotal:</span><span className="text-stone-700">{formatCurrency(bill.subtotal)}</span></div>
-          <div className="flex justify-between"><span className="text-stone-700">Tax:</span><span className="text-stone-700">{formatCurrency(bill.tax)}</span></div>
-          <div className="border-t border-stone-300 pt-3">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold text-stone-800">Total:</span>
-              <span className="text-lg font-semibold text-stone-800">{formatCurrency(bill.total)}</span>
+            {/* Service Details */}
+            <div>
+              <h3 className="mb-4 text-lg font-semibold text-stone-800">
+                Service Details:
+              </h3>
+              <div className="space-y-2">
+                <p className="text-stone-700">
+                  <strong>Payment Method:</strong> {bill.paymentMethod}
+                </p>
+                <p className="text-stone-700">
+                  <strong>Status:</strong>{" "}
+                  <span className="capitalize">{bill.status}</span>
+                </p>
+                {bill.duration != null && (
+                  <p className="text-stone-700">
+                    <strong>Duration:</strong> {bill.duration} minutes
+                  </p>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Services Table */}
+          <div className="mb-8">
+            <h3 className="mb-4 text-lg font-semibold text-stone-800">
+              Services Provided:
+            </h3>
+            <div className="overflow-hidden rounded-lg border border-stone-200">
+              <table className="w-full">
+                <thead className="bg-stone-50">
+                  <tr>
+                    <th className="p-4 text-left font-semibold text-stone-700">
+                      Service
+                    </th>
+                    <th className="p-4 text-right font-semibold text-stone-700">
+                      Price
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bill.services?.map((service, index) => (
+                    <tr key={index} className="border-t border-stone-200">
+                      <td className="p-4 text-stone-700">{service}</td>
+                      <td className="p-4 text-right text-stone-700">
+                        {formatCurrency(
+                          (bill.subtotal || 0) / (bill.services?.length || 1),
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Financial Summary */}
+          <div className="rounded-lg bg-stone-50 p-6">
+            <div className="ml-auto max-w-md space-y-3">
+              <div className="flex justify-between">
+                <span className="text-stone-700">Subtotal:</span>
+                <span className="text-stone-700">
+                  {formatCurrency(bill.subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-700">Tax:</span>
+                <span className="text-stone-700">
+                  {formatCurrency(bill.tax)}
+                </span>
+              </div>
+              <div className="border-t border-stone-300 pt-3">
+                <div className="flex justify-between">
+                  <span className="text-lg font-semibold text-stone-800">
+                    Total:
+                  </span>
+                  <span className="text-lg font-semibold text-stone-800">
+                    {formatCurrency(bill.total)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center text-sm text-stone-500">
+            <p>Thank you for choosing Mirror Salon!</p>
+            <p>Visit us again for all your beauty needs.</p>
+          </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div className="text-center text-sm text-stone-500">
-        <p>Thank you for choosing Mirror Salon!</p>
-        <p>Visit us again for all your beauty needs.</p>
-      </div>
-    </div>
-
-    {/* Action Buttons */}
-    <div className="flex justify-end gap-3 border-t border-stone-200 px-6 py-4 flex-shrink-0 bg-white">
-      {isSettling ? (
-        <div className="flex w-full items-center justify-center py-4">
-          <ScissorsLoader text="Settling bill..." />
-        </div>
-      ) : (
-        <>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="border-stone-200 text-stone-600 hover:bg-stone-50"
-          >
-            {isReprint ? "Close" : "Cancel"}
-          </Button>
-          {!isReprint && (
-            <Button
-              onClick={onConfirmSettle}
-              className="bg-green-600 text-white hover:bg-green-700"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Settle & Print
-            </Button>
+        {/* Action Buttons */}
+        <DialogFooter className="mt-6 flex-shrink-0">
+          {isSettling ? (
+            <div className="flex w-full items-center justify-center py-4">
+              <ScissorsLoader text="Settling bill..." />
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="border-stone-200 text-stone-600 hover:bg-stone-50"
+              >
+                {isReprint ? "Close" : "Cancel"}
+              </Button>
+              {!isReprint && (
+                <Button
+                  onClick={onConfirmSettle}
+                  className="bg-green-600 text-white hover:bg-green-700"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Settle & Print
+                </Button>
+              )}
+              {isReprint && (
+                <Button
+                  onClick={handlePrint}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Print Invoice
+                </Button>
+              )}
+            </div>
           )}
-          {isReprint && (
-            <Button
-              onClick={handlePrint}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Print Invoice
-            </Button>
-          )}
-        </>
-      )}
-    </div>
-  </div>
-</div>
-
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -229,6 +282,7 @@ const BillingPage = () => {
     createClient,
     createAppointment,
     fetchAppointments,
+    institutionData,
   } = useContext(Context);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -245,10 +299,28 @@ const BillingPage = () => {
   const [billData, setBillData] = useState(null);
   const [isSettlingBill, setIsSettlingBill] = useState(false);
   const [dateFilter, setDateFilter] = useState({
-    startDate: "",
-    endDate: "",
+    from: undefined,
+    to: undefined,
     isActive: false,
   });
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        showExportMenu &&
+        !event.target.closest(".export-dropdown-container")
+      ) {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showExportMenu]);
 
   // // Ensure appointments are loaded when landing on BillingPage
   // useEffect(() => {
@@ -266,73 +338,93 @@ const BillingPage = () => {
 
   // Use appointments data directly as billing data
 
+  // Helper function to get staff name from staff ID
+  const getStaffName = (staffId) => {
+    if (!staffId) return "Not Assigned";
+    const staff = barbers.find(
+      (barber) =>
+        barber.id === staffId ||
+        barber.staffId === staffId ||
+        barber.name === staffId,
+    );
+    return staff ? staff.name : staffId;
+  };
+
   const bills = appointments
-    .map((appointment) => ({
-      id:
-        appointment.appointmentId ||
-        appointment.id ||
-        appointment.Id ||
-        appointment.appointment_id,
-      clientName:
-        appointment.client?.clientName ||
-        appointment.clientName ||
-        appointment.ClientName ||
-        appointment.client_name ||
-        "N/A",
-      date: appointment.dateTime
-        ? new Date(appointment.dateTime).toLocaleDateString("en-GB")
-        : "N/A",
-      services: appointment.service
-        ? appointment.service.split(", ")
-        : appointment.services ||
-          appointment.Services ||
-          appointment.service_names ||
-          [],
-      subtotal:
-        appointment.subtotal ||
-        appointment.Subtotal ||
-        appointment.subtotal_amount ||
-        0,
-      tax: appointment.tax || appointment.Tax || appointment.tax_amount || 0,
-      discount:
-        appointment.discount ||
-        appointment.Discount ||
-        appointment.discount_value ||
-        0,
-      discountAmount:
-        appointment.discountAmount ||
-        appointment.discount_amount ||
-        appointment.discount ||
-        0,
-      gstPercent:
-        appointment.gstPercent ||
-        appointment.gst_percent ||
-        appointment.gst ||
-        null,
-      total:
-        appointment.total || appointment.Total || appointment.total_amount || 0,
-      status:
-        appointment.status ||
-        appointment.Status ||
-        appointment.appointment_status ||
-        "pending",
-      paymentMethod:
-        appointment.paymentMode ||
-        appointment.paymentMethod ||
-        appointment.PaymentMethod ||
-        appointment.payment_method ||
-        "Cash",
-      staff:
+    .map((appointment) => {
+      const staffId =
         appointment.staffId ||
         appointment.staff ||
         appointment.Staff ||
         appointment.staff_name ||
-        "Not Assigned",
-      notes: appointment.notes || "",
-      duration: appointment.duration || 0,
-      createdAt: appointment.createdAt || appointment.created_at || "",
-      updatedAt: appointment.updatedAt || appointment.updated_at || "",
-    }))
+        "Not Assigned";
+
+      return {
+        id:
+          appointment.appointmentId ||
+          appointment.id ||
+          appointment.Id ||
+          appointment.appointment_id,
+        clientName:
+          appointment.client?.clientName ||
+          appointment.clientName ||
+          appointment.ClientName ||
+          appointment.client_name ||
+          "N/A",
+        date: appointment.dateTime
+          ? new Date(appointment.dateTime).toLocaleDateString("en-GB")
+          : "N/A",
+        services: appointment.service
+          ? appointment.service.split(", ")
+          : appointment.services ||
+            appointment.Services ||
+            appointment.service_names ||
+            [],
+        subtotal:
+          appointment.subtotal ||
+          appointment.Subtotal ||
+          appointment.subtotal_amount ||
+          0,
+        tax: appointment.tax || appointment.Tax || appointment.tax_amount || 0,
+        discount:
+          appointment.discount ||
+          appointment.Discount ||
+          appointment.discount_value ||
+          0,
+        discountAmount:
+          appointment.discountAmount ||
+          appointment.discount_amount ||
+          appointment.discount ||
+          0,
+        gstPercent:
+          appointment.gstPercent ||
+          appointment.gst_percent ||
+          appointment.gst ||
+          null,
+        total:
+          appointment.total ||
+          appointment.Total ||
+          appointment.total_amount ||
+          0,
+        status:
+          appointment.status ||
+          appointment.Status ||
+          appointment.appointment_status ||
+          "pending",
+        paymentMethod:
+          appointment.paymentMode ||
+          appointment.paymentMethod ||
+          appointment.PaymentMethod ||
+          appointment.payment_method ||
+          "Cash",
+        staff: getStaffName(staffId),
+        staffId: staffId, // Keep original staffId for reference
+        notes: appointment.notes || "",
+        duration: appointment.duration || 0,
+        createdAt: appointment.createdAt || appointment.created_at || "",
+        updatedAt: appointment.updatedAt || appointment.updated_at || "",
+      };
+    })
     .filter(
       (b) =>
         b.status === "confirmed" ||
@@ -402,40 +494,40 @@ const BillingPage = () => {
         billDateStr = billDateObj.toISOString().split("T")[0];
       }
 
-      if (startDate && endDate) {
-        return billDateStr >= startDate && billDateStr <= endDate;
-      } else if (startDate) {
-        // If only start date is provided, show appointments for that exact date only
-        return billDateStr === startDate;
-      } else if (endDate) {
-        // If only end date is provided, show appointments for that exact date only
-        return billDateStr === endDate;
+      // Convert Date objects to YYYY-MM-DD format for comparison
+      const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : null;
+      const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : null;
+
+      if (startDateStr && endDateStr) {
+        return billDateStr >= startDateStr && billDateStr <= endDateStr;
+      } else if (startDateStr) {
+        return billDateStr >= startDateStr;
+      } else if (endDateStr) {
+        return billDateStr <= endDateStr;
       }
 
       return true;
     } catch (error) {
+      console.error("Date filtering error:", error);
       return false;
     }
   };
 
   // Apply date filter based on date range
   const applyDateFilter = (bills) => {
-    if (
-      !dateFilter.isActive ||
-      (!dateFilter.startDate && !dateFilter.endDate)
-    ) {
+    if (!dateFilter.isActive || (!dateFilter.from && !dateFilter.to)) {
       return bills;
     }
 
     const filtered = bills.filter((bill) =>
-      isDateInRange(bill.date, dateFilter.startDate, dateFilter.endDate),
+      isDateInRange(bill.date, dateFilter.from, dateFilter.to),
     );
     const filterDescription =
-      dateFilter.startDate && dateFilter.endDate
-        ? `${dateFilter.startDate} to ${dateFilter.endDate}`
-        : dateFilter.startDate
-          ? `for exact date ${dateFilter.startDate}`
-          : `for exact date ${dateFilter.endDate}`;
+      dateFilter.from && dateFilter.to
+        ? `${format(dateFilter.from, "MMM dd, yyyy")} to ${format(dateFilter.to, "MMM dd, yyyy")}`
+        : dateFilter.from
+          ? `from ${format(dateFilter.from, "MMM dd, yyyy")}`
+          : `to ${format(dateFilter.to, "MMM dd, yyyy")}`;
 
     console.log(
       `Date filter: ${filterDescription} - Found ${filtered.length} bills`,
@@ -770,6 +862,330 @@ const BillingPage = () => {
     }).format(amount);
   };
 
+  // Export data to CSV
+  const handleExportToCSV = () => {
+    const dataToExport = dateFilter.isActive ? filteredBills : bills;
+
+    if (dataToExport.length === 0) {
+      toast({
+        title: "No Data",
+        description: "There is no data to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create CSV headers
+    const headers = [
+      "Invoice ID",
+      "Client Name",
+      "Date",
+      "Services",
+      "Subtotal",
+      "Tax",
+      "Discount",
+      "Total",
+      "Status",
+      "Payment Method",
+      "Staff",
+      "Duration (min)",
+    ];
+
+    // Create CSV rows
+    const rows = dataToExport.map((bill) => [
+      bill.id,
+      bill.clientName,
+      bill.date,
+      Array.isArray(bill.services)
+        ? bill.services.join("; ")
+        : bill.services || "",
+      bill.subtotal || 0,
+      bill.tax || 0,
+      bill.discountAmount || 0,
+      bill.total || 0,
+      bill.status,
+      bill.paymentMethod,
+      bill.staff,
+      bill.duration || 0,
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row
+          .map((cell) => {
+            // Escape quotes and wrap in quotes if contains comma
+            const cellStr = String(cell);
+            if (cellStr.includes(",") || cellStr.includes('"')) {
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          })
+          .join(","),
+      ),
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    const fileName = dateFilter.isActive
+      ? `billing_data_${dateFilter.from ? format(dateFilter.from, "yyyy-MM-dd") : "all"}_to_${dateFilter.to ? format(dateFilter.to, "yyyy-MM-dd") : "all"}.csv`
+      : `billing_data_all_${new Date().toISOString().split("T")[0]}.csv`;
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export Successful",
+      description: `Exported ${dataToExport.length} records to CSV.`,
+    });
+  };
+
+  // Export data to Excel
+  const handleExportToExcel = () => {
+    const dataToExport = dateFilter.isActive ? filteredBills : bills;
+
+    if (dataToExport.length === 0) {
+      toast({
+        title: "No Data",
+        description: "There is no data to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create Excel XML format
+    const headers = [
+      "Invoice ID",
+      "Client Name",
+      "Date",
+      "Services",
+      "Subtotal",
+      "Tax",
+      "Discount",
+      "Total",
+      "Status",
+      "Payment Method",
+      "Staff",
+      "Duration (min)",
+    ];
+
+    let excelContent = `<?xml version="1.0"?>
+      <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+        xmlns:o="urn:schemas-microsoft-com:office:office"
+        xmlns:x="urn:schemas-microsoft-com:office:excel"
+        xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+        xmlns:html="http://www.w3.org/TR/REC-html40">
+        <Worksheet ss:Name="Billing Data">
+          <Table>
+            <Row>`;
+
+    // Add headers
+    headers.forEach((header) => {
+      excelContent += `<Cell><Data ss:Type="String">${header}</Data></Cell>`;
+    });
+    excelContent += `</Row>`;
+
+    // Add data rows
+    dataToExport.forEach((bill) => {
+      excelContent += `<Row>`;
+      const rowData = [
+        bill.id,
+        bill.clientName,
+        bill.date,
+        Array.isArray(bill.services)
+          ? bill.services.join("; ")
+          : bill.services || "",
+        bill.subtotal || 0,
+        bill.tax || 0,
+        bill.discountAmount || 0,
+        bill.total || 0,
+        bill.status,
+        bill.paymentMethod,
+        bill.staff,
+        bill.duration || 0,
+      ];
+
+      rowData.forEach((cell, index) => {
+        const isNumber = (index >= 4 && index <= 7) || index === 11;
+        const type = isNumber ? "Number" : "String";
+        const value = String(cell)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        excelContent += `<Cell><Data ss:Type="${type}">${value}</Data></Cell>`;
+      });
+      excelContent += `</Row>`;
+    });
+
+    excelContent += `</Table></Worksheet></Workbook>`;
+
+    // Create blob and download
+    const blob = new Blob([excelContent], { type: "application/vnd.ms-excel" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    const fileName = dateFilter.isActive
+      ? `billing_data_${dateFilter.from ? format(dateFilter.from, "yyyy-MM-dd") : "all"}_to_${dateFilter.to ? format(dateFilter.to, "yyyy-MM-dd") : "all"}.xls`
+      : `billing_data_all_${new Date().toISOString().split("T")[0]}.xls`;
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export Successful",
+      description: `Exported ${dataToExport.length} records to Excel.`,
+    });
+  };
+
+  // Export data to PDF
+  const handleExportToPDF = () => {
+    const dataToExport = dateFilter.isActive ? filteredBills : bills;
+
+    if (dataToExport.length === 0) {
+      toast({
+        title: "No Data",
+        description: "There is no data to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const institutionName =
+      institutionData?.companyName ||
+      institutionData?.institutionName ||
+      "Salon";
+
+    // Create HTML content for PDF
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Billing Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .institute-name { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
+          h1 { color: #555; font-size: 20px; margin: 10px 0; }
+          .meta { text-align: center; color: #666; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+          th { background-color: #f4f4f4; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .status { padding: 2px 6px; border-radius: 3px; font-size: 10px; }
+          .status-completed { background-color: #dcfce7; color: #166534; }
+          .status-pending { background-color: #fef3c7; color: #92400e; }
+          .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="institute-name">${institutionName}</div>
+          <h1>Billing Report</h1>
+        </div>
+        <div class="meta">
+          ${
+            dateFilter.isActive
+              ? `<p>Date Range: ${dateFilter.from ? format(dateFilter.from, "MMM dd, yyyy") : "All"} to ${dateFilter.to ? format(dateFilter.to, "MMM dd, yyyy") : "All"}</p>`
+              : "<p>All Time Report</p>"
+          }
+          <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+          <p>Total Records: ${dataToExport.length}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice ID</th>
+              <th>Client Name</th>
+              <th>Date</th>
+              <th>Services</th>
+              <th>Subtotal</th>
+              <th>Tax</th>
+              <th>Discount</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Payment</th>
+              <th>Staff</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    dataToExport.forEach((bill) => {
+      const statusClass =
+        bill.status === "completed"
+          ? "status-completed"
+          : bill.status === "pending"
+            ? "status-pending"
+            : "status-cancelled";
+
+      htmlContent += `
+        <tr>
+          <td>${bill.id}</td>
+          <td>${bill.clientName}</td>
+          <td>${bill.date}</td>
+          <td>${Array.isArray(bill.services) ? bill.services.join(", ") : bill.services || ""}</td>
+          <td>₹${(bill.subtotal || 0).toFixed(2)}</td>
+          <td>₹${(bill.tax || 0).toFixed(2)}</td>
+          <td>₹${(bill.discountAmount || 0).toFixed(2)}</td>
+          <td>₹${(bill.total || 0).toFixed(2)}</td>
+          <td><span class="status ${statusClass}">${bill.status.toUpperCase()}</span></td>
+          <td>${bill.paymentMethod}</td>
+          <td>${bill.staff}</td>
+        </tr>`;
+    });
+
+    htmlContent += `
+          </tbody>
+        </table>
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>`;
+
+    // Create hidden iframe for printing
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    // Write content to iframe and trigger print
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+
+    // Remove iframe after printing
+    iframe.contentWindow.onafterprint = () => {
+      document.body.removeChild(iframe);
+    };
+
+    toast({
+      title: "PDF Export",
+      description: "Opening print dialog for PDF export...",
+    });
+  };
+
   // Calculate revenue from filtered bills
   const filteredRevenue = filteredBills
     .filter(
@@ -844,6 +1260,50 @@ const BillingPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Export Button with Dropdown */}
+          <div className="export-dropdown-container relative">
+            <Button
+              variant="outline"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="border-stone-200 text-stone-600 hover:bg-stone-50"
+              title={
+                dateFilter.isActive ? "Export filtered data" : "Export all data"
+              }
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export {dateFilter.isActive ? "Filtered" : "All"}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+
+            {/* Export Dropdown Menu */}
+            {showExportMenu && (
+              <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-stone-200 bg-white shadow-lg">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      handleExportToExcel();
+                      setShowExportMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Export as Excel
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleExportToPDF();
+                      setShowExportMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Export as PDF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <Button
             variant={activeSubPage === "overview" ? "default" : "outline"}
             onClick={() => {
@@ -875,71 +1335,71 @@ const BillingPage = () => {
           </Button>
 
           {/* Date Filter */}
-          <div className="ml-4 flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-stone-600" />
-            <Input
-              type="date"
-              value={dateFilter.startDate}
-              onChange={(e) => {
-                console.log(`Date selected: ${e.target.value}`);
-                setDateFilter({
-                  ...dateFilter,
-                  startDate: e.target.value,
-                  isActive: true,
-                });
-              }}
-              className="w-auto text-sm"
-              placeholder="From Date"
-            />
-            <span className="text-stone-500">to</span>
-            <Input
-              type="date"
-              value={dateFilter.endDate}
-              onChange={(e) => {
-                console.log(`End date selected: ${e.target.value}`);
-                setDateFilter({
-                  ...dateFilter,
-                  endDate: e.target.value,
-                  isActive: true,
-                });
-              }}
-              className="w-auto text-sm"
-              placeholder="To Date"
-            />
-            {(dateFilter.startDate || dateFilter.endDate) && (
+          <Popover>
+            <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log("Date filter cleared");
+                className={cn(
+                  "w-auto justify-start text-left font-normal",
+                  !dateFilter.from && !dateFilter.to && "text-muted-foreground",
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFilter.from ? (
+                  dateFilter.to ? (
+                    <>
+                      {format(dateFilter.from, "LLL dd, y")} -{" "}
+                      {format(dateFilter.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateFilter.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                initialFocus
+                mode="range"
+                defaultMonth={dateFilter.from}
+                selected={{ from: dateFilter.from, to: dateFilter.to }}
+                onSelect={(range) => {
                   setDateFilter({
-                    startDate: "",
-                    endDate: "",
-                    isActive: false,
+                    from: range?.from,
+                    to: range?.to,
+                    isActive: !!(range?.from || range?.to),
                   });
                 }}
-                className="h-8 border-stone-200 px-2 text-xs text-stone-600 hover:bg-stone-50"
-              >
-                Clear
-              </Button>
-            )}
-            {dateFilter.isActive && (
-              <div className="ml-2 text-xs text-stone-500">
-                {dateFilter.startDate && dateFilter.endDate
-                  ? `Range: ${dateFilter.startDate} to ${dateFilter.endDate}`
-                  : dateFilter.startDate
-                    ? `Date: ${dateFilter.startDate}`
-                    : `Date: ${dateFilter.endDate}`}
-              </div>
-            )}
-          </div>
+                numberOfMonths={2}
+              />
+              {(dateFilter.from || dateFilter.to) && (
+                <div className="border-t p-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDateFilter({
+                        from: undefined,
+                        to: undefined,
+                        isActive: false,
+                      });
+                    }}
+                    className="w-full"
+                  >
+                    Clear Filter
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
       {/* Conditional Content Based on Active Sub Page */}
       {activeSubPage === "overview" && (
         <>
-          {/* Revenue Summary - Compact */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <Card className="border-stone-200">
               <CardContent className="p-4">
@@ -959,7 +1419,7 @@ const BillingPage = () => {
                       </p>
                     )}
                   </div>
-                  <DollarSign className="h-5 w-5 text-green-600" />
+                  <FaDollarSign className="h-5 w-5 text-green-600" />
                 </div>
               </CardContent>
             </Card>
@@ -969,18 +1429,31 @@ const BillingPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-stone-600">
-                      {dateFilter.isActive ? "Filtered Pending" : "Pending"}
+                      {dateFilter.isActive ? "Filtered Cash" : "Cash Payments"}
                     </p>
-                    <p className="text-lg font-bold text-yellow-600">
-                      {formatCurrency(displayPending)}
+                    <p className="text-lg font-bold text-blue-600">
+                      {formatCurrency(
+                        (dateFilter.isActive ? filteredBills : bills)
+                          .filter(
+                            (b) => b.paymentMethod?.toLowerCase() === "cash",
+                          )
+                          .reduce((sum, bill) => sum + bill.total, 0),
+                      )}
                     </p>
                     {dateFilter.isActive && (
                       <p className="text-xs text-stone-500">
-                        All time: {formatCurrency(pendingAmount)}
+                        All time:{" "}
+                        {formatCurrency(
+                          bills
+                            .filter(
+                              (b) => b.paymentMethod?.toLowerCase() === "cash",
+                            )
+                            .reduce((sum, bill) => sum + bill.total, 0),
+                        )}
                       </p>
                     )}
                   </div>
-                  <CreditCard className="h-5 w-5 text-yellow-600" />
+                  <FaMoneyBillWave className="h-5 w-5 text-blue-600" />
                 </div>
               </CardContent>
             </Card>
@@ -990,18 +1463,33 @@ const BillingPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-stone-600">
-                      {dateFilter.isActive ? "Filtered Overdue" : "Overdue"}
+                      {dateFilter.isActive
+                        ? "Filtered Online"
+                        : "Online Payments"}
                     </p>
-                    <p className="text-lg font-bold text-red-600">
-                      {formatCurrency(displayOverdue)}
+                    <p className="text-lg font-bold text-purple-600">
+                      {formatCurrency(
+                        (dateFilter.isActive ? filteredBills : bills)
+                          .filter(
+                            (b) => b.paymentMethod?.toLowerCase() !== "cash",
+                          )
+                          .reduce((sum, bill) => sum + bill.total, 0),
+                      )}
                     </p>
                     {dateFilter.isActive && (
                       <p className="text-xs text-stone-500">
-                        All time: {formatCurrency(overdueAmount)}
+                        All time:{" "}
+                        {formatCurrency(
+                          bills
+                            .filter(
+                              (b) => b.paymentMethod?.toLowerCase() !== "cash",
+                            )
+                            .reduce((sum, bill) => sum + bill.total, 0),
+                        )}
                       </p>
                     )}
                   </div>
-                  <Calendar className="h-5 w-5 text-red-600" />
+                  <FaCreditCard className="h-5 w-5 text-purple-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1024,7 +1512,7 @@ const BillingPage = () => {
                       </p>
                     )}
                   </div>
-                  <CreditCard className="h-5 w-5 text-stone-600" />
+                  <FaBook className="h-5 w-5 text-stone-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1493,7 +1981,12 @@ const generateClientId = () => {
 };
 
 // Create Invoice Page Component
-const CreateInvoicePage = ({ handleCreateInvoice, billData, onExit,bills }) => {
+const CreateInvoicePage = ({
+  handleCreateInvoice,
+  billData,
+  onExit,
+  bills,
+}) => {
   const { institutionData, userData } = useContext(Context);
   const { clients, services, products, barbers, updateAppointmentBilling } =
     useContext(Context);
@@ -1551,11 +2044,7 @@ const CreateInvoicePage = ({ handleCreateInvoice, billData, onExit,bills }) => {
 
   // Normalize category string to a stable id (e.g., "Best Seller" -> "best-seller")
   const normalizeCategoryId = (name) =>
-    (name || "")
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-");
+    (name || "").toString().trim().toLowerCase().replace(/\s+/g, "-");
 
   // Extract categories for services or products
   const extractCategoriesWithIcons = (items) => {
@@ -1597,22 +2086,22 @@ const CreateInvoicePage = ({ handleCreateInvoice, billData, onExit,bills }) => {
     const cat = categories.find((c) => c.id === id);
     return cat?.name || "";
   };
-// Convert duration in seconds to HH:MM or MM:SS
-function formatDuration(durationStr) {
-  if (!durationStr) return null;
+  // Convert duration in seconds to HH:MM or MM:SS
+  function formatDuration(durationStr) {
+    if (!durationStr) return null;
 
-  // Split API string into hours and minutes
-  const [hours, minutes] = durationStr?.split(':').map(Number);
+    // Split API string into hours and minutes
+    const [hours, minutes] = durationStr?.split(":").map(Number);
 
-  // Convert total to minutes (or seconds if needed)
-  const totalMinutes = hours * 60 + minutes;
+    // Convert total to minutes (or seconds if needed)
+    const totalMinutes = hours * 60 + minutes;
 
-  // Convert back to HH:MM format for display
-  const displayHours = Math.floor(totalMinutes / 60);
-  const displayMinutes = totalMinutes % 60;
+    // Convert back to HH:MM format for display
+    const displayHours = Math.floor(totalMinutes / 60);
+    const displayMinutes = totalMinutes % 60;
 
-  return `${String(displayHours).padStart(2, '0')}:${String(displayMinutes).padStart(2, '0')}`;
-}
+    return `${String(displayHours).padStart(2, "0")}:${String(displayMinutes).padStart(2, "0")}`;
+  }
 
   const filteredItems = activeList
     .filter((item) => {
@@ -1983,7 +2472,8 @@ function formatDuration(durationStr) {
     if (categories.length === 0) return;
 
     const categoryIds = categories.map((c) => c.id);
-    const hasValidSelection = selectedCategory && categoryIds.includes(selectedCategory);
+    const hasValidSelection =
+      selectedCategory && categoryIds.includes(selectedCategory);
     if (hasValidSelection) return;
 
     if (!showProducts) {

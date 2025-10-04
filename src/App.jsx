@@ -66,7 +66,7 @@ const capitalizeFirstLetter = (string) => {
 };
 
 const App = () => {
-  const { institutionData } = useContext(Context);
+  const { institutionData, loader } = useContext(Context);
 
   console.log("App component rendered");
 
@@ -158,12 +158,14 @@ const App = () => {
 
   return (
     <>
-      {(location.pathname === "/" ||
-        location.pathname === "/aboutus" ||
-        location.pathname === "/services" ||
-        location.pathname === "/gallery" ||
-        location.pathname === "/contact" ||
-        location.pathname === "/login") && <Navbar />}
+      {(
+        (location.pathname === "/" ||
+          location.pathname === "/aboutus" ||
+          location.pathname === "/services" ||
+          location.pathname === "/gallery" ||
+          location.pathname === "/contact" ||
+          location.pathname === "/login") && <Navbar />
+      )}
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />

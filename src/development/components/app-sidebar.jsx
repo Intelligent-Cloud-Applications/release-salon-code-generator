@@ -64,11 +64,11 @@ const data = {
           icon: Package,
           url: "/dashboard/inventory",
         },
-        {
-          title: "Reports",
-          icon: BarChart3,
-          url: "/dashboard/reports",
-        },
+        // {
+        //   title: "Reports",
+        //   icon: BarChart3,
+        //   url: "/dashboard/reports",
+        // },
         {
           title: "Vendor Management",
           icon: Truck,
