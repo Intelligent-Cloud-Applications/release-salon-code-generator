@@ -1,7 +1,9 @@
 import React, { useState, useContext } from "react";
 import { Mail, Phone, Edit, MapPin, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { API } from "aws-amplify";
+// --- Amplify v6 Imports ---
+import { post, patch } from "aws-amplify/api";
+// --------------------------
 import Context from "../Context/Context";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -92,15 +94,15 @@ const Contact = () => {
     setIsTitleDescModalOpen(true);
   };
 
-  // Handle title/description save
+  // --- Updated: Handle title/description save (Amplify v6) ---
   const handleTitleDescSave = async () => {
     try {
       setLoader(true);
 
-      const response = await API.patch(
-        "main",
-        `/admin/${institutionId}/update-ui`,
-        {
+      const response = await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
           body: {
             data: {
               contact: {
@@ -110,9 +112,11 @@ const Contact = () => {
             },
           },
         },
-      );
+      }).response;
 
-      if (response && response.item) {
+      const responseData = await response.body.json();
+
+      if (responseData && responseData.item) {
         setInstitutionData((prevData) => ({
           ...prevData,
           contact: {
@@ -140,15 +144,15 @@ const Contact = () => {
     setIsContactInfoModalOpen(true);
   };
 
-  // Handle contact info save
+  // --- Updated: Handle contact info save (Amplify v6) ---
   const handleContactInfoSave = async () => {
     try {
       setLoader(true);
 
-      const response = await API.patch(
-        "main",
-        `/admin/${institutionId}/update-ui`,
-        {
+      const response = await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
           body: {
             data: {
               email: contactEmail,
@@ -160,9 +164,11 @@ const Contact = () => {
             },
           },
         },
-      );
+      }).response;
 
-      if (response && response.item) {
+      const responseData = await response.body.json();
+
+      if (responseData && responseData.item) {
         setInstitutionData((prevData) => ({
           ...prevData,
           email: contactEmail,
@@ -184,6 +190,7 @@ const Contact = () => {
     }
   };
 
+  // --- Updated: Handle form submit (Amplify v6) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { firstName, lastName, email, phoneNumber, message } = formData;
@@ -198,19 +205,21 @@ const Contact = () => {
       const apiName = "main";
       const path = `/any/${institutionData.institutionid}/create-query`;
 
-      const myInit = {
-        body: {
-          fullName: fullName,
-          emailId: email,
-          phoneNumber: phoneNumber,
-          message: message,
-          userType: "member",
-          adminEmail: email,
-          isPaymentRedirect: false,
+      await post({
+        apiName,
+        path,
+        options: {
+          body: {
+            fullName: fullName,
+            emailId: email,
+            phoneNumber: phoneNumber,
+            message: message,
+            userType: "member",
+            adminEmail: email,
+            isPaymentRedirect: false,
+          },
         },
-      };
-
-      await API.post(apiName, path, myInit);
+      }).response;
 
       setTimeout(() => {
         toast.success(
@@ -226,7 +235,7 @@ const Contact = () => {
         message: "",
       });
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to send message");
     } finally {
       setIsLoading(false);
     }

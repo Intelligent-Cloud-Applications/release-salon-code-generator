@@ -1,15 +1,23 @@
 import React, { useState, useContext, useRef } from "react";
 import { X, Plus, Trash2, Edit } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import Context from '../Context/Context';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { API, Storage } from "aws-amplify";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import Context from "../Context/Context";
+import { useLocation, useNavigate } from "react-router-dom";
+
+// --- Amplify v6 Imports ---
+import { patch } from "aws-amplify/api";
+import { uploadData, remove } from "aws-amplify/storage";
+import { Amplify } from "aws-amplify";
+const getConfig = Amplify.getConfig;
+// --------------------------
+
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Confirm from "./ui/Confirm";
 
 const Gallery = () => {
-  const { institutionData, userData, setLoader, setInstitutionData } = useContext(Context);
+  const { institutionData, userData, setLoader, setInstitutionData } =
+    useContext(Context);
   const galleryData = institutionData?.gallery || {};
   const allImages = galleryData?.images || [];
   const location = useLocation();
@@ -18,7 +26,9 @@ const Gallery = () => {
   const institutionId = institutionData?.institutionid;
   const fileInputRef = useRef(null);
 
-  const [showAll, setShowAll] = useState(location.state?.showAllImages || false);
+  const [showAll, setShowAll] = useState(
+    location.state?.showAllImages || false,
+  );
   const [selectedImage, setSelectedImage] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -29,7 +39,7 @@ const Gallery = () => {
   const [galleryDescription, setGalleryDescription] = useState("");
 
   const visibleImages = showAll ? allImages : allImages.slice(0, 6);
-  const isAdmin = userData?.userType === 'admin';
+  const isAdmin = userData?.userType === "admin";
 
   const closeModal = () => setSelectedImage(null);
 
@@ -45,16 +55,35 @@ const Gallery = () => {
     fileInputRef.current.click();
   };
 
-  // Upload image to S3 (adapted from Services)
+  // --- Updated: Upload image to S3 (Amplify v6) ---
   const uploadImageToS3 = async (file) => {
     if (!file) return null;
     try {
       const fileName = `gallery/${Date.now()}-${file.name}`;
-      const result = await Storage.put(fileName, file, {
-        level: 'public',
-        contentType: file.type,
-      });
-      return `https://${Storage._config.AWSS3.bucket}.s3.${Storage._config.AWSS3.region}.amazonaws.com/public/${result.key}`;
+
+      // 1. Upload the data
+      // Note: 'public' level in v5 maps to 'guest' accessLevel in v6
+      const result = await uploadData({
+        key: fileName,
+        data: file,
+        options: {
+          accessLevel: "guest",
+          contentType: file.type,
+        },
+      }).result;
+
+      // 2. Construct the Public URL manually
+      // We need to fetch the config to get the bucket and region
+      const config = getConfig();
+      const bucket = config.Storage?.S3?.bucket;
+      const region = config.Storage?.S3?.region;
+
+      if (!bucket || !region) {
+        throw new Error("S3 Configuration missing");
+      }
+
+      // 'guest' accessLevel uploads to the 'public/' prefix folder in S3
+      return `https://${bucket}.s3.${region}.amazonaws.com/public/${result.key}`;
     } catch (error) {
       console.error("Error uploading image to S3:", error);
       toast.error("Failed to upload image");
@@ -74,16 +103,23 @@ const Gallery = () => {
       const imageUrl = await uploadImageToS3(newImageFile);
       const updatedImages = [...allImages, imageUrl];
 
-      const response = await API.patch('main', `/admin/${institutionId}/update-ui`, {
-        body: {
-          data: { gallery: { images: updatedImages } }
-        }
-      });
+      // --- Updated: API Patch Request (Amplify v6) ---
+      const response = await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: {
+            data: { gallery: { images: updatedImages } },
+          },
+        },
+      }).response;
 
-      if (response && response.item) {
-        setInstitutionData(prevData => ({
+      const responseData = await response.body.json();
+
+      if (responseData && responseData.item) {
+        setInstitutionData((prevData) => ({
           ...prevData,
-          gallery: { images: updatedImages }
+          gallery: { images: updatedImages },
         }));
       }
       setIsAddModalOpen(false);
@@ -91,7 +127,7 @@ const Gallery = () => {
       toast.success("Image added successfully");
     } catch (error) {
       console.error("Error adding image:", error);
-      toast.error(`Failed to add image: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to add image: ${error.message || "Unknown error"}`);
     } finally {
       setLoader(false);
     }
@@ -106,24 +142,36 @@ const Gallery = () => {
       const imageUrl = allImages[imageToDelete];
       const updatedImages = allImages.filter((_, i) => i !== imageToDelete);
 
-      // Delete from S3
-      const imageKey = imageUrl.split('/').slice(-2).join('/');
+      // --- Updated: Delete from S3 (Amplify v6) ---
+      // Extract the key relative to the public folder
+      const imageKey = imageUrl.split("/").slice(-2).join("/");
+
       try {
-        await Storage.remove(imageKey, { level: 'public' });
+        await remove({
+          key: imageKey,
+          options: { accessLevel: "guest" },
+        });
       } catch (error) {
         console.error("Error deleting image from S3:", error);
       }
 
-      const response = await API.patch('main', `/admin/${institutionId}/update-ui`, {
-        body: {
-          data: { gallery: { images: updatedImages } }
-        }
-      });
+      // --- Updated: API Patch Request (Amplify v6) ---
+      const response = await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: {
+            data: { gallery: { images: updatedImages } },
+          },
+        },
+      }).response;
 
-      if (response && response.item) {
-        setInstitutionData(prevData => ({
+      const responseData = await response.body.json();
+
+      if (responseData && responseData.item) {
+        setInstitutionData((prevData) => ({
           ...prevData,
-          gallery: { images: updatedImages }
+          gallery: { images: updatedImages },
         }));
       }
       setIsDeleteModalOpen(false);
@@ -131,7 +179,9 @@ const Gallery = () => {
       toast.success("Image deleted successfully");
     } catch (error) {
       console.error("Error deleting image:", error);
-      toast.error(`Failed to delete image: ${error.message || 'Unknown error'}`);
+      toast.error(
+        `Failed to delete image: ${error.message || "Unknown error"}`,
+      );
     } finally {
       setLoader(false);
     }
@@ -148,27 +198,34 @@ const Gallery = () => {
   const handleTitleDescSave = async () => {
     try {
       setLoader(true);
-      
-      const response = await API.patch('main', `/admin/${institutionId}/update-ui`, {
-        body: {
-          data: {
-            gallery: {
-              ...institutionData?.gallery,
-              title: galleryTitle,
-              description: galleryDescription
-            }
-          }
-        }
-      });
 
-      if (response && response.item) {
-        setInstitutionData(prevData => ({
+      // --- Updated: API Patch Request (Amplify v6) ---
+      const response = await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: {
+            data: {
+              gallery: {
+                ...institutionData?.gallery,
+                title: galleryTitle,
+                description: galleryDescription,
+              },
+            },
+          },
+        },
+      }).response;
+
+      const responseData = await response.body.json();
+
+      if (responseData && responseData.item) {
+        setInstitutionData((prevData) => ({
           ...prevData,
           gallery: {
             ...prevData.gallery,
             title: galleryTitle,
-            description: galleryDescription
-          }
+            description: galleryDescription,
+          },
         }));
         toast.success("Gallery section updated successfully");
       }
@@ -182,38 +239,40 @@ const Gallery = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 pt-24 py-20 sm:px-6 lg:px-14">
+    <div className="container mx-auto px-4 py-20 pt-24 sm:px-6 lg:px-14">
       <ToastContainer position="top-right" autoClose={3000} />
-      
+
       {/* Modified heading section for center alignment */}
-      <motion.div 
-        className="flex flex-col items-center mb-8 relative group"
+      <motion.div
+        className="group relative mb-8 flex flex-col items-center"
         initial={{ opacity: 0, y: -50 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className={`text-3xl font-bold text-center text-gray-800 ${location.pathname === '/gallery' ? 'mt-4' : ''}`}>
-          {institutionData?.gallery?.title || 'Our Gallery'}
+        <h2
+          className={`text-center text-3xl font-bold text-gray-800 ${location.pathname === "/gallery" ? "mt-4" : ""}`}
+        >
+          {institutionData?.gallery?.title || "Our Gallery"}
         </h2>
-        <p className="text-center text-gray-500 mt-2">
-          {institutionData?.gallery?.description || 'A glimpse into our world'}
+        <p className="mt-2 text-center text-gray-500">
+          {institutionData?.gallery?.description || "A glimpse into our world"}
         </p>
-        
+
         {isAdmin && (
           <>
             <button
               onClick={openTitleDescModal}
-              className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-all duration-300 p-2 bg-white shadow-lg rounded-full hover:scale-110 mb-4"
+              className="absolute right-0 top-0 mb-4 rounded-full bg-white p-2 opacity-0 shadow-lg transition-all duration-300 hover:scale-110 group-hover:opacity-100"
               style={{ border: `2px solid ${primaryColor}` }}
             >
               <Edit size={16} style={{ color: primaryColor }} />
             </button>
-            
+
             {/* Repositioned button for responsive layout */}
-            <div className="w-full flex justify-center lg:justify-end">
+            <div className="flex w-full justify-center lg:justify-end">
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 text-white rounded-md shadow-md hover:opacity-90 transition-all"
+                className="flex items-center gap-2 rounded-md px-4 py-2 text-white shadow-md transition-all hover:opacity-90"
                 style={{ backgroundColor: primaryColor }}
               >
                 <Plus size={20} /> Add Image
@@ -223,16 +282,16 @@ const Gallery = () => {
         )}
       </motion.div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
         {visibleImages.map((image, index) => (
           <div
             key={index}
-            className="rounded-lg overflow-hidden transition-transform transform hover:scale-105 duration-300 shadow-lg relative"
+            className="relative transform overflow-hidden rounded-lg shadow-lg transition-transform duration-300 hover:scale-105"
           >
             <img
               src={image}
               alt=""
-              className="w-full h-52 object-cover rounded-md cursor-pointer"
+              className="h-52 w-full cursor-pointer rounded-md object-cover"
               onClick={() => setSelectedImage(image)}
             />
             {isAdmin && (
@@ -242,7 +301,7 @@ const Gallery = () => {
                   setImageToDelete(index);
                   setIsDeleteModalOpen(true);
                 }}
-                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white transition-colors hover:bg-red-600"
                 title="Delete Image"
               >
                 <Trash2 size={18} />
@@ -253,16 +312,16 @@ const Gallery = () => {
       </div>
 
       {allImages.length > 6 && !showAll && (
-        <div className="text-center mt-6">
+        <div className="mt-6 text-center">
           <button
             onClick={() => {
-              if (location.pathname === '/gallery') {
+              if (location.pathname === "/gallery") {
                 setShowAll(true);
               } else {
-                navigate('/gallery', { state: { showAllImages: true } });
+                navigate("/gallery", { state: { showAllImages: true } });
               }
             }}
-            className="text-white font-bold py-2 px-4 rounded-md shadow-md transition-all duration-300 transform hover:scale-110"
+            className="transform rounded-md px-4 py-2 font-bold text-white shadow-md transition-all duration-300 hover:scale-110"
             style={{ backgroundColor: primaryColor }}
           >
             View More
@@ -273,24 +332,24 @@ const Gallery = () => {
       {/* Add Image Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <motion.div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={() => setIsAddModalOpen(false)}
           >
-            <motion.div 
-              className="bg-white/95 backdrop-blur-md rounded-2xl p-8 w-full max-w-md shadow-2xl border border-white/20"
+            <motion.div
+              className="w-full max-w-md rounded-2xl border border-white/20 bg-white/95 p-8 shadow-2xl backdrop-blur-md"
               initial={{ scale: 0.8, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 50 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <motion.h2 
+              <div className="mb-6 flex items-center justify-between">
+                <motion.h2
                   className="text-2xl font-bold text-gray-800"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -300,7 +359,7 @@ const Gallery = () => {
                 </motion.h2>
                 <motion.button
                   onClick={() => setIsAddModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  className="rounded-full p-2 transition-colors hover:bg-gray-100"
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.2, type: "spring" }}
@@ -310,18 +369,18 @@ const Gallery = () => {
                   <X size={20} className="text-gray-500" />
                 </motion.button>
               </div>
-              
-              <motion.div 
+
+              <motion.div
                 className="space-y-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Gallery Image
                   </label>
-                  
+
                   {/* Hidden file input */}
                   <input
                     type="file"
@@ -330,26 +389,28 @@ const Gallery = () => {
                     onChange={handleFileSelection}
                     className="hidden"
                   />
-                  
+
                   {/* Modern file input */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-gray-400 transition-colors">
+                  <div className="rounded-xl border-2 border-dashed border-gray-300 p-6 text-center transition-colors hover:border-gray-400">
                     <button
                       type="button"
                       onClick={triggerFileInput}
                       className="w-full"
                     >
-                      <div className="mx-auto h-8 w-8 text-gray-400 mb-2">📁</div>
+                      <div className="mx-auto mb-2 h-8 w-8 text-gray-400">
+                        📁
+                      </div>
                       <p className="text-sm text-gray-600">
                         Click to upload or drag and drop
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="mt-1 text-xs text-gray-400">
                         PNG, JPG, JPEG up to 5MB
                       </p>
                     </button>
                   </div>
-                  
+
                   {newImageFile && (
-                    <motion.div 
+                    <motion.div
                       className="mt-4 text-center"
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -358,23 +419,25 @@ const Gallery = () => {
                       <img
                         src={URL.createObjectURL(newImageFile)}
                         alt="Preview"
-                        className="mx-auto w-32 h-32 object-cover rounded-xl shadow-lg"
+                        className="mx-auto h-32 w-32 rounded-xl object-cover shadow-lg"
                       />
-                      <p className="text-sm text-gray-600 mt-2 font-medium">{newImageFile.name}</p>
+                      <p className="mt-2 text-sm font-medium text-gray-600">
+                        {newImageFile.name}
+                      </p>
                     </motion.div>
                   )}
                 </div>
               </motion.div>
-              
-              <motion.div 
-                className="flex justify-end space-x-4 mt-8"
+
+              <motion.div
+                className="mt-8 flex justify-end space-x-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
                 <motion.button
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                  className="rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-600 transition-colors hover:bg-gray-200"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -382,14 +445,14 @@ const Gallery = () => {
                 </motion.button>
                 <motion.button
                   onClick={handleAddImage}
-                  className="px-6 py-3 text-white rounded-xl font-medium shadow-lg"
-                  style={{ 
+                  className="rounded-xl px-6 py-3 font-medium text-white shadow-lg"
+                  style={{
                     background: `linear-gradient(45deg, ${primaryColor}, ${primaryColor}dd)`,
-                    boxShadow: `0 4px 20px ${primaryColor}40`
+                    boxShadow: `0 4px 20px ${primaryColor}40`,
                   }}
-                  whileHover={{ 
+                  whileHover={{
                     scale: 1.02,
-                    boxShadow: `0 6px 25px ${primaryColor}50`
+                    boxShadow: `0 6px 25px ${primaryColor}50`,
                   }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -415,15 +478,15 @@ const Gallery = () => {
       <AnimatePresence>
         {selectedImage && (
           <motion.div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4 z-50"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={closeModal}
           >
-            <motion.div 
-              className="relative max-w-4xl w-full" 
+            <motion.div
+              className="relative w-full max-w-4xl"
               onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -431,7 +494,7 @@ const Gallery = () => {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
               <motion.button
-                className="absolute -top-12 right-0 bg-white/90 backdrop-blur-sm text-gray-800 p-3 rounded-full shadow-lg hover:bg-white transition-colors"
+                className="absolute -top-12 right-0 rounded-full bg-white/90 p-3 text-gray-800 shadow-lg backdrop-blur-sm transition-colors hover:bg-white"
                 onClick={closeModal}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -441,7 +504,7 @@ const Gallery = () => {
               <motion.img
                 src={selectedImage}
                 alt="Expanded view"
-                className="w-full h-auto rounded-2xl shadow-2xl"
+                className="h-auto w-full rounded-2xl shadow-2xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.1 }}
@@ -454,24 +517,24 @@ const Gallery = () => {
       {/* Title/Description Edit Modal */}
       <AnimatePresence>
         {isTitleDescModalOpen && (
-          <motion.div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={() => setIsTitleDescModalOpen(false)}
           >
-            <motion.div 
-              className="bg-white/95 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-white/20"
+            <motion.div
+              className="w-full max-w-lg rounded-2xl border border-white/20 bg-white/95 p-8 shadow-2xl backdrop-blur-md"
               initial={{ scale: 0.8, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 50 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <motion.h2 
+              <div className="mb-6 flex items-center justify-between">
+                <motion.h2
                   className="text-2xl font-bold text-gray-800"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -481,7 +544,7 @@ const Gallery = () => {
                 </motion.h2>
                 <motion.button
                   onClick={() => setIsTitleDescModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  className="rounded-full p-2 transition-colors hover:bg-gray-100"
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.2, type: "spring" }}
@@ -491,48 +554,48 @@ const Gallery = () => {
                   <X size={20} className="text-gray-500" />
                 </motion.button>
               </div>
-              
-              <motion.div 
+
+              <motion.div
                 className="space-y-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Title
                   </label>
                   <input
                     type="text"
                     value={galleryTitle}
                     onChange={(e) => setGalleryTitle(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors bg-white/80 backdrop-blur-sm"
+                    className="w-full rounded-xl border-2 border-gray-200 bg-white/80 p-4 backdrop-blur-sm transition-colors focus:border-blue-500 focus:outline-none"
                     placeholder="Enter gallery title"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Description
                   </label>
                   <textarea
                     value={galleryDescription}
                     onChange={(e) => setGalleryDescription(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors bg-white/80 backdrop-blur-sm resize-none"
+                    className="w-full resize-none rounded-xl border-2 border-gray-200 bg-white/80 p-4 backdrop-blur-sm transition-colors focus:border-blue-500 focus:outline-none"
                     rows="4"
                     placeholder="Enter gallery description"
                   />
                 </div>
               </motion.div>
-              
-              <motion.div 
-                className="flex justify-end space-x-4 mt-8"
+
+              <motion.div
+                className="mt-8 flex justify-end space-x-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
                 <motion.button
                   onClick={() => setIsTitleDescModalOpen(false)}
-                  className="px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                  className="rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-600 transition-colors hover:bg-gray-200"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -540,14 +603,14 @@ const Gallery = () => {
                 </motion.button>
                 <motion.button
                   onClick={handleTitleDescSave}
-                  className="px-6 py-3 text-white rounded-xl font-medium shadow-lg"
-                  style={{ 
+                  className="rounded-xl px-6 py-3 font-medium text-white shadow-lg"
+                  style={{
                     background: `linear-gradient(45deg, ${primaryColor}, ${primaryColor}dd)`,
-                    boxShadow: `0 4px 20px ${primaryColor}40`
+                    boxShadow: `0 4px 20px ${primaryColor}40`,
                   }}
-                  whileHover={{ 
+                  whileHover={{
                     scale: 1.02,
-                    boxShadow: `0 6px 25px ${primaryColor}50`
+                    boxShadow: `0 6px 25px ${primaryColor}50`,
                   }}
                   whileTap={{ scale: 0.98 }}
                 >
