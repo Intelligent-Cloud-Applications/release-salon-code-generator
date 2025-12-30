@@ -8,7 +8,11 @@ import {
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Context from "../Context/Context";
-import { API } from "aws-amplify";
+
+// --- Amplify v6 Import ---
+import { patch } from "aws-amplify/api";
+// -------------------------
+
 import { toast } from "react-toastify";
 import { Edit, X, Sparkles } from "lucide-react";
 import Loader from "./Loader";
@@ -126,6 +130,7 @@ const Hero = () => {
   const openTaglineModal = () => setIsTaglineModalOpen(true);
   const openSocialModal = () => setIsSocialModalOpen(true);
 
+  // --- Updated: Handle Tagline Save (Amplify v6) ---
   const handleTaglineSave = async () => {
     if (!tagLine1.trim() || !tagLine2.trim() || !productTagline.trim()) {
       toast.error("All tagline fields are required.");
@@ -135,20 +140,27 @@ const Hero = () => {
     try {
       setLoader(true);
       const updatedData = { tagLine1, tagLine2, productTagline };
-      await API.patch("main", `/admin/${institutionId}/update-ui`, {
-        body: { data: updatedData },
-      });
+
+      await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: { data: updatedData },
+        },
+      }).response;
 
       setInstitutionData((prev) => ({ ...prev, ...updatedData }));
       setIsTaglineModalOpen(false);
       toast.success("Taglines updated successfully.");
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error("Failed to update taglines.");
     } finally {
       setLoader(false);
     }
   };
 
+  // --- Updated: Handle Social Save (Amplify v6) ---
   const handleSocialSave = async () => {
     const updatedSocialLinks = [
       { platform: "facebook", url: socialLinks.facebook },
@@ -160,9 +172,14 @@ const Hero = () => {
     try {
       setLoader(true);
       const updatedData = { socialMediaLinks: updatedSocialLinks };
-      await API.patch("main", `/admin/${institutionId}/update-ui`, {
-        body: { data: updatedData },
-      });
+
+      await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: { data: updatedData },
+        },
+      }).response;
 
       setInstitutionData((prev) => ({
         ...prev,
@@ -170,7 +187,8 @@ const Hero = () => {
       }));
       setIsSocialModalOpen(false);
       toast.success("Social media links updated.");
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error("Failed to update social media links.");
     } finally {
       setLoader(false);
@@ -684,7 +702,7 @@ const Hero = () => {
                     placeholder="https://instagram.com/yourhandle"
                   />
                 </div>
-                 <div>
+                <div>
                   <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <FaYoutube className="text-red-500" />
                     Youtube URL

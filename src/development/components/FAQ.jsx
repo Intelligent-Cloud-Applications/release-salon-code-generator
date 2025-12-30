@@ -1,11 +1,13 @@
-import React, { useState, useContext } from 'react';
-import { ChevronDown, ChevronUp, Trash2, Edit, Plus, X } from 'lucide-react';
-import Context from '../Context/Context';
-import { API } from 'aws-amplify';
-import Confirm from './ui/Confirm';
+import React, { useState, useContext } from "react";
+import { ChevronDown, ChevronUp, Trash2, Edit, Plus, X } from "lucide-react";
+import Context from "../Context/Context";
+// CHANGE 1: Import specific function from 'aws-amplify/api'
+import { patch } from "aws-amplify/api";
+import Confirm from "./ui/Confirm";
 
 const FAQ = () => {
-  const { institutionData, userData, setLoader, setInstitutionData } = useContext(Context);
+  const { institutionData, userData, setLoader, setInstitutionData } =
+    useContext(Context);
   const faqData = institutionData?.faqData || [];
   const primaryColor = institutionData?.PrimaryColor || "#D4AF37";
   const institutionId = institutionData.institutionid;
@@ -14,10 +16,10 @@ const FAQ = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedFaq, setSelectedFaq] = useState(null);
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
 
-  const isAdmin = userData.userType === 'admin';
+  const isAdmin = userData.userType === "admin";
 
   const toggleAccordion = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -32,8 +34,8 @@ const FAQ = () => {
 
   const openCreateModal = () => {
     setSelectedFaq(null);
-    setQuestion('');
-    setAnswer('');
+    setQuestion("");
+    setAnswer("");
     setIsModalOpen(true);
   };
 
@@ -44,40 +46,49 @@ const FAQ = () => {
 
   const handleSave = async () => {
     if (!question.trim() || !answer.trim()) {
-      alert('Question and answer cannot be empty');
+      alert("Question and answer cannot be empty");
       return;
     }
 
     try {
       setLoader(true);
-      const updatedFaqData = selectedFaq 
-        ? faqData.map((faq, idx) => 
-            idx === selectedFaq.index ? { question, answer } : faq
+      const updatedFaqData = selectedFaq
+        ? faqData.map((faq, idx) =>
+            idx === selectedFaq.index ? { question, answer } : faq,
           )
         : [...faqData, { question, answer }];
 
-      const response = await API.patch('main', `/admin/${institutionId}/update-ui`, {
-        body: {
-          data: { faqData: updatedFaqData }
-        }
+      // CHANGE 2: Updated API call syntax for v6
+      // patch() returns an operation object. We await .response, then await .body.json()
+      const restOperation = patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: {
+            data: { faqData: updatedFaqData },
+          },
+        },
       });
 
+      const { body } = await restOperation.response;
+      const response = await body.json();
+
       if (response && response.item) {
-        setInstitutionData(prevData => ({
+        setInstitutionData((prevData) => ({
           ...prevData,
-          faqData: updatedFaqData
+          faqData: updatedFaqData,
         }));
       } else {
-        setInstitutionData(prevData => ({
+        setInstitutionData((prevData) => ({
           ...prevData,
-          faqData: updatedFaqData
+          faqData: updatedFaqData,
         }));
       }
 
       setIsModalOpen(false);
     } catch (error) {
-      console.error('Error saving FAQ:', error);
-      alert(`Failed to save FAQ: ${error.message || 'Unknown error'}`);
+      console.error("Error saving FAQ:", error);
+      alert(`Failed to save FAQ: ${error.message || "Unknown error"}`);
     } finally {
       setLoader(false);
     }
@@ -87,45 +98,53 @@ const FAQ = () => {
     try {
       setLoader(true);
       const updatedFaqData = faqData.filter((_, i) => i !== selectedFaq.index);
-      
-      const response = await API.patch('main', `/admin/${institutionId}/update-ui`, {
-        body: {
-          data: { faqData: updatedFaqData }
-        }
+
+      // CHANGE 3: Updated API call syntax for v6
+      const restOperation = patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: {
+            data: { faqData: updatedFaqData },
+          },
+        },
       });
 
+      const { body } = await restOperation.response;
+      const response = await body.json();
+
       if (response && response.item) {
-        setInstitutionData(prevData => ({
+        setInstitutionData((prevData) => ({
           ...prevData,
-          faqData: updatedFaqData
+          faqData: updatedFaqData,
         }));
       } else {
-        setInstitutionData(prevData => ({
+        setInstitutionData((prevData) => ({
           ...prevData,
-          faqData: updatedFaqData
+          faqData: updatedFaqData,
         }));
       }
 
       setIsDeleteModalOpen(false);
     } catch (error) {
-      console.error('Error deleting FAQ:', error);
-      alert(`Failed to delete FAQ: ${error.message || 'Unknown error'}`);
+      console.error("Error deleting FAQ:", error);
+      alert(`Failed to delete FAQ: ${error.message || "Unknown error"}`);
     } finally {
       setLoader(false);
     }
   };
 
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center sm:text-left text-black">
+    <div className="bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <h2 className="text-center text-2xl font-bold text-black sm:text-left sm:text-3xl">
             Frequently Asked Questions
           </h2>
           {isAdmin && (
             <button
               onClick={openCreateModal}
-              className="flex items-center justify-center gap-2 px-5 py-3 text-white rounded-lg shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-white shadow-md transition-all hover:shadow-lg sm:w-auto"
               style={{ backgroundColor: primaryColor }}
             >
               <Plus size={20} /> Add FAQ
@@ -135,38 +154,44 @@ const FAQ = () => {
 
         <div className="space-y-4">
           {faqData.length === 0 && (
-            <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-sm">
-              No FAQs available. {isAdmin && 'Click the "Add FAQ" button to create one.'}
+            <div className="rounded-lg bg-white py-12 text-center text-gray-500 shadow-sm">
+              No FAQs available.{" "}
+              {isAdmin && 'Click the "Add FAQ" button to create one.'}
             </div>
           )}
-          
+
           {faqData.map((faq, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg shadow-md transition-all duration-300 hover:shadow-lg overflow-hidden"
+              className="overflow-hidden rounded-lg bg-white shadow-md transition-all duration-300 hover:shadow-lg"
             >
               <div className="flex justify-between">
-                <div 
-                  className="flex-grow cursor-pointer" 
+                <div
+                  className="flex-grow cursor-pointer"
                   onClick={() => toggleAccordion(index)}
                 >
-                  <div className="w-full px-5 py-4 flex justify-between items-center gap-4">
+                  <div className="flex w-full items-center justify-between gap-4 px-5 py-4">
                     <h3
-                      className="text-lg font-medium text-left transition-colors duration-200"
-                      style={{ color: openIndex === index ? primaryColor : "#333" }}
+                      className="text-left text-lg font-medium transition-colors duration-200"
+                      style={{
+                        color: openIndex === index ? primaryColor : "#333",
+                      }}
                     >
                       {faq.question}
                     </h3>
                     <div className="flex-shrink-0">
                       {openIndex === index ? (
-                        <ChevronUp className="w-6 h-6" style={{ color: primaryColor }} />
+                        <ChevronUp
+                          className="h-6 w-6"
+                          style={{ color: primaryColor }}
+                        />
                       ) : (
-                        <ChevronDown className="w-6 h-6 text-gray-500" />
+                        <ChevronDown className="h-6 w-6 text-gray-500" />
                       )}
                     </div>
                   </div>
                 </div>
-                
+
                 {isAdmin && (
                   <div className="flex items-center pr-3">
                     <button
@@ -174,7 +199,7 @@ const FAQ = () => {
                         e.stopPropagation();
                         openEditModal(faq, index);
                       }}
-                      className="p-2 rounded-full text-blue-500 hover:bg-blue-50 transition-colors"
+                      className="rounded-full p-2 text-blue-500 transition-colors hover:bg-blue-50"
                       title="Edit FAQ"
                     >
                       <Edit size={18} />
@@ -184,7 +209,7 @@ const FAQ = () => {
                         e.stopPropagation();
                         openDeleteModal(index);
                       }}
-                      className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                      className="rounded-full p-2 text-red-500 transition-colors hover:bg-red-50"
                       title="Delete FAQ"
                     >
                       <Trash2 size={18} />
@@ -194,8 +219,8 @@ const FAQ = () => {
               </div>
 
               {openIndex === index && (
-                <div 
-                  className="px-5 pb-5 pt-1 text-gray-600 border-t leading-relaxed"
+                <div
+                  className="border-t px-5 pb-5 pt-1 leading-relaxed text-gray-600"
                   style={{ borderColor: `${primaryColor}30` }}
                 >
                   {faq.answer}
@@ -208,52 +233,65 @@ const FAQ = () => {
 
       {/* Create/Edit FAQ Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="flex justify-between items-center p-4 rounded-t-lg" style={{ backgroundColor: primaryColor }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div
+              className="flex items-center justify-between rounded-t-lg p-4"
+              style={{ backgroundColor: primaryColor }}
+            >
               <h2 className="text-lg font-semibold text-white">
-                {selectedFaq ? 'Edit FAQ' : 'Create FAQ'}
+                {selectedFaq ? "Edit FAQ" : "Create FAQ"}
               </h2>
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                className="text-white hover:text-gray-200 p-1 rounded-full hover:bg-black hover:bg-opacity-20"
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-full p-1 text-white hover:bg-black hover:bg-opacity-20 hover:text-gray-200"
               >
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 p-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Question</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Question
+                </label>
                 <input
                   type="text"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   placeholder="Enter your question"
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:outline-none text-base"
-                  style={{ borderColor: `${primaryColor}50`, boxShadow: `0 0 0 0 ${primaryColor}30` }}
+                  className="w-full rounded-lg border p-3 text-base focus:outline-none focus:ring-2"
+                  style={{
+                    borderColor: `${primaryColor}50`,
+                    boxShadow: `0 0 0 0 ${primaryColor}30`,
+                  }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Answer</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Answer
+                </label>
                 <textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   placeholder="Enter your answer"
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:outline-none text-base h-36"
-                  style={{ borderColor: `${primaryColor}50`, boxShadow: `0 0 0 0 ${primaryColor}30` }}
+                  className="h-36 w-full rounded-lg border p-3 text-base focus:outline-none focus:ring-2"
+                  style={{
+                    borderColor: `${primaryColor}50`,
+                    boxShadow: `0 0 0 0 ${primaryColor}30`,
+                  }}
                 />
               </div>
             </div>
-            <div className="p-4 border-t flex justify-end gap-3">
+            <div className="flex justify-end gap-3 border-t p-4">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                className="rounded-lg border border-gray-300 px-5 py-2 font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-5 py-2 text-white rounded-lg hover:opacity-90 font-medium shadow-sm"
+                className="rounded-lg px-5 py-2 font-medium text-white shadow-sm hover:opacity-90"
                 style={{ backgroundColor: primaryColor }}
                 disabled={!question.trim() || !answer.trim()}
               >
