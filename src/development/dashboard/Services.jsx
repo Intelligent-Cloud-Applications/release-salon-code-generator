@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useContext } from "react";
-import { API, Storage } from "aws-amplify";
+// --- Amplify v6 Imports ---
+import { put, del } from "aws-amplify/api";
+import { uploadData, remove } from "aws-amplify/storage";
+import { Amplify } from "aws-amplify";
+const getConfig = Amplify.getConfig;
+// --------------------------
 import { motion } from "framer-motion";
 import Context from "../Context/Context";
 import { useLocation } from "react-router-dom";
@@ -30,27 +35,22 @@ import {
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge"; // Import UI components used in invoice page UI if custom
+import { Badge } from "../components/ui/badge";
 import { set } from "date-fns";
 
 const ScissorsLoader = ({ text = "Loading..." }) => {
   return (
     <div className="flex h-80 flex-col items-center justify-center space-y-6">
       <div className="relative">
-        {/* Bigger Icon + Bounce */}
         <div className="animate-pulse">
           <Scissors className="h-24 w-24 animate-bounce text-stone-700" />
         </div>
-
-        {/* Bigger Ping Animations */}
         <div className="absolute -right-3 -top-3 h-6 w-6 animate-ping rounded-full bg-stone-400"></div>
         <div
           className="absolute -bottom-3 -left-3 h-5 w-5 animate-ping rounded-full bg-stone-500"
           style={{ animationDelay: "0.5s" }}
         ></div>
       </div>
-
-      {/* Text + Dots */}
       <div className="text-center">
         <p className="animate-pulse text-2xl font-semibold text-stone-800">
           {text}
@@ -126,7 +126,7 @@ const Service = () => {
     .map((catId) => ({
       id: catId,
       name: catId,
-      icon: categoryIcons[catId] || Scissors, // dynamically pick icon based on category name
+      icon: categoryIcons[catId] || Scissors,
     }))
     .sort((a, b) => {
       // Put "Best Seller" at the top
@@ -134,6 +134,7 @@ const Service = () => {
       if (b.name.toLowerCase() === "best seller") return 1;
       return a.name.localeCompare(b.name);
     });
+
   const [categoryQuery, setCategoryQuery] = useState(formData.category || "");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -158,10 +159,8 @@ const Service = () => {
   const filteredServices = services
     .filter((s) => s.category === selectedCategory)
     .sort((a, b) => Number(a?.amount || 0) - Number(b?.amount || 0));
-  console.log("selectedCategory:", selectedCategory);
 
-  console.log("Filtered Services:", filteredServices);
-  const isAdmin = "admin";
+  const isAdmin = "admin"; // In your original code you set this string, ensure this logic matches your real auth
 
   // Set "Best Seller" as default category when services are loaded
   useEffect(() => {
@@ -188,17 +187,7 @@ const Service = () => {
     }).format(amount);
   };
 
-  // const formatDuration = (epoch) => {
-  //   if (!epoch) return "00:00";
-
-  //   const date = new Date(epoch * 1000); // Convert to Date object
-  //   const hours = date.getHours().toString().padStart(2, "0");
-  //   const minutes = date.getMinutes().toString().padStart(2, "0");
-
-  //   return `${hours}:${minutes}`;
-  // };
-
-  // Cart helpers (simple example)
+  // Cart helpers
   const addToCart = (service) => {
     if (!cart.some((item) => item.serviceId === service.serviceId)) {
       setCart([...cart, service]);
@@ -207,13 +196,6 @@ const Service = () => {
   const getTotal = () =>
     cart.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
 
-  // Keeping the Service modal handlers etc. same as original for add/edit/delete services...
-  // -- handleInputChange, uploadImageToS3, containsHTML, checkDuplicateName, handleSubmit, handleUpdateSubmit, handleDelete, openEditModal, resetForm etc.
-  // For brevity, those functions remain the same from the service page code you shared, just integrated here.
-
-  // Copy the handlers from your service page code exactly here...
-
-  // Render UI: combine invoice category sidebar + services grid with modal etc. from Service page
   const containsHTML = (text) => {
     const htmlTagRegex = /<[a-zA-Z][^>]*>/;
     return htmlTagRegex.test(text);
@@ -246,15 +228,30 @@ const Service = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // --- Updated: Upload image to S3 (Amplify v6) ---
   const uploadImageToS3 = async (file) => {
     if (!file) return null;
     try {
       const fileName = `services/${Date.now()}-${file.name}`;
-      const result = await Storage.put(fileName, file, {
-        level: "public",
-        contentType: file.type,
-      });
-      return `https://${Storage._config.AWSS3.bucket}.s3.${Storage._config.AWSS3.region}.amazonaws.com/public/${result.key}`;
+
+      const result = await uploadData({
+        key: fileName,
+        data: file,
+        options: {
+          accessLevel: "guest", // 'guest' corresponds to 'public' in v5
+          contentType: file.type,
+        },
+      }).result;
+
+      // Construct Public URL
+      const config = getConfig();
+      const bucket = config.Storage?.S3?.bucket;
+      const region = config.Storage?.S3?.region;
+
+      if (bucket && region) {
+        return `https://${bucket}.s3.${region}.amazonaws.com/public/${result.key}`;
+      }
+      throw new Error("S3 Configuration missing");
     } catch (error) {
       console.error("Error uploading image to S3:", error);
       toast.error("Failed to upload image");
@@ -290,7 +287,10 @@ const Service = () => {
       toast.error("A service with this name already exists");
       return;
     }
-    if (formData.serviceDescription && containsHTML(formData.serviceDescription)) {
+    if (
+      formData.serviceDescription &&
+      containsHTML(formData.serviceDescription)
+    ) {
       toast.error("HTML tags are not allowed in the description");
       return;
     }
@@ -312,13 +312,9 @@ const Service = () => {
         currency: "INR",
       };
 
+      // Note: Assuming createService wraps the API.post call from Context.
+      // If it's a raw function, it should be updated in Context/Context.js as well.
       const response = await createService(serviceData);
-
-      // const response = await API.post(
-      //   "main",
-      //   `/admin/${institutionId}/create-services`,
-      //   { body: serviceData },
-      // );
 
       if (response.service) {
         toast.success("Service added successfully");
@@ -334,6 +330,7 @@ const Service = () => {
     }
   };
 
+  // --- Updated: Update Service (Amplify v6 API) ---
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     if (!isAdmin) {
@@ -375,7 +372,15 @@ const Service = () => {
             .split("/")
             .slice(-2)
             .join("/");
-          await Storage.remove(oldImageKey, { level: "public" });
+
+          try {
+            await remove({
+              key: oldImageKey,
+              options: { accessLevel: "guest" },
+            });
+          } catch (err) {
+            console.warn("Failed to remove old image", err);
+          }
         }
         imageUrl = await uploadImageToS3(formData.imageFile);
       }
@@ -391,14 +396,17 @@ const Service = () => {
       if (formData.currency) serviceData.currency = formData.currency;
       if (formData.category) serviceData.category = formData.category;
 
-      const response = await API.put(
-        "main",
-        `/admin/${institutionId}/services/${selectedService.serviceId}`,
-        {
+      const response = await put({
+        apiName: "main",
+        path: `/admin/${institutionId}/services/${selectedService.serviceId}`,
+        options: {
           body: serviceData,
         },
-      );
-      if (response.service) {
+      }).response;
+
+      const responseData = await response.body.json();
+
+      if (responseData.service) {
         toast.success("Service updated successfully");
         resetForm();
         setIsEditModalOpen(false);
@@ -412,6 +420,7 @@ const Service = () => {
     }
   };
 
+  // --- Updated: Delete Service (Amplify v6 API) ---
   const handleDelete = async (serviceId) => {
     if (!isAdmin) {
       toast.error("You must be an admin to delete services.");
@@ -423,9 +432,18 @@ const Service = () => {
       const service = services.find((s) => s.serviceId === serviceId);
       if (service.imageUrl) {
         const imageKey = service.imageUrl.split("/").slice(-2).join("/");
-        await Storage.remove(imageKey, { level: "public" });
+        try {
+          await remove({ key: imageKey, options: { accessLevel: "guest" } });
+        } catch (err) {
+          console.warn("Failed to remove image", err);
+        }
       }
-      await API.del("main", `/admin/${institutionId}/services/${serviceId}`);
+
+      await del({
+        apiName: "main",
+        path: `/admin/${institutionId}/services/${serviceId}`,
+      }).response;
+
       toast.success("Service deleted successfully");
       fetchServices();
     } catch (error) {
@@ -435,6 +453,7 @@ const Service = () => {
       setIsLoading(false);
     }
   };
+
   const openEditModal = (service) => {
     if (!isAdmin) {
       toast.error("You must be an admin to edit services.");
@@ -449,7 +468,7 @@ const Service = () => {
       serviceDescription: service.serviceDescription,
       imageUrl: service.imageUrl || "",
       imageFile: null,
-  currency: service.currency || institutionData?.currency || "INR",
+      currency: service.currency || institutionData?.currency || "INR",
     });
     setIsEditModalOpen(true);
   };
@@ -524,7 +543,6 @@ const Service = () => {
                 {isAdmin && (
                   <button
                     className="mx-auto mt-4 flex items-center gap-2 rounded-md bg-stone-700 px-4 py-2 text-white hover:opacity-90"
-                    // style={{ backgroundColor: primaryColor }}
                     onClick={() => setIsModalOpen(true)}
                   >
                     <Plus size={16} /> Add Service
@@ -683,7 +701,10 @@ const Service = () => {
                     value={categoryQuery}
                     onChange={(e) => {
                       setCategoryQuery(e.target.value);
-                      setFormData((prev) => ({ ...prev, category: e.target.value }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }));
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
@@ -768,7 +789,6 @@ const Service = () => {
                 <button
                   type="submit"
                   className="rounded-md bg-stone-600 px-4 py-2 text-white hover:opacity-90"
-                  // style={{ backgroundColor: primaryColor }}
                   disabled={isLoading}
                 >
                   {isLoading ? "Saving..." : "Add Service"}
@@ -849,7 +869,10 @@ const Service = () => {
                     }
                     onChange={(e) => {
                       setCategoryQuery(e.target.value);
-                      setFormData((prev) => ({ ...prev, category: e.target.value }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }));
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
@@ -942,7 +965,6 @@ const Service = () => {
                 <button
                   type="submit"
                   className="rounded-md bg-stone-600 px-4 py-2 text-white hover:opacity-90"
-                  // style={{ backgroundColor: primaryColor }}
                   disabled={isLoading}
                 >
                   {isLoading ? "Updating..." : "Update Service"}
