@@ -1,5 +1,10 @@
-import React, { useState, useEffect, useContext } from "react";
-import { API, Storage } from "aws-amplify";
+import React, { useState, useContext } from "react";
+// --- Amplify v6 Imports ---
+import { post, put, del, patch } from 'aws-amplify/api';
+import { uploadData, remove } from 'aws-amplify/storage';
+import { Amplify } from "aws-amplify";
+const getConfig = Amplify.getConfig;
+// --------------------------
 import { motion, AnimatePresence } from "framer-motion";
 import Context from "../Context/Context";
 import { useLocation } from "react-router-dom";
@@ -37,7 +42,7 @@ const Service = () => {
 
   const MAX_NAME_LENGTH = 30;
   const MAX_DESC_LENGTH = 150;
-  // in Service component, update useState for formData:
+
   const [formData, setFormData] = useState({
     serviceName: "",
     amount: "",
@@ -45,12 +50,11 @@ const Service = () => {
     serviceDescription: "",
     imageUrl: "",
     imageFile: null,
-    category: "", // <-- add this line
+    category: "",
     currency: institutionData?.currency || "INR",
   });
 
-  // Check if user is an admin (similar to FAQ component)
-  const isAdmin = userData.userType === "admin"; // Adjust based on your user object structure
+  const isAdmin = userData.userType === "admin";
   const categoryIcons = {
     "Best Seller": Star,
     Facial: Sparkles,
@@ -65,26 +69,6 @@ const Service = () => {
     "Waxing Services": Sparkles,
   };
 
-  // const fetchServices = async () => {
-  //   try {
-  //     const response = await API.get(
-  //       "main",
-  //       `/admin/${institutionId}/get-services`,
-  //     );
-  //     if (response.services) {
-  //       setServices(
-  //         response.services.map((service) => ({
-  //           ...service,
-  //           imageUrl: service.imageUrl || "",
-  //           currency: service.currency || institutionData?.currency || "USD",
-  //         })),
-  //       );
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching services:", error);
-  //   }
-  // };
-  // Extract unique categories safely (ignore null/undefined)
   const categories = [
     ...new Set(services.map((service) => service.category).filter(Boolean)),
   ];
@@ -92,22 +76,15 @@ const Service = () => {
   const [categoryQuery, setCategoryQuery] = useState(formData?.category ?? "");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Filter categories based on query
   const filteredCategories = categories.filter((cat) =>
     cat.toLowerCase().includes(categoryQuery.toLowerCase()),
   );
 
   const handleCategorySelect = (selectedName) => {
     setCategoryQuery(selectedName);
-    handleInputChange({ target: { name: "category", value: selectedName } }); // update formData
+    handleInputChange({ target: { name: "category", value: selectedName } });
     setShowSuggestions(false);
   };
-
-  // useEffect(() => {
-  //   if (institutionId) {
-  //     fetchServices();
-  //   }
-  // }, [institutionId]);
 
   const formatCurrency = (amount, currency) => {
     return new Intl.NumberFormat("en-US", {
@@ -117,15 +94,7 @@ const Service = () => {
     }).format(amount);
   };
 
-  const formatDuration = (epoch) => {
-  if (!epoch) return "00:00";
-
-  const date = new Date(epoch * 1000); // Convert to Date object
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-
-  return `${hours}:${minutes}`;
-};
+  // const formatDuration = (epoch) => { ... } // (Unused in visible code, kept if needed)
 
   const containsHTML = (text) => {
     const htmlTagRegex = /<[a-zA-Z][^>]*>/;
@@ -159,15 +128,30 @@ const Service = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // --- Updated: Upload image to S3 (Amplify v6) ---
   const uploadImageToS3 = async (file) => {
     if (!file) return null;
     try {
       const fileName = `services/${Date.now()}-${file.name}`;
-      const result = await Storage.put(fileName, file, {
-        level: "public",
-        contentType: file.type,
-      });
-      return `https://${Storage._config.AWSS3.bucket}.s3.${Storage._config.AWSS3.region}.amazonaws.com/public/${result.key}`;
+
+      const result = await uploadData({
+        key: fileName,
+        data: file,
+        options: {
+          accessLevel: "guest", // 'guest' replaces 'public'
+          contentType: file.type,
+        },
+      }).result;
+
+      // Construct Public URL
+      const config = getConfig();
+      const bucket = config.Storage?.S3?.bucket;
+      const region = config.Storage?.S3?.region;
+
+      if (bucket && region) {
+        return `https://${bucket}.s3.${region}.amazonaws.com/public/${result.key}`;
+      }
+      throw new Error("S3 Configuration missing");
     } catch (error) {
       console.error("Error uploading image to S3:", error);
       toast.error("Failed to upload image");
@@ -183,6 +167,7 @@ const Service = () => {
     );
   };
 
+  // --- Updated: Create Service (Amplify v6 API) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isAdmin) {
@@ -225,12 +210,15 @@ const Service = () => {
         currency: formData.currency,
       };
 
-      const response = await API.post(
-        "main",
-        `/admin/${institutionId}/create-services`,
-        { body: serviceData },
-      );
-      if (response.service) {
+      const response = await post({
+        apiName: "main",
+        path: `/admin/${institutionId}/create-services`,
+        options: { body: serviceData },
+      }).response;
+
+      const responseData = await response.body.json();
+
+      if (responseData.service) {
         toast.success("Service added successfully");
         resetForm();
         setIsModalOpen(false);
@@ -244,6 +232,7 @@ const Service = () => {
     }
   };
 
+  // --- Updated: Update Service (Amplify v6 API) ---
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     if (!isAdmin) {
@@ -285,7 +274,11 @@ const Service = () => {
             .split("/")
             .slice(-2)
             .join("/");
-          await Storage.remove(oldImageKey, { level: "public" });
+
+          // Delete old image
+          try {
+            await remove({ key: oldImageKey, options: { accessLevel: 'guest' } });
+          } catch (err) { console.warn("Old image delete failed", err) }
         }
         imageUrl = await uploadImageToS3(formData.imageFile);
       }
@@ -300,14 +293,16 @@ const Service = () => {
         serviceData.imageUrl = imageUrl || "";
       if (formData.currency) serviceData.currency = formData.currency;
       if (formData.category) serviceData.category = formData.category;
-      const response = await API.put(
-        "main",
-        `/admin/${institutionId}/services/${selectedService.serviceId}`,
-        {
-          body: serviceData,
-        },
-      );
-      if (response.service) {
+
+      const response = await put({
+        apiName: "main",
+        path: `/admin/${institutionId}/services/${selectedService.serviceId}`,
+        options: { body: serviceData },
+      }).response;
+
+      const responseData = await response.body.json();
+
+      if (responseData.service) {
         toast.success("Service updated successfully");
         resetForm();
         setIsEditModalOpen(false);
@@ -321,6 +316,7 @@ const Service = () => {
     }
   };
 
+  // --- Updated: Delete Service (Amplify v6 API) ---
   const handleDelete = async (serviceId) => {
     if (!isAdmin) {
       toast.error("You must be an admin to delete services.");
@@ -332,9 +328,16 @@ const Service = () => {
       const service = services.find((s) => s.serviceId === serviceId);
       if (service.imageUrl) {
         const imageKey = service.imageUrl.split("/").slice(-2).join("/");
-        await Storage.remove(imageKey, { level: "public" });
+        try {
+          await remove({ key: imageKey, options: { accessLevel: 'guest' } });
+        } catch (err) { console.warn("Image delete failed", err) }
       }
-      await API.del("main", `/admin/${institutionId}/services/${serviceId}`);
+
+      await del({
+        apiName: "main",
+        path: `/admin/${institutionId}/services/${serviceId}`
+      }).response;
+
       toast.success("Service deleted successfully");
       fetchServices();
     } catch (error) {
@@ -387,7 +390,7 @@ const Service = () => {
     setIsTitleDescModalOpen(true);
   };
 
-  // Handle title/description save
+  // --- Updated: Handle title/description save (Amplify v6 API) ---
   const handleTitleDescSave = async () => {
     if (!serviceTitle.trim() || !serviceDescription.trim()) {
       toast.error("Title and description are required");
@@ -401,9 +404,13 @@ const Service = () => {
         description: serviceDescription.trim(),
       };
 
-      await API.patch("main", `/admin/${institutionId}/update-ui`, {
-        body: { data: { serviceData: updatedServiceData } },
-      });
+      await patch({
+        apiName: "main",
+        path: `/admin/${institutionId}/update-ui`,
+        options: {
+          body: { data: { serviceData: updatedServiceData } },
+        },
+      }).response;
 
       setInstitutionData((prev) => ({
         ...prev,
@@ -439,7 +446,7 @@ const Service = () => {
           <p className="mx-auto max-w-3xl text-xl text-gray-600 mb-6">
             {institutionData?.serviceData?.description || "Elevate your style with our expertly crafted services. From precision cuts to transformative treatments, we're committed to bringing out your best look."}
           </p>
-          
+
           {isAdmin && (
             <>
               <button
@@ -449,7 +456,7 @@ const Service = () => {
               >
                 <Edit size={16} style={{ color: primaryColor }} />
               </button>
-              
+
               <button
                 className="mx-auto mt-4 flex items-center bg-stone-400 gap-2 rounded-md px-4 py-2 text-white hover:opacity-90"
                 onClick={() => setIsModalOpen(true)}
@@ -584,7 +591,7 @@ const Service = () => {
         {/* Add Service Modal */}
         <AnimatePresence>
           {isModalOpen && isAdmin && (
-            <motion.div 
+            <motion.div
               className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -592,7 +599,7 @@ const Service = () => {
               transition={{ duration: 0.3 }}
               onClick={() => setIsModalOpen(false)}
             >
-              <motion.div 
+              <motion.div
                 className="bg-white/95 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-white/20 max-h-[80vh] overflow-y-auto"
                 initial={{ scale: 0.8, opacity: 0, y: 50 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -601,7 +608,7 @@ const Service = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <motion.h2 
+                  <motion.h2
                     className="text-2xl font-bold text-gray-800"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -621,9 +628,9 @@ const Service = () => {
                     <X size={20} className="text-gray-500" />
                   </motion.button>
                 </div>
-                
-                <motion.form 
-                  onSubmit={handleSubmit} 
+
+                <motion.form
+                  onSubmit={handleSubmit}
                   className="space-y-6"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -676,24 +683,24 @@ const Service = () => {
                       required
                     />
 
-                  {/* Suggestions dropdown */}
-                  {showSuggestions && filteredCategories.length > 0 && (
-                    <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-md">
-                      {filteredCategories.map((cat) => (
-                        <li
-                          key={cat} // ✅ use string value as key
-                          className="cursor-pointer px-3 py-2 hover:bg-gray-100"
-                          onClick={() => {
-                            handleCategorySelect(cat); // ✅ pass the string itself
-                            setCategoryQuery(cat); // ✅ update input with selected category
-                            setShowSuggestions(false); // ✅ close dropdown
-                          }}
-                        >
-                          {cat}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                    {/* Suggestions dropdown */}
+                    {showSuggestions && filteredCategories.length > 0 && (
+                      <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-md">
+                        {filteredCategories.map((cat) => (
+                          <li
+                            key={cat}
+                            className="cursor-pointer px-3 py-2 hover:bg-gray-100"
+                            onClick={() => {
+                              handleCategorySelect(cat);
+                              setCategoryQuery(cat);
+                              setShowSuggestions(false);
+                            }}
+                          >
+                            {cat}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
 
                   <div>
@@ -749,8 +756,8 @@ const Service = () => {
                       </label>
                     </div>
                   </div>
-                  
-                  <motion.div 
+
+                  <motion.div
                     className="flex justify-end space-x-4 mt-8"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -768,11 +775,11 @@ const Service = () => {
                     <motion.button
                       type="submit"
                       className="px-6 py-3 text-white rounded-xl font-medium shadow-lg"
-                      style={{ 
+                      style={{
                         background: `linear-gradient(45deg, ${primaryColor}, ${primaryColor}dd)`,
                         boxShadow: `0 4px 20px ${primaryColor}40`
                       }}
-                      whileHover={{ 
+                      whileHover={{
                         scale: 1.02,
                         boxShadow: `0 6px 25px ${primaryColor}50`
                       }}
@@ -791,7 +798,7 @@ const Service = () => {
         {/* Edit Service Modal */}
         <AnimatePresence>
           {isEditModalOpen && isAdmin && (
-            <motion.div 
+            <motion.div
               className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -799,7 +806,7 @@ const Service = () => {
               transition={{ duration: 0.3 }}
               onClick={() => setIsEditModalOpen(false)}
             >
-              <motion.div 
+              <motion.div
                 className="bg-white/95 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-white/20 max-h-[80vh] overflow-y-auto"
                 initial={{ scale: 0.8, opacity: 0, y: 50 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -808,7 +815,7 @@ const Service = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <motion.h2 
+                  <motion.h2
                     className="text-2xl font-bold text-gray-800"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -828,9 +835,9 @@ const Service = () => {
                     <X size={20} className="text-gray-500" />
                   </motion.button>
                 </div>
-                
-                <motion.form 
-                  onSubmit={handleUpdateSubmit} 
+
+                <motion.form
+                  onSubmit={handleUpdateSubmit}
                   className="space-y-6"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -863,104 +870,103 @@ const Service = () => {
                       placeholder="0.00"
                     />
                   </div>
-                <div className="relative">
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Category *
-                  </label>
-                  <input
-                    type="text"
-                    name="category"
-                    value={
-                      categoryQuery !== ""
-                        ? categoryQuery
-                        : formData.category || ""
-                    }
-                    onChange={(e) => {
-                      setCategoryQuery(e.target.value);
-                      setShowSuggestions(true);
-                      // also update formData so when submitting it has correct value
-                      handleInputChange({
-                        target: { name: "category", value: e.target.value },
-                      });
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    className="w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2"
-                    style={{ "--focus-ring": primaryColor }}
-                    placeholder="Start typing to search category..."
-                    required
-                  />
-
-                  {/* Suggestions dropdown */}
-                  {showSuggestions && filteredCategories.length > 0 && (
-                    <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-md">
-                      {filteredCategories.map((cat) => (
-                        <li
-                          key={cat} // ✅ use string value as key
-                          className="cursor-pointer px-3 py-2 hover:bg-gray-100"
-                          onClick={() => {
-                            handleCategorySelect(cat); // ✅ use the string directly
-                            setCategoryQuery(cat); // ✅ update input value
-                            handleInputChange({
-                              target: { name: "category", value: cat },
-                            }); // ✅ update formData
-                            setShowSuggestions(false); // ✅ close dropdown after selection
-                          }}
-                        >
-                          {cat}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Duration
-                  </label>
-                  <input
-                    type="text"
-                    name="duration"
-                    value={formData.duration}
-                    onChange={handleInputChange}
-                    className="w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2"
-                    style={{ "--focus-ring": primaryColor }}
-                    placeholder="HH:MM (e.g., 00:30)"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    name="serviceDescription"
-                    value={formData.serviceDescription}
-                    onChange={handleInputChange}
-                    className="h-24 w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2"
-                    style={{ "--focus-ring": primaryColor }}
-                    placeholder="Describe the service..."
-                    maxLength={MAX_DESC_LENGTH}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Service Image
-                  </label>
-                  <input
-                    type="file"
-                    name="imageFile"
-                    accept="image/*"
-                    onChange={handleInputChange}
-                    className="w-full rounded-md border border-gray-300 p-2"
-                  />
-                  {formData.imageUrl && (
-                    <img
-                      src={formData.imageUrl}
-                      alt="Service Preview"
-                      className="mt-2 h-32 w-32 rounded-md object-cover"
+                  <div className="relative">
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Category *
+                    </label>
+                    <input
+                      type="text"
+                      name="category"
+                      value={
+                        categoryQuery !== ""
+                          ? categoryQuery
+                          : formData.category || ""
+                      }
+                      onChange={(e) => {
+                        setCategoryQuery(e.target.value);
+                        setShowSuggestions(true);
+                        handleInputChange({
+                          target: { name: "category", value: e.target.value },
+                        });
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      className="w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2"
+                      style={{ "--focus-ring": primaryColor }}
+                      placeholder="Start typing to search category..."
+                      required
                     />
-                  )}
-                </div>
-                  <motion.div 
+
+                    {/* Suggestions dropdown */}
+                    {showSuggestions && filteredCategories.length > 0 && (
+                      <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-md">
+                        {filteredCategories.map((cat) => (
+                          <li
+                            key={cat}
+                            className="cursor-pointer px-3 py-2 hover:bg-gray-100"
+                            onClick={() => {
+                              handleCategorySelect(cat);
+                              setCategoryQuery(cat);
+                              handleInputChange({
+                                target: { name: "category", value: cat },
+                              });
+                              setShowSuggestions(false);
+                            }}
+                          >
+                            {cat}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Duration
+                    </label>
+                    <input
+                      type="text"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleInputChange}
+                      className="w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2"
+                      style={{ "--focus-ring": primaryColor }}
+                      placeholder="HH:MM (e.g., 00:30)"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Description
+                    </label>
+                    <textarea
+                      name="serviceDescription"
+                      value={formData.serviceDescription}
+                      onChange={handleInputChange}
+                      className="h-24 w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2"
+                      style={{ "--focus-ring": primaryColor }}
+                      placeholder="Describe the service..."
+                      maxLength={MAX_DESC_LENGTH}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Service Image
+                    </label>
+                    <input
+                      type="file"
+                      name="imageFile"
+                      accept="image/*"
+                      onChange={handleInputChange}
+                      className="w-full rounded-md border border-gray-300 p-2"
+                    />
+                    {formData.imageUrl && (
+                      <img
+                        src={formData.imageUrl}
+                        alt="Service Preview"
+                        className="mt-2 h-32 w-32 rounded-md object-cover"
+                      />
+                    )}
+                  </div>
+                  <motion.div
                     className="flex justify-end space-x-4 mt-8"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -978,11 +984,11 @@ const Service = () => {
                     <motion.button
                       type="submit"
                       className="px-6 py-3 text-white rounded-xl font-medium shadow-lg"
-                      style={{ 
+                      style={{
                         background: `linear-gradient(45deg, ${primaryColor}, ${primaryColor}dd)`,
                         boxShadow: `0 4px 20px ${primaryColor}40`
                       }}
-                      whileHover={{ 
+                      whileHover={{
                         scale: 1.02,
                         boxShadow: `0 6px 25px ${primaryColor}50`
                       }}
@@ -1001,7 +1007,7 @@ const Service = () => {
         {/* Title/Description Edit Modal */}
         <AnimatePresence>
           {isTitleDescModalOpen && (
-            <motion.div 
+            <motion.div
               className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1009,7 +1015,7 @@ const Service = () => {
               transition={{ duration: 0.3 }}
               onClick={() => setIsTitleDescModalOpen(false)}
             >
-              <motion.div 
+              <motion.div
                 className="bg-white/95 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-white/20"
                 initial={{ scale: 0.8, opacity: 0, y: 50 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1018,7 +1024,7 @@ const Service = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <motion.h2 
+                  <motion.h2
                     className="text-2xl font-bold text-gray-800"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -1038,8 +1044,8 @@ const Service = () => {
                     <X size={20} className="text-gray-500" />
                   </motion.button>
                 </div>
-                
-                <motion.div 
+
+                <motion.div
                   className="space-y-6"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1070,8 +1076,8 @@ const Service = () => {
                     />
                   </div>
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   className="flex justify-end space-x-4 mt-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1088,11 +1094,11 @@ const Service = () => {
                   <motion.button
                     onClick={handleTitleDescSave}
                     className="px-6 py-3 text-white rounded-xl font-medium shadow-lg"
-                    style={{ 
+                    style={{
                       background: `linear-gradient(45deg, ${primaryColor}, ${primaryColor}dd)`,
                       boxShadow: `0 4px 20px ${primaryColor}40`
                     }}
-                    whileHover={{ 
+                    whileHover={{
                       scale: 1.02,
                       boxShadow: `0 6px 25px ${primaryColor}50`
                     }}

@@ -10,56 +10,73 @@ import ContextProvider from "./development/Context/ContextProvider";
 import "./index.css";
 import App from "./App";
 import institutionData from "./constants";
-// Fix: Access environment variable through import.meta.env
+
 console.log("ckck", import.meta.env.VITE_APP_STAGE);
 
-// Updated Amplify configuration for v6
+// --- Helpers for cleaner config ---
+const isProd = import.meta.env.VITE_APP_STAGE === "PROD";
+const isDevEnv = import.meta.env.NODE_ENV === 'development';
+
+// V6 Requirement: Redirects MUST be arrays
+const redirectSignIn = isDevEnv
+  ? ['http://localhost:3000/redirect']
+  : [institutionData.BETA_DOMAIN + '/redirect'];
+
+const redirectSignOut = isDevEnv
+  ? ['http://localhost:3000']
+  : [institutionData.BETA_DOMAIN];
+
+// --- Amplify v6 Configuration ---
 Amplify.configure({
   Auth: {
-    region: import.meta.env.VITE_APP_STAGE === "PROD" ? "us-east-1" : "us-east-2",
-    userPoolId:
-      import.meta.env.VITE_APP_STAGE === "PROD"
+    Cognito: {
+      region: isProd ? "us-east-1" : "us-east-2",
+      userPoolId: isProd
         ? import.meta.env.VITE_APP_PROD_USER_POOL_ID
         : import.meta.env.VITE_APP_DEV_USER_POOL_ID,
-    userPoolWebClientId:
-      import.meta.env.VITE_APP_STAGE === "PROD"
+      // CHANGE: 'userPoolWebClientId' renamed to 'userPoolClientId'
+      userPoolClientId: isProd
         ? import.meta.env.VITE_APP_PROD_CLIENT_ID
         : import.meta.env.VITE_APP_DEV_CLIENT_ID,
-    identityPoolId: import.meta.env.VITE_APP_STAGE === "PROD"
+      identityPoolId: isProd
         ? import.meta.env.VITE_APP_PROD_IDENTITY_POOL_ID
         : import.meta.env.VITE_APP_DEV_IDENTITY_POOL_ID,
-    // authenticationFlowType: "USER_PASSWORD_AUTH",
-    // OAuth settings for older versions
-    oauth: {
-      domain: import.meta.env.VITE_APP_AUTH_DOMAIN_BETA,
-      scope: ['openid', 'email', 'profile'],
-      redirectSignIn: import.meta.env.NODE_ENV === 'development' ?
-        'http://localhost:3000/redirect' : institutionData.BETA_DOMAIN + '/redirect',
-      redirectSignOut: import.meta.env.NODE_ENV === 'development' ?
-        'http://localhost:3000' : institutionData.BETA_DOMAIN,
-      responseType: 'code'
+
+      // CHANGE: OAuth moved inside 'loginWith'
+      loginWith: {
+        oauth: {
+          domain: import.meta.env.VITE_APP_AUTH_DOMAIN_BETA,
+          scopes: ['openid', 'email', 'profile'],
+          redirectSignIn: redirectSignIn,   // Must be Array
+          redirectSignOut: redirectSignOut, // Must be Array
+          responseType: 'code'
+        }
+      }
     }
   },
   Storage: {
-    AWSS3: {
+    // CHANGE: 'AWSS3' renamed to 'S3'
+    S3: {
       region: "us-east-1",
       bucket: "institution-utils",
     },
   },
   API: {
-    endpoints: [
-      {
-        name: 'main',
-        endpoint: import.meta.env.VITE_APP_STAGE === "PROD"
+    // CHANGE: 'endpoints' array replaced by 'REST' object
+    REST: {
+      main: { // The key 'main' is the API Name
+        endpoint: isProd
           ? import.meta.env.VITE_APP_PROD_API_ENDPOINT
           : import.meta.env.VITE_APP_DEV_API_ENDPOINT,
-        region: import.meta.env.VITE_APP_STAGE === "PROD" ? "us-east-1" : "us-east-2",
+        region: isProd ? "us-east-1" : "us-east-2",
       }
-    ]
+    }
   },
 });
-// Debugging API Configuration - Fix: Don't log the result of configure as it returns undefined
-console.log("Amplify Configuration:", Amplify);
+
+// Note: In v6, Amplify.configure doesn't return the config object,
+// so logging 'Amplify' shows the library instance, not the config JSON.
+console.log("Amplify Configured");
 
 const root = ReactDOMClient.createRoot(document.getElementById("root"));
 root.render(
