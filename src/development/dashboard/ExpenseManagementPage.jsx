@@ -68,6 +68,7 @@ const ExpenseManagementPage = () => {
 
   const [selectedVendorId, setSelectedVendorId] = useState("ALL");
   const [showAddOrder, setShowAddOrder] = useState(false);
+  const [isCreatingExpense, setIsCreatingExpense] = useState(false);
   const [newOrder, setNewOrder] = useState({
     title: "",
     quantity: "",
@@ -234,15 +235,15 @@ const ExpenseManagementPage = () => {
         "Order",
       category: "Inventory",
       amount:
-        Array.isArray(o.items) && o.items.length > 0
-          ? o.items.reduce((sum, item) => {
-              const qty = Number(item?.quantity ?? 1) || 1;
-              const price = Number(item?.price ?? 0) || 0;
-              return sum + qty * price;
-            }, 0)
-          : Number(o.totalAmount ?? o.amount ?? 0) > 0
-            ? Number(o.totalAmount ?? o.amount ?? 0)
-          : Number(o.price ?? 0) * Number(o.quantity ?? 1),
+        Number(o.totalAmount ?? o.amount ?? o.price ?? 0) > 0
+          ? Number(o.totalAmount ?? o.amount ?? o.price ?? 0)
+          : Array.isArray(o.items) && o.items.length > 0
+            ? o.items.reduce((sum, item) => {
+                const qty = Number(item?.quantity ?? 1) || 1;
+                const price = Number(item?.price ?? 0) || 0;
+                return sum + qty * price;
+              }, 0)
+            : Number(o.price ?? 0) * Number(o.quantity ?? 1),
       date: o.date || o.createdAt || "",
       vendor: (() => {
         const vId = o.vendorId || (selectedVendorId !== "ALL" ? selectedVendorId : undefined);
@@ -386,103 +387,109 @@ const ExpenseManagementPage = () => {
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!canSave) return;
+                setIsCreatingExpense(true);
 
-                const isNoVendor = dialogVendorId === NO_VENDOR_ID;
-                const quantity = Number(newOrder.quantity || 1);
-                const resolvedItems = isNoVendor
-                  ? []
-                  : orderItems
-                      .map((row) => {
-                        const product = (products || []).find(
-                          (p) => String(p.productId || p.id) === String(row.itemId),
-                        );
-                        const rowQty = Number(row.quantity || 1);
-                        if (!product || rowQty <= 0) return null;
-                        const rowPrice = Number(product.amount || 0);
-                        return {
-                          productId: product.productId || product.id,
-                          productName: product.productName,
-                          quantity: rowQty,
-                          price: rowPrice,
-                          amount: rowPrice * rowQty,
-                        };
-                      })
-                      .filter(Boolean);
+                try {
 
-                const itemTotal = resolvedItems.reduce(
-                  (sum, item) => sum + Number(item.amount || 0),
-                  0,
-                );
-                const generatedVendorTitle = resolvedItems.length > 1
-                  ? `${resolvedItems[0].productName} +${resolvedItems.length - 1} items`
-                  : resolvedItems[0]?.productName || "Order";
-                const title = String(newOrder.title || "").trim() || (isNoVendor ? "Order" : generatedVendorTitle);
-                const price = Number(newOrder.price || 0);
+                  const isNoVendor = dialogVendorId === NO_VENDOR_ID;
+                  const quantity = Number(newOrder.quantity || 1);
+                  const resolvedItems = isNoVendor
+                    ? []
+                    : orderItems
+                        .map((row) => {
+                          const product = (products || []).find(
+                            (p) => String(p.productId || p.id) === String(row.itemId),
+                          );
+                          const rowQty = Number(row.quantity || 1);
+                          if (!product || rowQty <= 0) return null;
+                          const rowPrice = Number(product.amount || 0);
+                          return {
+                            productId: product.productId || product.id,
+                            productName: product.productName,
+                            quantity: rowQty,
+                            price: rowPrice,
+                            amount: rowPrice * rowQty,
+                          };
+                        })
+                        .filter(Boolean);
 
-                const payload = {
-                  ...newOrder,
-                  title,
-                  product: title,
-                  price,
-                  amount: price,
-                  totalAmount: price,
-                  status: newOrder.status || "pending",
-                  paymentMethod:
-                    (newOrder.status || "pending") === "paid"
-                      ? newOrder.paymentMethod
-                      : "",
-                  quantity: isNoVendor ? quantity : 1,
-                  productId: isNoVendor ? null : resolvedItems[0]?.productId || null,
-                  items: resolvedItems,
-                  noVendor: isNoVendor,
-                };
-
-                await adminCreateOrder(dialogVendorId, payload, { skipRefresh: true });
-
-                if (!isNoVendor && resolvedItems.length > 0 && updateProduct && activeInstitutionId) {
-                  const latestProducts =
-                    (fetchProducts ? await fetchProducts(activeInstitutionId) : products) ||
-                    products ||
-                    [];
-                  const productById = new Map(
-                    latestProducts.map((p) => [String(p.productId || p.id), p]),
+                  const itemTotal = resolvedItems.reduce(
+                    (sum, item) => sum + Number(item.amount || 0),
+                    0,
                   );
+                  const generatedVendorTitle = resolvedItems.length > 1
+                    ? `${resolvedItems[0].productName} +${resolvedItems.length - 1} items`
+                    : resolvedItems[0]?.productName || "Order";
+                  const title = String(newOrder.title || "").trim() || (isNoVendor ? "Order" : generatedVendorTitle);
+                  const price = Number(newOrder.price || 0);
 
-                  const qtyByProduct = resolvedItems.reduce((acc, item) => {
-                    const key = String(item.productId);
-                    acc[key] = (acc[key] || 0) + Number(item.quantity || 0);
-                    return acc;
-                  }, {});
+                  const payload = {
+                    ...newOrder,
+                    title,
+                    product: title,
+                    price,
+                    amount: price,
+                    totalAmount: price,
+                    status: newOrder.status || "pending",
+                    paymentMethod:
+                      (newOrder.status || "pending") === "paid"
+                        ? newOrder.paymentMethod
+                        : "",
+                    quantity: isNoVendor ? quantity : 1,
+                    productId: isNoVendor ? null : resolvedItems[0]?.productId || null,
+                    items: resolvedItems,
+                    noVendor: isNoVendor,
+                  };
 
-                  for (const [productId, qtyToAdd] of Object.entries(qtyByProduct)) {
-                    const product = productById.get(String(productId));
-                    if (!product) continue;
+                  await adminCreateOrder(dialogVendorId, payload, { skipRefresh: true });
 
-                    const currentStock = Number(product.currentStock ?? 0) || 0;
-                    const minStock = Number(product.minStock || 0);
-                    const newStock = Math.max(0, currentStock + Number(qtyToAdd || 0));
-                    let status = "in_stock";
-                    if (newStock === 0) status = "out_of_stock";
-                    else if (newStock <= minStock) status = "low_stock";
+                  if (!isNoVendor && resolvedItems.length > 0 && updateProduct && activeInstitutionId) {
+                    const latestProducts =
+                      (fetchProducts ? await fetchProducts(activeInstitutionId) : products) ||
+                      products ||
+                      [];
+                    const productById = new Map(
+                      latestProducts.map((p) => [String(p.productId || p.id), p]),
+                    );
 
-                    const updated = await updateProduct(activeInstitutionId, product.productId || product.id, {
-                      currentStock: newStock,
-                      status,
-                    });
+                    const qtyByProduct = resolvedItems.reduce((acc, item) => {
+                      const key = String(item.productId);
+                      acc[key] = (acc[key] || 0) + Number(item.quantity || 0);
+                      return acc;
+                    }, {});
 
-                    productById.set(String(productId), {
-                      ...product,
-                      ...(updated || {}),
-                      currentStock: newStock,
-                      status,
-                    });
+                    for (const [productId, qtyToAdd] of Object.entries(qtyByProduct)) {
+                      const product = productById.get(String(productId));
+                      if (!product) continue;
+
+                      const currentStock = Number(product.currentStock ?? 0) || 0;
+                      const minStock = Number(product.minStock || 0);
+                      const newStock = Math.max(0, currentStock + Number(qtyToAdd || 0));
+                      let status = "in_stock";
+                      if (newStock === 0) status = "out_of_stock";
+                      else if (newStock <= minStock) status = "low_stock";
+
+                      const updated = await updateProduct(activeInstitutionId, product.productId || product.id, {
+                        currentStock: newStock,
+                        status,
+                      });
+
+                      productById.set(String(productId), {
+                        ...product,
+                        ...(updated || {}),
+                        currentStock: newStock,
+                        status,
+                      });
+                    }
                   }
+
+                  setShowAddOrder(false);
+                  resetDialog();
+
+                  await refreshAllOrders();
+                } finally {
+                  setIsCreatingExpense(false);
                 }
-
-                setShowAddOrder(false);
-                resetDialog();
-
-                await refreshAllOrders();
               }}
               className="space-y-6"
             >
@@ -698,9 +705,9 @@ const ExpenseManagementPage = () => {
                 <Button
                   type="submit"
                   className="bg-stone-600 text-white"
-                  disabled={loader || !canSave}
+                  disabled={loader || isCreatingExpense || !canSave}
                 >
-                  {loader ? "Adding..." : "Save"}
+                  {isCreatingExpense ? "Creating..." : "Save"}
                 </Button>
               </DialogFooter>
             </form>
