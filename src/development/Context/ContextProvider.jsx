@@ -226,7 +226,7 @@ const ContextProvider = (props) => {
     }
   };
 
-  const adminCreateOrder = async (vendorId, orderData) => {
+  const adminCreateOrder = async (vendorId, orderData, options = {}) => {
     setLoader(true);
     try {
       const response = await apiRequest(
@@ -241,7 +241,9 @@ const ContextProvider = (props) => {
         title: "Success!",
         description: "Order created successfully",
       });
-      await adminGetOrders(vendorId);
+      if (!options.skipRefresh) {
+        await adminGetOrders(vendorId);
+      }
       return response;
     } catch (error) {
       console.error("Error creating order:", error);
@@ -256,7 +258,7 @@ const ContextProvider = (props) => {
     }
   };
 
-  const adminUpdateOrder = async (vendorId, orderId, orderData) => {
+  const adminUpdateOrder = async (vendorId, orderId, orderData, options = {}) => {
     setLoader(true);
     try {
       const response = await apiRequest(
@@ -271,7 +273,9 @@ const ContextProvider = (props) => {
         title: "Success!",
         description: "Order updated successfully",
       });
-      await adminGetOrders(vendorId);
+      if (!options.skipRefresh) {
+        await adminGetOrders(vendorId);
+      }
       return response;
     } catch (error) {
       console.error("Error updating order:", error);
@@ -286,7 +290,7 @@ const ContextProvider = (props) => {
     }
   };
 
-  const adminDeleteOrder = async (vendorId, orderId) => {
+  const adminDeleteOrder = async (vendorId, orderId, options = {}) => {
     setLoader(true);
     try {
       const response = await apiRequest(
@@ -298,7 +302,9 @@ const ContextProvider = (props) => {
         title: "Success!",
         description: "Order deleted successfully",
       });
-      await adminGetOrders(vendorId);
+      if (!options.skipRefresh) {
+        await adminGetOrders(vendorId);
+      }
       return response;
     } catch (error) {
       console.error("Error deleting order:", error);
@@ -897,10 +903,21 @@ const ContextProvider = (props) => {
   // Product APIs
   const fetchProducts = async (instId) => {
     try {
+      const resolvedInstitutionId =
+        instId ||
+        institutionData?.institutionid ||
+        institutionData?.institutionId ||
+        institutionId;
+
+      if (!resolvedInstitutionId) {
+        setProducts([]);
+        return [];
+      }
+
       const response = await apiRequest(get, "/admin/products", {
         // CHANGE: queryParameters -> queryParams
         queryParams: {
-          institutionId: instId || "mirrorsalon",
+          institutionId: resolvedInstitutionId,
         },
       });
 
@@ -934,7 +951,9 @@ const ContextProvider = (props) => {
       });
       setProducts((prevProducts) =>
         prevProducts.map((product) =>
-          product.id === productId ? response.updatedItem : product,
+          String(product.productId || product.id) === String(productId)
+            ? response.updatedItem
+            : product,
         ),
       );
       return response.updatedItem;
@@ -951,7 +970,9 @@ const ContextProvider = (props) => {
         queryParams: { institutionId: instId },
       });
       setProducts((prevProducts) =>
-        prevProducts.filter((product) => product.id !== productId),
+        prevProducts.filter(
+          (product) => String(product.productId || product.id) !== String(productId),
+        ),
       );
       await fetchProducts(instId);
       return response;
