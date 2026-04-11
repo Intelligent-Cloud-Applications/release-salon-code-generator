@@ -49,7 +49,6 @@ import {
   TableRow,
 } from "../components/ui/table";
 import Context from "../Context/Context";
-import { set } from "date-fns";
 
 const InventoryPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,13 +65,18 @@ const InventoryPage = () => {
     vendors,
     adminGetVendors,
   } = useContext(Context);
+  const activeInstitutionId =
+    institutionData?.institutionid || institutionData?.institutionId;
+
   // Fetch products and vendors on mount
   useEffect(() => {
-    fetchProducts();
-    if (adminGetVendors) {
+    if (activeInstitutionId && (!Array.isArray(products) || products.length === 0)) {
+      fetchProducts(activeInstitutionId);
+    }
+    if (adminGetVendors && (!Array.isArray(vendors) || vendors.length === 0)) {
       adminGetVendors();
     }
-  }, []);
+  }, [activeInstitutionId, products, vendors, fetchProducts, adminGetVendors]);
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -124,7 +128,7 @@ const InventoryPage = () => {
 
     try {
       const payload = {
-        institutionId: institutionData.institutionid,
+        institutionId: activeInstitutionId,
         productName: formData.productName,
         category: formData.category,
         currentStock: Number(formData.currentStock),
@@ -135,8 +139,7 @@ const InventoryPage = () => {
         status: formData.status,
       };
 
-      const res = await createProduct(payload);
-      await fetchProducts(institutionData.institutionid);
+        const res = await createProduct(payload);
       console.log("Product Created:", res);
 
       // Product created successfully, refetch products if needed
@@ -183,7 +186,7 @@ const InventoryPage = () => {
       };
 
       const res = await updateProduct(
-        institutionData.institutionid,
+        activeInstitutionId,
         selectedProduct.productId,
         payload,
       );
@@ -204,10 +207,9 @@ const InventoryPage = () => {
     try {
       setLoading(true);
       await deleteProduct(
-        institutionData.institutionid,
+        activeInstitutionId,
         selectedProduct.productId,
       );
-      await fetchProducts();
       // Product deleted successfully
     } catch (err) {
       console.error("Delete Error:", err);

@@ -1,5 +1,5 @@
 
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useMemo } from "react";
 import Context from "../Context/Context";
 import { Truck, Plus, Search, Phone, MapPin, Star, Edit, Trash2, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -26,7 +26,6 @@ const VendorManagementPage = () => {
     adminCreateVendor,
     adminUpdateVendor,
     adminDeleteVendor,
-    adminGetOrdersRaw,
     loader
   } = useContext(Context);
 
@@ -62,16 +61,26 @@ const VendorManagementPage = () => {
     setNewVendor({ name: "", phone: "", product: "", address: "" });
   };
 
+  const visibleVendors = useMemo(
+    () =>
+      Array.isArray(vendors)
+        ? vendors.filter(
+            (v) => String(v.vendorId || v.id) !== "NO_VENDOR" && !!v?.name,
+          )
+        : [],
+    [vendors],
+  );
+
   // Derived data & helpers
-  const totalVendors = vendors ? vendors.length : 0;
-  const activeVendors = vendors ? vendors.filter((v) => v.status === "active").length : 0;
-  const totalSpent = vendors ? vendors.reduce((sum, v) => sum + (v.totalSpent || 0), 0) : 0;
-  const avgRating = vendors && vendors.length > 0
-    ? (vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length).toFixed(1)
+  const totalVendors = visibleVendors.length;
+  const activeVendors = visibleVendors.filter((v) => v.status === "active").length;
+  const totalSpent = visibleVendors.reduce((sum, v) => sum + (v.totalSpent || 0), 0);
+  const avgRating = visibleVendors.length > 0
+    ? (visibleVendors.reduce((sum, v) => sum + (v.rating || 0), 0) / visibleVendors.length).toFixed(1)
     : 0;
 
-  const filteredVendors = vendors
-    ? vendors.filter((v) => {
+  const filteredVendors = visibleVendors
+    ? visibleVendors.filter((v) => {
         const q = searchTerm.trim().toLowerCase();
         if (!q) return true;
         return [v.name, v.product, v.category, v.phone]
@@ -102,66 +111,42 @@ const VendorManagementPage = () => {
     await adminDeleteVendor(id);
   };
 
-  // Per-vendor order stats (count, total amount, and last order info)
-  const [vendorOrderStats, setVendorOrderStats] = useState({}); // { [vendorId]: { count, amount, lastDate, lastTitle } }
+  const vendorOrderStats = useMemo(() => {
+    const map = {};
+    for (const vendor of visibleVendors) {
+      const vId = String(vendor.vendorId || vendor.id || "");
+      if (!vId) continue;
 
-  useEffect(() => {
-    // When vendors load/update, fetch orders for each vendor to compute stats
-    if (!Array.isArray(vendors) || vendors.length === 0 || !adminGetOrdersRaw) {
-      setVendorOrderStats({});
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const entries = await Promise.all(
-          vendors.map(async (v) => {
-            const vId = v.id || v.vendorId;
-            if (!vId) return [null, { count: 0, amount: 0 }];
-            try {
-              const list = await adminGetOrdersRaw(vId);
-              const safeList = Array.isArray(list) ? list : [];
-              const count = safeList.length;
-              const amount = safeList.reduce((sum, o) => {
-                const qty = Number(o?.quantity ?? 1) || 1;
-                const price = Number(o?.price ?? 0) || 0;
-                return sum + qty * price;
-              }, 0);
-              // Determine last order by date (createdAt/date)
-              let lastDate = null;
-              let lastTitle = "";
-              for (const o of safeList) {
-                const d = new Date(o?.date || o?.createdAt || 0);
-                if (!isNaN(d)) {
-                  if (!lastDate || d > lastDate) {
-                    lastDate = d;
-                    lastTitle = o?.title || o?.product || o?.description || "Order";
-                  }
-                }
-              }
-              return [String(vId), { count, amount, lastDate: lastDate ? lastDate.toISOString() : null, lastTitle }];
-            } catch (e) {
-              return [String(vId), { count: 0, amount: 0, lastDate: null, lastTitle: "" }];
-            }
-          })
-        );
-        if (cancelled) return;
-        const map = {};
-        for (const [id, val] of entries) {
-          if (id) map[id] = val;
+      const safeList = Array.isArray(vendor.orders) ? vendor.orders : [];
+      const count = safeList.length;
+      const amount = safeList.reduce((sum, o) => {
+        const qty = Number(o?.quantity ?? 1) || 1;
+        const price = Number(o?.price ?? 0) || 0;
+        return sum + qty * price;
+      }, 0);
+
+      let lastDate = null;
+      let lastTitle = "";
+      for (const o of safeList) {
+        const d = new Date(o?.date || o?.createdAt || 0);
+        if (!isNaN(d) && (!lastDate || d > lastDate)) {
+          lastDate = d;
+          lastTitle = o?.title || o?.product || o?.description || "Order";
         }
-        setVendorOrderStats(map);
-      } catch (e) {
-        if (!cancelled) setVendorOrderStats({});
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [vendors, adminGetOrdersRaw]);
 
-  const totalSpentInr = Array.isArray(vendors)
-    ? vendors.reduce((sum, v) => sum + (vendorOrderStats[String(v.id || v.vendorId)]?.amount || 0), 0)
+      map[vId] = {
+        count,
+        amount,
+        lastDate: lastDate ? lastDate.toISOString() : null,
+        lastTitle,
+      };
+    }
+    return map;
+  }, [visibleVendors]);
+
+  const totalSpentInr = Array.isArray(visibleVendors)
+    ? visibleVendors.reduce((sum, v) => sum + (vendorOrderStats[String(v.vendorId || v.id)]?.amount || 0), 0)
     : 0;
 
   const formatDate = (value) => {
@@ -300,7 +285,7 @@ const VendorManagementPage = () => {
         </Card>
       </div>
 
-      
+
 
       {/* Search and Stats */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -359,11 +344,11 @@ const VendorManagementPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-stone-600">Total Orders</p>
-                    <p className="text-sm font-medium text-stone-800">{vendorOrderStats[String(vendor.id || vendor.vendorId)]?.count ?? 0}</p>
+                    <p className="text-sm font-medium text-stone-800">{vendorOrderStats[String(vendor.vendorId || vendor.id)]?.count ?? 0}</p>
                   </div>
                   <div>
                     <p className="text-sm text-stone-600">Total Spent</p>
-                    <p className="text-sm font-medium text-stone-800">{formatCurrency(vendorOrderStats[String(vendor.id || vendor.vendorId)]?.amount ?? 0)}</p>
+                    <p className="text-sm font-medium text-stone-800">{formatCurrency(vendorOrderStats[String(vendor.vendorId || vendor.id)]?.amount ?? 0)}</p>
                   </div>
                 </div>
               </div>
@@ -371,9 +356,9 @@ const VendorManagementPage = () => {
               {/* Last order (computed from orders) */}
               <div className="pt-3 border-t border-stone-100">
                 <div className="text-sm text-stone-600">
-                  Last order: {vendorOrderStats[String(vendor.id || vendor.vendorId)]?.lastTitle || "—"}
-                  {vendorOrderStats[String(vendor.id || vendor.vendorId)]?.lastDate ? (
-                    <span className="text-stone-500"> • {formatDate(vendorOrderStats[String(vendor.id || vendor.vendorId)]?.lastDate)}</span>
+                  Last order: {vendorOrderStats[String(vendor.vendorId || vendor.id)]?.lastTitle || "—"}
+                  {vendorOrderStats[String(vendor.vendorId || vendor.id)]?.lastDate ? (
+                    <span className="text-stone-500"> • {formatDate(vendorOrderStats[String(vendor.vendorId || vendor.id)]?.lastDate)}</span>
                   ) : null}
                 </div>
               </div>
@@ -429,7 +414,7 @@ const VendorManagementPage = () => {
                 totalOrders: editVendor.totalOrders || 0,
                 totalSpent: editVendor.totalSpent || 0,
               };
-              await handleEditVendor(editVendor.id || editVendor.vendorId, vendorData);
+              await handleEditVendor(editVendor.vendorId || editVendor.id, vendorData);
             }}
             className="space-y-6"
           >
@@ -468,7 +453,7 @@ const VendorManagementPage = () => {
                   variant="outline"
                   size="sm"
                   className="border-red-200 text-red-600 hover:bg-red-50"
-                  onClick={() => handleDeleteVendor(vendor.id || vendor.vendorId)}
+                  onClick={() => handleDeleteVendor(vendor.vendorId || vendor.id)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
