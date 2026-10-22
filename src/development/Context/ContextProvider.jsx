@@ -6,6 +6,7 @@ import Context from "./Context";
 import data from "../../operation/data.json";
 import defaultLandingData from "../../operation/landingData.json";
 import { useToast } from "@/development/hooks/use-toast.js";
+import { mergeWithInstitutionData } from "../components/context/SiteContext";
 
 const deepMerge = (target, source) => {
   if (!source || typeof source !== 'object') return target;
@@ -15,10 +16,10 @@ const deepMerge = (target, source) => {
   Object.keys(source).forEach((key) => {
     const sVal = source[key];
     const tVal = target[key];
-    if (sVal === undefined || sVal === null) return;
+    if (sVal === undefined) return;
 
     if (Array.isArray(sVal)) {
-      output[key] = sVal.length > 0 ? sVal : tVal;
+      output[key] = sVal;
     } else if (
       typeof sVal === 'object' &&
       sVal !== null &&
@@ -79,12 +80,13 @@ const ContextProvider = (props) => {
         get,
         `/any/get-institution-data/${institutionId}`,
       );
-      setInstitutionData(response);
-      if (response && response.landingPageData) {
-        setLandingPageData(deepMerge(defaultLandingData, response.landingPageData));
-      } else {
-        setLandingPageData(defaultLandingData);
-      }
+      setInstitutionData(response || {});
+      const merged = mergeWithInstitutionData(
+        defaultLandingData,
+        response,
+        response?.landingPageData || {}
+      );
+      setLandingPageData(merged);
       console.log("Institution data fetched successfully:", response);
     } catch (error) {
       console.error("Error fetching institution data:", error);
@@ -96,15 +98,81 @@ const ContextProvider = (props) => {
   const updateLandingPageData = async (newData) => {
     try {
       setLoader(true);
+
+      // Store EVERYTHING OUTSIDE the companyInfo map as top-level attributes
+      const topLevelData = {
+        landingPageData: newData,
+      };
+
+      // Top-level company name outside companyInfo
+      const name = newData?.navigation?.logo?.text || newData?.site?.name;
+      if (name) {
+        topLevelData.companyName = name;
+      }
+
+      // Top-level logo URL outside companyInfo
+      const logo = newData?.navigation?.logo?.image || newData?.site?.logoImage;
+      if (logo) {
+        topLevelData.logoUrl = logo;
+      }
+
+      // Top-level phone outside companyInfo
+      const phone =
+        newData?.contact?.locationCard?.phone ||
+        newData?.contact?.info?.phones?.[0] ||
+        newData?.footer?.contact?.phone;
+      if (phone) {
+        topLevelData.Query_PhoneNumber = phone;
+      }
+
+      // Top-level address outside companyInfo
+      const address =
+        newData?.contact?.locationCard?.address ||
+        newData?.contact?.info?.address ||
+        newData?.footer?.contact?.address;
+      if (address) {
+        topLevelData.Query_Address = address;
+      }
+
+      // Top-level email outside companyInfo
+      const email =
+        newData?.contact?.locationCard?.email ||
+        newData?.contact?.info?.email ||
+        newData?.footer?.contact?.email;
+      if (email) {
+        topLevelData.email = email;
+      }
+
+      // Top-level socialMediaLinks outside companyInfo
+      const socialLinks = newData?.footer?.columns?.social?.links;
+      if (Array.isArray(socialLinks) && socialLinks.length > 0) {
+        topLevelData.socialMediaLinks = socialLinks.map((s) => ({
+          platform: s.platform || 'facebook',
+          url: s.url || '',
+        }));
+      }
+
+      // Top-level theme primary/secondary colors outside companyInfo
+      if (newData?.theme?.primary) {
+        topLevelData.PrimaryColor = newData.theme.primary;
+      }
+      if (newData?.theme?.accent || newData?.theme?.gold) {
+        topLevelData.SecondaryColor = newData.theme.accent || newData.theme.gold;
+      }
+
       const response = await apiRequest(
         patch,
         `/admin/${institutionId}/update-ui`,
         {
-          body: { index: "0", data: { landingPageData: newData } },
+          body: { index: "0", data: topLevelData },
         },
       );
       setLandingPageData(newData);
-      setInstitutionData((prev) => ({ ...(prev || {}), landingPageData: newData }));
+      setInstitutionData((prev) => ({
+        ...(prev || {}),
+        ...topLevelData,
+        landingPageData: newData,
+      }));
       toast({
         variant: "default",
         title: "Website Updated!",
@@ -115,7 +183,10 @@ const ContextProvider = (props) => {
       console.error("Error updating landing page data:", error);
       // Still update locally so the user sees the changes in current session
       setLandingPageData(newData);
-      setInstitutionData((prev) => ({ ...(prev || {}), landingPageData: newData }));
+      setInstitutionData((prev) => ({
+        ...(prev || {}),
+        landingPageData: newData,
+      }));
       toast({
         variant: "destructive",
         title: "Database Notice",

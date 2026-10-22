@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Phone, Mail, ArrowRight, Plus, Trash2, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { MapPin, Phone, Mail, ArrowRight, Plus, Trash2, Link as LinkIcon, ExternalLink, Check } from 'lucide-react';
 import { gsap, prefersReducedMotion } from '../lib/gsapSetup';
 import { useSiteData } from '../context/SiteContext';
 
@@ -71,16 +71,34 @@ const SparkleIcon = ({ className = '', size = 16, color = '#C9A96E' }) => (
 
 /* ── Editable Link Column Subcomponent ── */
 const EditableLinkColumn = ({
+  columnId,
   title,
   onTitleChange,
   links,
   onLinksChange,
+  onRemoveColumn,
   defaultNewHref = '#',
   showEditControls,
   goldColor = '#D4A574',
 }) => {
   return (
-    <div>
+    <div className="relative group/col">
+      {showEditControls && onRemoveColumn && (
+        <div className="mb-2 flex items-center justify-between gap-1 pb-1 border-b border-white/10">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9B8A8]">
+            {title || columnId}
+          </span>
+          <button
+            type="button"
+            onClick={onRemoveColumn}
+            className="py-0.5 px-2 rounded bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+            title={`Remove ${title || 'this'} column from footer`}
+          >
+            <Trash2 size={11} className="text-rose-400" />
+            <span>Remove Column</span>
+          </button>
+        </div>
+      )}
       {showEditControls ? (
         <div className="mb-3">
           <label
@@ -237,52 +255,107 @@ const Footer = ({
     footerData.description ||
     'Where beauty meets expertise. We bring out the best in you with care, passion and perfection.';
 
+  // Hidden columns list (stored in footer.hiddenColumns array)
+  // Columns: 'brand', 'explore', 'services', 'quickLinks', 'contact'
+  const hiddenColumns = Array.isArray(footerData.hiddenColumns) ? footerData.hiddenColumns : [];
+
+  const isBrandVisible = !hiddenColumns.includes('brand') && footerColumns.brand?.enabled !== false;
+  const isExploreVisible = !hiddenColumns.includes('explore') && footerColumns.explore?.enabled !== false;
+  const isServicesVisible = !hiddenColumns.includes('services') && footerColumns.services?.enabled !== false;
+  const isQuickLinksVisible = !hiddenColumns.includes('quickLinks') && footerColumns.quickLinks?.enabled !== false;
+  const isContactVisible = !hiddenColumns.includes('contact') && footerColumns.contact?.enabled !== false;
+
+  const handleRemoveColumn = (columnId) => {
+    const currentHidden = Array.isArray(footerData.hiddenColumns) ? [...footerData.hiddenColumns] : [];
+    if (!currentHidden.includes(columnId)) {
+      currentHidden.push(columnId);
+    }
+    onUpdateField?.('footer.hiddenColumns', currentHidden);
+    onUpdateField?.(`footer.columns.${columnId}.enabled`, false);
+  };
+
+  const handleRestoreColumn = (columnId) => {
+    const currentHidden = (Array.isArray(footerData.hiddenColumns) ? footerData.hiddenColumns : []).filter(
+      (id) => id !== columnId
+    );
+    onUpdateField?.('footer.hiddenColumns', currentHidden);
+    onUpdateField?.(`footer.columns.${columnId}.enabled`, true);
+  };
+
+  const visibleCount = [
+    isBrandVisible,
+    isExploreVisible,
+    isServicesVisible,
+    isQuickLinksVisible,
+    isContactVisible,
+  ].filter(Boolean).length;
+
+  const getGridClasses = () => {
+    if (visibleCount >= 5) return 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5';
+    if (visibleCount === 4) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+    if (visibleCount === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    if (visibleCount === 2) return 'grid-cols-1 sm:grid-cols-2';
+    return 'grid-cols-1';
+  };
+
   // Column 2: Explore
-  const exploreTitle = footerColumns.explore?.title || 'Explore';
-  const exploreLinks = footerColumns.explore?.links || [
-    { label: 'Home', href: '#' },
-    { label: 'About Us', href: '#about' },
-    { label: 'Services', href: '#services' },
-    { label: 'Gallery', href: '#gallery' },
-    { label: 'Our Experts', href: '#experts' },
-    { label: 'Testimonials', href: '#testimonials' },
-    { label: 'Blog', href: '#blog' },
-    { label: 'Contact Us', href: '#contact' },
-  ];
+  const exploreCol = footerColumns.explore || {};
+  const exploreTitle = exploreCol.title || 'Explore';
+  const exploreLinks = Array.isArray(exploreCol.links)
+    ? exploreCol.links
+    : [
+        { label: 'Home', href: '#' },
+        { label: 'About Us', href: '#about' },
+        { label: 'Services', href: '#services' },
+        { label: 'Gallery', href: '#gallery' },
+        { label: 'Our Experts', href: '#experts' },
+        { label: 'Testimonials', href: '#testimonials' },
+        { label: 'Blog', href: '#blog' },
+        { label: 'Contact Us', href: '#contact' },
+      ];
 
   // Column 3: Our Services
-  const servicesTitle = footerColumns.services?.title || 'Our Services';
-  const servicesLinks = footerColumns.services?.links || [
-    { label: 'Hair Care', href: '#services' },
-    { label: 'Skin Care', href: '#services' },
-    { label: 'Makeup Studio', href: '#services' },
-    { label: 'Nail Bar', href: '#services' },
-    { label: 'Bridal Services', href: '#services' },
-    { label: 'Spa & Relaxation', href: '#services' },
-    { label: 'Packages & Offers', href: '#services' },
-  ];
+  const servicesCol = footerColumns.services || {};
+  const servicesTitle = servicesCol.title || 'Our Services';
+  const servicesLinks = Array.isArray(servicesCol.links)
+    ? servicesCol.links
+    : [
+        { label: 'Hair Care', href: '#services' },
+        { label: 'Skin Care', href: '#services' },
+        { label: 'Makeup Studio', href: '#services' },
+        { label: 'Nail Bar', href: '#services' },
+        { label: 'Bridal Services', href: '#services' },
+        { label: 'Spa & Relaxation', href: '#services' },
+        { label: 'Packages & Offers', href: '#services' },
+      ];
 
   // Column 4: Quick Links
-  const quickLinksTitle = footerColumns.quickLinks?.title || 'Quick Links';
-  const quickLinks = footerColumns.quickLinks?.links || [
-    { label: 'Book Appointment', href: '#home' },
-    { label: 'Gift Cards', href: '#contact' },
-    { label: 'Membership', href: '#services' },
-    { label: 'FAQs', href: '#faq' },
-    { label: 'Cancellation Policy', href: '#faq' },
-    { label: 'Privacy Policy', href: '#' },
-    { label: 'Terms & Conditions', href: '#' },
-  ];
+  const quickLinksCol = footerColumns.quickLinks || {};
+  const quickLinksTitle = quickLinksCol.title || 'Quick Links';
+  const quickLinks = Array.isArray(quickLinksCol.links)
+    ? quickLinksCol.links
+    : [
+        { label: 'Book Appointment', href: '#home' },
+        { label: 'Gift Cards', href: '#contact' },
+        { label: 'Membership', href: '#services' },
+        { label: 'FAQs', href: '#faq' },
+        { label: 'Cancellation Policy', href: '#faq' },
+        { label: 'Privacy Policy', href: '#' },
+        { label: 'Terms & Conditions', href: '#' },
+      ];
 
   // Column 5: Get In Touch & Follow Us
-  const contactTitle = footerColumns.contact?.title || 'Get In Touch';
+  const contactCol = footerColumns.contact || {};
+  const contactTitle = contactCol.title || 'Get In Touch';
   const socialTitle = footerColumns.social?.title || 'Follow Us';
-  const socialLinks = footerColumns.social?.links || [
-    { platform: 'facebook', label: 'Facebook', url: 'https://facebook.com' },
-    { platform: 'instagram', label: 'Instagram', url: 'https://instagram.com' },
-    { platform: 'pinterest', label: 'Pinterest', url: 'https://pinterest.com' },
-    { platform: 'youtube', label: 'YouTube', url: 'https://youtube.com' },
-  ];
+  const socialLinks = Array.isArray(footerColumns.social?.links)
+    ? footerColumns.social.links
+    : [
+        { platform: 'facebook', label: 'Facebook', url: 'https://facebook.com' },
+        { platform: 'instagram', label: 'Instagram', url: 'https://instagram.com' },
+        { platform: 'pinterest', label: 'Pinterest', url: 'https://pinterest.com' },
+        { platform: 'youtube', label: 'YouTube', url: 'https://youtube.com' },
+      ];
 
   const footerAddress =
     footerData.contact?.address ||
@@ -353,201 +426,298 @@ const Footer = ({
         {/* Inline Footer Theme & Palette Tuning Bar (in Edit Mode) */}
         {showEditControls && (
           <div
-            className="mb-8 p-3.5 sm:p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border shadow-xl backdrop-blur-md"
+            className="mb-8 p-4 rounded-2xl flex flex-col gap-4 border shadow-xl backdrop-blur-md"
             style={{
               backgroundColor: `${darkBg}F2`,
               borderColor: `${goldColor}55`,
             }}
           >
-            <div className="flex items-center gap-2.5">
-              <span
-                className="w-3 h-3 rounded-full animate-pulse"
-                style={{ backgroundColor: goldColor }}
-              />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#F6EFE5]">
-                Footer Color Customizer
-              </span>
+            {/* Top row: Color Pickers */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="w-3 h-3 rounded-full animate-pulse"
+                  style={{ backgroundColor: goldColor }}
+                />
+                <span className="text-xs font-bold uppercase tracking-wider text-[#F6EFE5]">
+                  Footer Theme & Columns Manager
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <label className="flex items-center gap-2 text-xs text-[#EFE6D5] font-semibold cursor-pointer">
+                  <span>Background:</span>
+                  <input
+                    type="color"
+                    value={darkBg}
+                    onChange={(e) => onUpdateField?.('theme.darkBg', e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-0"
+                  />
+                  <span className="font-mono text-[11px]" style={{ color: goldColor }}>
+                    {darkBg}
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-[#EFE6D5] font-semibold cursor-pointer">
+                  <span>Gold Accent:</span>
+                  <input
+                    type="color"
+                    value={goldColor}
+                    onChange={(e) => onUpdateField?.('theme.gold', e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-0"
+                  />
+                  <span className="font-mono text-[11px]" style={{ color: goldColor }}>
+                    {goldColor}
+                  </span>
+                </label>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-              <label className="flex items-center gap-2 text-xs text-[#EFE6D5] font-semibold cursor-pointer">
-                <span>Footer Background:</span>
-                <input
-                  type="color"
-                  value={darkBg}
-                  onChange={(e) => onUpdateField?.('theme.darkBg', e.target.value)}
-                  className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0"
-                />
-                <span className="font-mono text-[11px]" style={{ color: goldColor }}>
-                  {darkBg}
-                </span>
-              </label>
+            {/* Bottom row: Columns Toggle & Restore */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-[#C9B8A8]">
+                Active Columns ({visibleCount}/5):
+              </span>
 
-              <label className="flex items-center gap-2 text-xs text-[#EFE6D5] font-semibold cursor-pointer">
-                <span>Gold Accent:</span>
-                <input
-                  type="color"
-                  value={goldColor}
-                  onChange={(e) => onUpdateField?.('theme.gold', e.target.value)}
-                  className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0"
-                />
-                <span className="font-mono text-[11px]" style={{ color: goldColor }}>
-                  {goldColor}
-                </span>
-              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'brand', label: 'Brand Info', visible: isBrandVisible },
+                  { id: 'explore', label: 'Explore', visible: isExploreVisible },
+                  { id: 'services', label: 'Our Services', visible: isServicesVisible },
+                  { id: 'quickLinks', label: 'Quick Links', visible: isQuickLinksVisible },
+                  { id: 'contact', label: 'Get In Touch', visible: isContactVisible },
+                ].map((col) => (
+                  <button
+                    key={col.id}
+                    type="button"
+                    onClick={() => {
+                      if (col.visible) {
+                        handleRemoveColumn(col.id);
+                      } else {
+                        handleRestoreColumn(col.id);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold tracking-wider uppercase transition-all flex items-center gap-1.5 border cursor-pointer ${
+                      col.visible
+                        ? 'bg-[#D4A574]/20 border-[#D4A574] text-[#F6EFE5]'
+                        : 'bg-white/5 border-dashed border-white/20 text-[#A0938A] hover:border-white/40'
+                    }`}
+                    title={col.visible ? `Click to remove ${col.label}` : `Click to restore ${col.label}`}
+                  >
+                    {col.visible ? (
+                      <>
+                        <Check size={11} className="text-[#D4A574]" />
+                        <span>{col.label}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={11} className="text-[#D4A574]" />
+                        <span>+ Restore {col.label}</span>
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── 5-column grid ── */}
-        <div className="ft-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-6">
+        {/* ── Dynamic Columns Grid ── */}
+        <div className={`ft-grid grid ${getGridClasses()} gap-8 lg:gap-6`}>
 
           {/* ──── Column 1: Logo & tagline ──── */}
-          <div className="col-span-2 sm:col-span-1 lg:col-span-1">
-            <div className="relative inline-block">
-              <SparkleIcon className="absolute -top-2 -right-1" size={10} color={goldColor} />
-              <LeafIcon color={goldColor} />
-            </div>
+          {isBrandVisible && (
+            <div className="col-span-2 sm:col-span-1 lg:col-span-1 relative group/col">
+              {showEditControls && (
+                <div className="mb-2 flex items-center justify-between gap-1 pb-1 border-b border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9B8A8]">
+                    Brand Info
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveColumn('brand')}
+                    className="py-0.5 px-2 rounded bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+                    title="Remove Brand Info column from footer"
+                  >
+                    <Trash2 size={11} className="text-rose-400" />
+                    <span>Remove Column</span>
+                  </button>
+                </div>
+              )}
+              <div className="relative inline-block">
+                <SparkleIcon className="absolute -top-2 -right-1" size={10} color={goldColor} />
+                <LeafIcon color={goldColor} />
+              </div>
 
-            {/* Logo Title */}
-            {showEditControls ? (
-              <div className="mt-2">
-                <label
-                  className="text-[10px] tracking-wider uppercase block mb-0.5 font-medium"
-                  style={{ color: `${goldColor}CC` }}
-                >
-                  Brand Title
-                </label>
-                <input
-                  type="text"
-                  value={logoTitle}
-                  onChange={(e) => onUpdateField?.('footer.logoTitle', e.target.value)}
-                  className="bg-white/10 hover:bg-white/15 focus:bg-white/20 border-b-2 px-1 text-xl font-bold uppercase tracking-widest text-[#F6EFE5] focus:outline-none w-full rounded-t"
+              {/* Logo Title */}
+              {showEditControls ? (
+                <div className="mt-2">
+                  <label
+                    className="text-[10px] tracking-wider uppercase block mb-0.5 font-medium"
+                    style={{ color: `${goldColor}CC` }}
+                  >
+                    Brand Title
+                  </label>
+                  <input
+                    type="text"
+                    value={logoTitle}
+                    onChange={(e) => onUpdateField?.('footer.logoTitle', e.target.value)}
+                    className="bg-white/10 hover:bg-white/15 focus:bg-white/20 border-b-2 px-1 text-xl font-bold uppercase tracking-widest text-[#F6EFE5] focus:outline-none w-full rounded-t"
+                    style={{
+                      fontFamily: "'Playfair Display', Didot, serif",
+                      borderColor: goldColor,
+                    }}
+                  />
+                </div>
+              ) : (
+                <h3
+                  className="mt-2 select-none"
                   style={{
                     fontFamily: "'Playfair Display', Didot, serif",
-                    borderColor: goldColor,
+                    fontWeight: 700,
+                    fontSize: '1.6rem',
+                    lineHeight: 1.1,
+                    color: '#F6EFE5',
+                    letterSpacing: '0.08em',
                   }}
-                />
-              </div>
-            ) : (
-              <h3
-                className="mt-2 select-none"
-                style={{
-                  fontFamily: "'Playfair Display', Didot, serif",
-                  fontWeight: 700,
-                  fontSize: '1.6rem',
-                  lineHeight: 1.1,
-                  color: '#F6EFE5',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                {logoTitle}
-              </h3>
-            )}
-
-            {/* Logo Subtitle */}
-            {showEditControls ? (
-              <div className="mt-2">
-                <label
-                  className="text-[10px] tracking-wider uppercase block mb-0.5 font-medium"
-                  style={{ color: `${goldColor}CC` }}
                 >
-                  Script Subtitle
-                </label>
-                <input
-                  type="text"
-                  value={logoSubtitle}
-                  onChange={(e) => onUpdateField?.('footer.logoSubtitle', e.target.value)}
-                  className="bg-white/10 hover:bg-white/15 focus:bg-white/20 border-b-2 px-1 text-2xl focus:outline-none w-full rounded-t"
+                  {logoTitle}
+                </h3>
+              )}
+
+              {/* Logo Subtitle */}
+              {showEditControls ? (
+                <div className="mt-2">
+                  <label
+                    className="text-[10px] tracking-wider uppercase block mb-0.5 font-medium"
+                    style={{ color: `${goldColor}CC` }}
+                  >
+                    Script Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    value={logoSubtitle}
+                    onChange={(e) => onUpdateField?.('footer.logoSubtitle', e.target.value)}
+                    className="bg-white/10 hover:bg-white/15 focus:bg-white/20 border-b-2 px-1 text-2xl focus:outline-none w-full rounded-t"
+                    style={{
+                      fontFamily: "'Alex Brush', 'Great Vibes', cursive",
+                      borderColor: goldColor,
+                      color: goldColor,
+                    }}
+                  />
+                </div>
+              ) : (
+                <p
+                  className="select-none"
                   style={{
                     fontFamily: "'Alex Brush', 'Great Vibes', cursive",
-                    borderColor: goldColor,
+                    fontSize: '1.8rem',
                     color: goldColor,
+                    lineHeight: 1,
+                    marginTop: '-2px',
                   }}
-                />
-              </div>
-            ) : (
-              <p
-                className="select-none"
-                style={{
-                  fontFamily: "'Alex Brush', 'Great Vibes', cursive",
-                  fontSize: '1.8rem',
-                  color: goldColor,
-                  lineHeight: 1,
-                  marginTop: '-2px',
-                }}
-              >
-                {logoSubtitle}
-              </p>
-            )}
-
-            {/* Tagline / Description */}
-            {showEditControls ? (
-              <div className="mt-3">
-                <label
-                  className="text-[10px] tracking-wider uppercase block mb-0.5 font-medium"
-                  style={{ color: `${goldColor}CC` }}
                 >
-                  Brand Story
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => onUpdateField?.('footer.description', e.target.value)}
-                  rows={3}
-                  className="leading-relaxed text-xs text-[#EFE6D5] bg-white/10 hover:bg-white/15 focus:bg-white/20 border rounded p-2 focus:outline-none w-full"
-                  style={{ borderColor: `${goldColor}40` }}
-                />
-              </div>
-            ) : (
-              <p
-                className="mt-4 leading-relaxed"
-                style={{
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  fontSize: '0.78rem',
-                  color: 'rgba(201,184,168,0.6)',
-                  maxWidth: '200px',
-                }}
-              >
-                {description}
-              </p>
-            )}
-          </div>
+                  {logoSubtitle}
+                </p>
+              )}
+
+              {/* Tagline / Description */}
+              {showEditControls ? (
+                <div className="mt-3">
+                  <label
+                    className="text-[10px] tracking-wider uppercase block mb-0.5 font-medium"
+                    style={{ color: `${goldColor}CC` }}
+                  >
+                    Brand Story
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => onUpdateField?.('footer.description', e.target.value)}
+                    rows={3}
+                    className="leading-relaxed text-xs text-[#EFE6D5] bg-white/10 hover:bg-white/15 focus:bg-white/20 border rounded p-2 focus:outline-none w-full"
+                    style={{ borderColor: `${goldColor}40` }}
+                  />
+                </div>
+              ) : (
+                <p
+                  className="mt-4 leading-relaxed"
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: '0.78rem',
+                    color: 'rgba(201,184,168,0.6)',
+                    maxWidth: '200px',
+                  }}
+                >
+                  {description}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* ──── Column 2: Explore (Editable links & path) ──── */}
-          <EditableLinkColumn
-            title={exploreTitle}
-            onTitleChange={(val) => onUpdateField?.('footer.columns.explore.title', val)}
-            links={exploreLinks}
-            onLinksChange={(links) => onUpdateField?.('footer.columns.explore.links', links)}
-            defaultNewHref="#"
-            showEditControls={showEditControls}
-            goldColor={goldColor}
-          />
+          {isExploreVisible && (
+            <EditableLinkColumn
+              columnId="explore"
+              title={exploreTitle}
+              onTitleChange={(val) => onUpdateField?.('footer.columns.explore.title', val)}
+              links={exploreLinks}
+              onLinksChange={(links) => onUpdateField?.('footer.columns.explore.links', links)}
+              onRemoveColumn={() => handleRemoveColumn('explore')}
+              defaultNewHref="#"
+              showEditControls={showEditControls}
+              goldColor={goldColor}
+            />
+          )}
 
           {/* ──── Column 3: Our Services (Editable links & path) ──── */}
-          <EditableLinkColumn
-            title={servicesTitle}
-            onTitleChange={(val) => onUpdateField?.('footer.columns.services.title', val)}
-            links={servicesLinks}
-            onLinksChange={(links) => onUpdateField?.('footer.columns.services.links', links)}
-            defaultNewHref="#services"
-            showEditControls={showEditControls}
-            goldColor={goldColor}
-          />
+          {isServicesVisible && (
+            <EditableLinkColumn
+              columnId="services"
+              title={servicesTitle}
+              onTitleChange={(val) => onUpdateField?.('footer.columns.services.title', val)}
+              links={servicesLinks}
+              onLinksChange={(links) => onUpdateField?.('footer.columns.services.links', links)}
+              onRemoveColumn={() => handleRemoveColumn('services')}
+              defaultNewHref="#services"
+              showEditControls={showEditControls}
+              goldColor={goldColor}
+            />
+          )}
 
           {/* ──── Column 4: Quick Links (Editable links & path) ──── */}
-          <EditableLinkColumn
-            title={quickLinksTitle}
-            onTitleChange={(val) => onUpdateField?.('footer.columns.quickLinks.title', val)}
-            links={quickLinks}
-            onLinksChange={(links) => onUpdateField?.('footer.columns.quickLinks.links', links)}
-            defaultNewHref="#"
-            showEditControls={showEditControls}
-            goldColor={goldColor}
-          />
+          {isQuickLinksVisible && (
+            <EditableLinkColumn
+              columnId="quickLinks"
+              title={quickLinksTitle}
+              onTitleChange={(val) => onUpdateField?.('footer.columns.quickLinks.title', val)}
+              links={quickLinks}
+              onLinksChange={(links) => onUpdateField?.('footer.columns.quickLinks.links', links)}
+              onRemoveColumn={() => handleRemoveColumn('quickLinks')}
+              defaultNewHref="#"
+              showEditControls={showEditControls}
+              goldColor={goldColor}
+            />
+          )}
 
           {/* ──── Column 5: Get in Touch + Follow Us ──── */}
-          <div>
+          {isContactVisible && (
+            <div className="relative group/col">
+              {showEditControls && (
+                <div className="mb-2 flex items-center justify-between gap-1 pb-1 border-b border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9B8A8]">
+                    Get In Touch
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveColumn('contact')}
+                    className="py-0.5 px-2 rounded bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+                    title="Remove Contact column from footer"
+                  >
+                    <Trash2 size={11} className="text-rose-400" />
+                    <span>Remove Column</span>
+                  </button>
+                </div>
+              )}
             {/* Get In Touch Header */}
             {showEditControls ? (
               <div className="mb-3">
@@ -841,7 +1011,8 @@ const Footer = ({
               </div>
             )}
           </div>
-        </div>
+        )}
+      </div>
 
         {/* ══════ BOTTOM COPYRIGHT BAR ══════ */}
         <div

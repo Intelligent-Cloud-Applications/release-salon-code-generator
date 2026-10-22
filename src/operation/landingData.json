@@ -273,6 +273,35 @@
     "scriptLabel": "Get In Touch",
     "sectionTitle": "CONTACT TEKKZY",
     "sectionDescription": "Whether reserving a private session, inquiring about bridal packages, or consulting with our master stylists, our concierge team is at your service.",
+    "locationCard": {
+      "badge": "VISIT THE SANCTUARY",
+      "title": "Couture Avenue",
+      "address": "428 Luxury Lane, Couture Avenue, Suite 100, New York, NY 10021",
+      "phone": "+1 (555) 019-2834",
+      "email": "concierge@tekkzy-salon.com"
+    },
+    "hoursCard": {
+      "badge": "HOURS OF BEAUTY",
+      "title": "Operating Hours",
+      "weekdaysLabel": "Monday – Friday",
+      "weekdaysTime": "9:00 AM – 8:00 PM",
+      "saturdayLabel": "Saturday",
+      "saturdayTime": "9:00 AM – 7:00 PM",
+      "sundayLabel": "Sunday",
+      "sundayTime": "10:00 AM – 5:00 PM",
+      "note": "Prior appointment recommended for master stylists"
+    },
+    "vipCard": {
+      "badge": "BESPOKE EXCELLENCE",
+      "title": "VIP Private Appointments",
+      "description": "Step into our completely secluded hydrotherapy suites tailored exclusively for you. Soundproof ambient lighting, private consultation, and personalized sensory care.",
+      "perk1": "COMPLIMENTARY VALET PARKING",
+      "perk2": "CHAMPAGNE & CAVIAR INFUSION WELCOME",
+      "perks": [
+        "COMPLIMENTARY VALET PARKING",
+        "CHAMPAGNE & CAVIAR INFUSION WELCOME"
+      ]
+    },
     "info": {
       "title": "SALON SANCTUARY",
       "address": "428 Luxury Lane, Couture Avenue, Suite 100, New York, NY 10021",
@@ -286,14 +315,6 @@
         "saturday": "Saturday: 9:00 AM – 7:00 PM",
         "sunday": "Sunday: 10:00 AM – 5:00 PM"
       }
-    },
-    "vipCard": {
-      "badge": "VIP PRIVATE APPOINTMENTS",
-      "title": "Experience Beauty Tailored Exclusively For You.",
-      "perks": [
-        "VALET PARKING AVAILABLE",
-        "CHAMPAGNE WELCOME"
-      ]
     },
     "form": {
       "tagline": "ONLINE INQUIRY & RESERVATION",
@@ -312,6 +333,7 @@
     "logoTitle": "TEKKZY",
     "logoSubtitle": "Salon",
     "description": "Where beauty meets expertise. We bring out the best in you with care, passion and perfection.",
+    "hiddenColumns": [],
     "columns": {
       "explore": {
         "title": "Explore",

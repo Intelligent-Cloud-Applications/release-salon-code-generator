@@ -31,6 +31,34 @@ const ContactSection = ({
   const phone2 = info.phones?.[1] || siteData?.site?.contact?.secondaryPhone || '+1 (555) 987-6543';
   const email = info.email || siteData?.site?.contact?.email || 'concierge@tekkzy-salon.com';
 
+  // Card 1: Visit The Sanctuary
+  const locationCard = contactData.locationCard || {};
+  const locationBadge = locationCard.badge || 'VISIT THE SANCTUARY';
+  const locationTitle = locationCard.title || 'Couture Avenue';
+  const locationAddress = locationCard.address || address;
+  const locationPhone = locationCard.phone || phone1;
+  const locationEmail = locationCard.email || email;
+
+  // Card 2: Hours Of Beauty
+  const hoursCard = contactData.hoursCard || {};
+  const hoursBadge = hoursCard.badge || 'HOURS OF BEAUTY';
+  const hoursTitle = hoursCard.title || 'Operating Hours';
+  const weekdaysLabel = hoursCard.weekdaysLabel || 'Monday – Friday';
+  const weekdaysTime = hoursCard.weekdaysTime || '9:00 AM – 8:00 PM';
+  const saturdayLabel = hoursCard.saturdayLabel || 'Saturday';
+  const saturdayTime = hoursCard.saturdayTime || '9:00 AM – 7:00 PM';
+  const sundayLabel = hoursCard.sundayLabel || 'Sunday';
+  const sundayTime = hoursCard.sundayTime || '10:00 AM – 5:00 PM';
+  const hoursNote = hoursCard.note || 'Prior appointment recommended for master stylists';
+
+  // Card 3: Bespoke Excellence
+  const vipCard = contactData.vipCard || {};
+  const vipBadge = vipCard.badge || 'BESPOKE EXCELLENCE';
+  const vipTitle = vipCard.title || 'VIP Private Appointments';
+  const vipDesc = vipCard.description || 'Step into our completely secluded hydrotherapy suites tailored exclusively for you. Soundproof ambient lighting, private consultation, and personalized sensory care.';
+  const vipPerk1 = vipCard.perk1 || vipCard.perks?.[0] || 'COMPLIMENTARY VALET PARKING';
+  const vipPerk2 = vipCard.perk2 || vipCard.perks?.[1] || 'CHAMPAGNE & CAVIAR INFUSION WELCOME';
+
   const showEditControls = isEdit && !isPreviewMode;
 
   // GSAP entrance animations
@@ -180,33 +208,91 @@ const ContactSection = ({
                 <MapPin size={22} />
               </div>
 
-              <span
-                className="text-[10px] font-bold uppercase tracking-[0.2em] block mb-2"
-                style={{ color: goldColor }}
-              >
-                VISIT THE SANCTUARY
-              </span>
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={locationBadge}
+                  onChange={(e) => onUpdateField?.('contact.locationCard.badge', e.target.value)}
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] block mb-2 bg-white/70 border-b px-1 focus:outline-none w-full"
+                  style={{ color: goldColor, borderColor: goldColor }}
+                />
+              ) : (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] block mb-2"
+                  style={{ color: goldColor }}
+                >
+                  {locationBadge}
+                </span>
+              )}
 
-              <h3
-                className="text-xl sm:text-2xl font-bold uppercase mb-4"
-                style={{ fontFamily: "'Playfair Display', Didot, serif", color: primaryColor }}
-              >
-                Couture Avenue
-              </h3>
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={locationTitle}
+                  onChange={(e) => onUpdateField?.('contact.locationCard.title', e.target.value)}
+                  className="text-xl sm:text-2xl font-bold uppercase mb-4 bg-white/70 border-b px-1 focus:outline-none w-full"
+                  style={{ fontFamily: "'Playfair Display', Didot, serif", color: primaryColor, borderColor: primaryColor }}
+                />
+              ) : (
+                <h3
+                  className="text-xl sm:text-2xl font-bold uppercase mb-4"
+                  style={{ fontFamily: "'Playfair Display', Didot, serif", color: primaryColor }}
+                >
+                  {locationTitle}
+                </h3>
+              )}
 
-              <p className="text-xs sm:text-sm text-[#5C524E] leading-relaxed mb-6">
-                {address}
-              </p>
+              {showEditControls ? (
+                <textarea
+                  value={locationAddress}
+                  onChange={(e) => {
+                    onUpdateField?.('contact.locationCard.address', e.target.value);
+                    onUpdateField?.('contact.info.address', e.target.value);
+                  }}
+                  rows={2}
+                  className="text-xs sm:text-sm text-[#5C524E] leading-relaxed mb-6 bg-white/70 border border-black/10 rounded p-1.5 focus:outline-none w-full"
+                />
+              ) : (
+                <p className="text-xs sm:text-sm text-[#5C524E] leading-relaxed mb-6">
+                  {locationAddress}
+                </p>
+              )}
             </div>
 
             <div className="pt-4 border-t border-black/5 flex flex-col gap-2.5">
               <div className="flex items-center gap-3 text-xs sm:text-sm text-[#2C2523]">
                 <Phone size={15} style={{ color: goldColor }} className="shrink-0" />
-                <span className="font-semibold">{phone1}</span>
+                {showEditControls ? (
+                  <input
+                    type="text"
+                    value={locationPhone}
+                    onChange={(e) => {
+                      onUpdateField?.('contact.locationCard.phone', e.target.value);
+                      onUpdateField?.('contact.info.phones', [e.target.value]);
+                    }}
+                    className="font-semibold bg-white/70 border-b px-1 focus:outline-none w-full text-xs"
+                    style={{ borderColor: goldColor }}
+                  />
+                ) : (
+                  <span className="font-semibold">{locationPhone}</span>
+                )}
               </div>
               <div className="flex items-center gap-3 text-xs sm:text-sm text-[#2C2523]">
                 <Mail size={15} style={{ color: goldColor }} className="shrink-0" />
-                <span className="truncate">{email}</span>
+                {showEditControls ? (
+                  <input
+                    type="text"
+                    value={locationEmail}
+                    onChange={(e) => {
+                      onUpdateField?.('contact.locationCard.email', e.target.value);
+                      onUpdateField?.('contact.info.email', e.target.value);
+                    }}
+                    className="truncate bg-white/70 border-b px-1 focus:outline-none w-full text-xs"
+                    style={{ borderColor: goldColor }}
+                  />
+                ) : (
+                  <span className="truncate">{locationEmail}</span>
+                )}
               </div>
             </div>
           </div>
@@ -221,39 +307,129 @@ const ContactSection = ({
                 <Clock size={22} />
               </div>
 
-              <span
-                className="text-[10px] font-bold uppercase tracking-[0.2em] block mb-2"
-                style={{ color: goldColor }}
-              >
-                HOURS OF BEAUTY
-              </span>
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={hoursBadge}
+                  onChange={(e) => onUpdateField?.('contact.hoursCard.badge', e.target.value)}
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] block mb-2 bg-white/70 border-b px-1 focus:outline-none w-full"
+                  style={{ color: goldColor, borderColor: goldColor }}
+                />
+              ) : (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] block mb-2"
+                  style={{ color: goldColor }}
+                >
+                  {hoursBadge}
+                </span>
+              )}
 
-              <h3
-                className="text-xl sm:text-2xl font-bold uppercase mb-4"
-                style={{ fontFamily: "'Playfair Display', Didot, serif", color: primaryColor }}
-              >
-                Operating Hours
-              </h3>
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={hoursTitle}
+                  onChange={(e) => onUpdateField?.('contact.hoursCard.title', e.target.value)}
+                  className="text-xl sm:text-2xl font-bold uppercase mb-4 bg-white/70 border-b px-1 focus:outline-none w-full"
+                  style={{ fontFamily: "'Playfair Display', Didot, serif", color: primaryColor, borderColor: primaryColor }}
+                />
+              ) : (
+                <h3
+                  className="text-xl sm:text-2xl font-bold uppercase mb-4"
+                  style={{ fontFamily: "'Playfair Display', Didot, serif", color: primaryColor }}
+                >
+                  {hoursTitle}
+                </h3>
+              )}
 
               <ul className="text-xs sm:text-sm text-[#5C524E] space-y-3 mb-6">
-                <li className="flex justify-between items-center pb-2 border-b border-black/5">
-                  <span className="font-medium">Monday – Friday</span>
-                  <span className="font-semibold text-[#1A1210]">9:00 AM – 8:00 PM</span>
+                <li className="flex flex-col sm:flex-row justify-between sm:items-center pb-2 border-b border-black/5 gap-1">
+                  {showEditControls ? (
+                    <>
+                      <input
+                        type="text"
+                        value={weekdaysLabel}
+                        onChange={(e) => onUpdateField?.('contact.hoursCard.weekdaysLabel', e.target.value)}
+                        className="font-medium bg-white/70 border-b px-1 focus:outline-none text-xs w-full sm:w-auto"
+                      />
+                      <input
+                        type="text"
+                        value={weekdaysTime}
+                        onChange={(e) => onUpdateField?.('contact.hoursCard.weekdaysTime', e.target.value)}
+                        className="font-semibold text-[#1A1210] bg-white/70 border-b px-1 focus:outline-none text-xs w-full sm:w-auto text-right"
+                        style={{ borderColor: goldColor }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium">{weekdaysLabel}</span>
+                      <span className="font-semibold text-[#1A1210]">{weekdaysTime}</span>
+                    </>
+                  )}
                 </li>
-                <li className="flex justify-between items-center pb-2 border-b border-black/5">
-                  <span className="font-medium">Saturday</span>
-                  <span className="font-semibold text-[#1A1210]">9:00 AM – 7:00 PM</span>
+                <li className="flex flex-col sm:flex-row justify-between sm:items-center pb-2 border-b border-black/5 gap-1">
+                  {showEditControls ? (
+                    <>
+                      <input
+                        type="text"
+                        value={saturdayLabel}
+                        onChange={(e) => onUpdateField?.('contact.hoursCard.saturdayLabel', e.target.value)}
+                        className="font-medium bg-white/70 border-b px-1 focus:outline-none text-xs w-full sm:w-auto"
+                      />
+                      <input
+                        type="text"
+                        value={saturdayTime}
+                        onChange={(e) => onUpdateField?.('contact.hoursCard.saturdayTime', e.target.value)}
+                        className="font-semibold text-[#1A1210] bg-white/70 border-b px-1 focus:outline-none text-xs w-full sm:w-auto text-right"
+                        style={{ borderColor: goldColor }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium">{saturdayLabel}</span>
+                      <span className="font-semibold text-[#1A1210]">{saturdayTime}</span>
+                    </>
+                  )}
                 </li>
-                <li className="flex justify-between items-center">
-                  <span className="font-medium">Sunday</span>
-                  <span className="font-semibold text-[#1A1210]">10:00 AM – 5:00 PM</span>
+                <li className="flex flex-col sm:flex-row justify-between sm:items-center gap-1">
+                  {showEditControls ? (
+                    <>
+                      <input
+                        type="text"
+                        value={sundayLabel}
+                        onChange={(e) => onUpdateField?.('contact.hoursCard.sundayLabel', e.target.value)}
+                        className="font-medium bg-white/70 border-b px-1 focus:outline-none text-xs w-full sm:w-auto"
+                      />
+                      <input
+                        type="text"
+                        value={sundayTime}
+                        onChange={(e) => onUpdateField?.('contact.hoursCard.sundayTime', e.target.value)}
+                        className="font-semibold text-[#1A1210] bg-white/70 border-b px-1 focus:outline-none text-xs w-full sm:w-auto text-right"
+                        style={{ borderColor: goldColor }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium">{sundayLabel}</span>
+                      <span className="font-semibold text-[#1A1210]">{sundayTime}</span>
+                    </>
+                  )}
                 </li>
               </ul>
             </div>
 
             <div className="pt-4 border-t border-black/5 flex items-center gap-2 text-xs font-semibold" style={{ color: primaryColor }}>
-              <Calendar size={14} style={{ color: goldColor }} />
-              <span>Prior appointment recommended for master stylists</span>
+              <Calendar size={14} style={{ color: goldColor }} className="shrink-0" />
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={hoursNote}
+                  onChange={(e) => onUpdateField?.('contact.hoursCard.note', e.target.value)}
+                  className="bg-white/70 border-b px-1 focus:outline-none text-xs w-full"
+                  style={{ borderColor: goldColor }}
+                />
+              ) : (
+                <span>{hoursNote}</span>
+              )}
             </div>
           </div>
 
@@ -270,23 +446,53 @@ const ContactSection = ({
             </div>
 
             <div>
-              <span
-                className="text-[10px] font-bold tracking-[0.25em] uppercase block mb-2"
-                style={{ color: goldColor }}
-              >
-                BESPOKE EXCELLENCE
-              </span>
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={vipBadge}
+                  onChange={(e) => onUpdateField?.('contact.vipCard.badge', e.target.value)}
+                  className="text-[10px] font-bold tracking-[0.25em] uppercase block mb-2 bg-white/10 border-b px-1 focus:outline-none w-full"
+                  style={{ color: goldColor, borderColor: goldColor }}
+                />
+              ) : (
+                <span
+                  className="text-[10px] font-bold tracking-[0.25em] uppercase block mb-2"
+                  style={{ color: goldColor }}
+                >
+                  {vipBadge}
+                </span>
+              )}
 
-              <h3
-                className="text-xl sm:text-2xl font-serif text-[#F6EFE5] leading-snug mb-4"
-                style={{ fontFamily: "'Playfair Display', Didot, serif" }}
-              >
-                VIP Private Appointments
-              </h3>
+              {showEditControls ? (
+                <input
+                  type="text"
+                  value={vipTitle}
+                  onChange={(e) => onUpdateField?.('contact.vipCard.title', e.target.value)}
+                  className="text-xl sm:text-2xl font-serif text-[#F6EFE5] leading-snug mb-4 bg-white/10 border-b px-1 focus:outline-none w-full"
+                  style={{ fontFamily: "'Playfair Display', Didot, serif", borderColor: goldColor }}
+                />
+              ) : (
+                <h3
+                  className="text-xl sm:text-2xl font-serif text-[#F6EFE5] leading-snug mb-4"
+                  style={{ fontFamily: "'Playfair Display', Didot, serif" }}
+                >
+                  {vipTitle}
+                </h3>
+              )}
 
-              <p className="text-xs sm:text-sm text-[#EFE6D5]/80 leading-relaxed mb-6">
-                Step into our completely secluded hydrotherapy suites tailored exclusively for you. Soundproof ambient lighting, private consultation, and personalized sensory care.
-              </p>
+              {showEditControls ? (
+                <textarea
+                  value={vipDesc}
+                  onChange={(e) => onUpdateField?.('contact.vipCard.description', e.target.value)}
+                  rows={3}
+                  className="text-xs sm:text-sm text-[#EFE6D5] leading-relaxed mb-6 bg-white/10 border rounded p-1.5 focus:outline-none w-full"
+                  style={{ borderColor: `${goldColor}40` }}
+                />
+              ) : (
+                <p className="text-xs sm:text-sm text-[#EFE6D5]/80 leading-relaxed mb-6">
+                  {vipDesc}
+                </p>
+              )}
             </div>
 
             <div
@@ -294,12 +500,38 @@ const ContactSection = ({
               style={{ borderColor: `${goldColor}30`, color: goldColor }}
             >
               <div className="flex items-center gap-2">
-                <Car size={14} />
-                <span>COMPLIMENTARY VALET PARKING</span>
+                <Car size={14} className="shrink-0" />
+                {showEditControls ? (
+                  <input
+                    type="text"
+                    value={vipPerk1}
+                    onChange={(e) => {
+                      onUpdateField?.('contact.vipCard.perk1', e.target.value);
+                      onUpdateField?.('contact.vipCard.perks', [e.target.value, vipPerk2]);
+                    }}
+                    className="bg-white/10 border-b px-1 focus:outline-none w-full text-xs uppercase"
+                    style={{ color: goldColor, borderColor: goldColor }}
+                  />
+                ) : (
+                  <span>{vipPerk1}</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
-                <Wine size={14} />
-                <span>CHAMPAGNE & CAVIAR INFUSION WELCOME</span>
+                <Wine size={14} className="shrink-0" />
+                {showEditControls ? (
+                  <input
+                    type="text"
+                    value={vipPerk2}
+                    onChange={(e) => {
+                      onUpdateField?.('contact.vipCard.perk2', e.target.value);
+                      onUpdateField?.('contact.vipCard.perks', [vipPerk1, e.target.value]);
+                    }}
+                    className="bg-white/10 border-b px-1 focus:outline-none w-full text-xs uppercase"
+                    style={{ color: goldColor, borderColor: goldColor }}
+                  />
+                ) : (
+                  <span>{vipPerk2}</span>
+                )}
               </div>
             </div>
           </div>

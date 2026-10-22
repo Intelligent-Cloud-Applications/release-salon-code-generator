@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import Context from '../../Context/Context';
-import { SiteProvider, deepMerge } from '../context/SiteContext';
+import { SiteProvider, deepMerge, mergeWithInstitutionData } from '../context/SiteContext';
 import Navbar from './Navbar';
 import HeroSection from './HeroSection';
 import ServicesSection from './ServicesSection';
@@ -18,11 +18,14 @@ import defaultLandingData from '../../../operation/landingData.json';
 
 const setNestedValue = (obj, path, value) => {
   const parts = path.split('.');
-  const newObj = JSON.parse(JSON.stringify(obj));
+  const newObj = JSON.parse(JSON.stringify(obj || {}));
   let curr = newObj;
   for (let i = 0; i < parts.length - 1; i++) {
     const p = parts[i];
-    if (!curr[p]) curr[p] = {};
+    if (!curr[p]) {
+      const nextKey = parts[i + 1];
+      curr[p] = !isNaN(Number(nextKey)) ? [] : {};
+    }
     curr = curr[p];
   }
   curr[parts[parts.length - 1]] = value;
@@ -38,11 +41,12 @@ const LandingHome = () => {
   } = useContext(Context);
 
   const activeSourceData = useMemo(() => {
-    return deepMerge(
+    return mergeWithInstitutionData(
       defaultLandingData,
+      institutionData,
       landingPageData || institutionData?.landingPageData || {}
     );
-  }, [landingPageData, institutionData?.landingPageData]);
+  }, [institutionData, landingPageData]);
 
   const [draftData, setDraftData] = useState(() => activeSourceData);
   const [isEdit, setIsEdit] = useState(false);
