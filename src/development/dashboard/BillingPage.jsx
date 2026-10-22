@@ -105,10 +105,10 @@ const BillPrintModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-2xl font-bold text-stone-800">
+          <DialogTitle className="text-2xl font-bold text-slate-900">
             Salon Invoice
           </DialogTitle>
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-slate-600">
             Phone: (555) 123-4567 | Email: info@mirrorsalon.com
           </p>
         </DialogHeader>
@@ -119,20 +119,20 @@ const BillPrintModal = ({
           <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2">
             {/* Client Information */}
             <div>
-              <h3 className="mb-4 text-lg font-semibold text-stone-800">
+              <h3 className="mb-4 text-lg font-semibold text-slate-900">
                 Bill To:
               </h3>
               <div className="space-y-2">
-                <p className="text-stone-700">
+                <p className="text-slate-700">
                   <strong>Name:</strong> {bill.clientName}
                 </p>
-                <p className="text-stone-700">
+                <p className="text-slate-700">
                   <strong>Invoice ID:</strong> {bill.id}
                 </p>
-                <p className="text-stone-700">
+                <p className="text-slate-700">
                   <strong>Date:</strong> {formatDate(bill.date)}
                 </p>
-                <p className="text-stone-700">
+                <p className="text-slate-700">
                   <strong>Staff:</strong> {bill.staff}
                 </p>
               </div>
@@ -140,19 +140,19 @@ const BillPrintModal = ({
 
             {/* Service Details */}
             <div>
-              <h3 className="mb-4 text-lg font-semibold text-stone-800">
+              <h3 className="mb-4 text-lg font-semibold text-slate-900">
                 Service Details:
               </h3>
               <div className="space-y-2">
-                <p className="text-stone-700">
+                <p className="text-slate-700">
                   <strong>Payment Method:</strong> {bill.paymentMethod}
                 </p>
-                <p className="text-stone-700">
+                <p className="text-slate-700">
                   <strong>Status:</strong>{" "}
                   <span className="capitalize">{bill.status}</span>
                 </p>
                 {bill.duration != null && (
-                  <p className="text-stone-700">
+                  <p className="text-slate-700">
                     <strong>Duration:</strong> {bill.duration} minutes
                   </p>
                 )}
@@ -162,26 +162,26 @@ const BillPrintModal = ({
 
           {/* Services Table */}
           <div className="mb-8">
-            <h3 className="mb-4 text-lg font-semibold text-stone-800">
+            <h3 className="mb-4 text-lg font-semibold text-slate-900">
               Services Provided:
             </h3>
-            <div className="overflow-hidden rounded-lg border border-stone-200">
+            <div className="overflow-hidden rounded-lg border border-slate-200">
               <table className="w-full">
-                <thead className="bg-stone-50">
+                <thead className="bg-slate-50">
                   <tr>
-                    <th className="p-4 text-left font-semibold text-stone-700">
+                    <th className="p-4 text-left font-semibold text-slate-700">
                       Service
                     </th>
-                    <th className="p-4 text-right font-semibold text-stone-700">
+                    <th className="p-4 text-right font-semibold text-slate-700">
                       Price
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {bill.services?.map((service, index) => (
-                    <tr key={index} className="border-t border-stone-200">
-                      <td className="p-4 text-stone-700">{service}</td>
-                      <td className="p-4 text-right text-stone-700">
+                    <tr key={index} className="border-t border-slate-200">
+                      <td className="p-4 text-slate-700">{service}</td>
+                      <td className="p-4 text-right text-slate-700">
                         {formatCurrency(
                           (bill.subtotal || 0) / (bill.services?.length || 1),
                         )}
@@ -194,26 +194,26 @@ const BillPrintModal = ({
           </div>
 
           {/* Financial Summary */}
-          <div className="rounded-lg bg-stone-50 p-6">
+          <div className="rounded-lg bg-slate-50 p-6">
             <div className="ml-auto max-w-md space-y-3">
               <div className="flex justify-between">
-                <span className="text-stone-700">Subtotal:</span>
-                <span className="text-stone-700">
+                <span className="text-slate-700">Subtotal:</span>
+                <span className="text-slate-700">
                   {formatCurrency(bill.subtotal)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-stone-700">Tax:</span>
-                <span className="text-stone-700">
+                <span className="text-slate-700">Tax:</span>
+                <span className="text-slate-700">
                   {formatCurrency(bill.tax)}
                 </span>
               </div>
-              <div className="border-t border-stone-300 pt-3">
+              <div className="border-t border-slate-300 pt-3">
                 <div className="flex justify-between">
-                  <span className="text-lg font-semibold text-stone-800">
+                  <span className="text-lg font-semibold text-slate-900">
                     Total:
                   </span>
-                  <span className="text-lg font-semibold text-stone-800">
+                  <span className="text-lg font-semibold text-slate-900">
                     {formatCurrency(bill.total)}
                   </span>
                 </div>
@@ -222,7 +222,7 @@ const BillPrintModal = ({
           </div>
 
           {/* Footer */}
-          <div className="text-center text-sm text-stone-500">
+          <div className="text-center text-sm text-slate-500">
             <p>Thank you for choosing Mirror Salon!</p>
             <p>Visit us again for all your beauty needs.</p>
           </div>
@@ -239,7 +239,7 @@ const BillPrintModal = ({
               <Button
                 variant="outline"
                 onClick={onClose}
-                className="border-stone-200 text-stone-600 hover:bg-stone-50"
+                className="border-slate-200 text-slate-600 hover:bg-slate-50"
               >
                 {isReprint ? "Close" : "Cancel"}
               </Button>
@@ -437,31 +437,40 @@ const BillingPage = () => {
     const statusConfig = {
       completed: {
         variant: "default",
-        className: "bg-green-100 text-green-800",
+        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-[11px] px-2 py-0.5",
       },
-      settled: { variant: "default", className: "bg-green-100 text-green-800" },
+      settled: { 
+        variant: "default", 
+        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-[11px] px-2 py-0.5",
+      },
       scheduled: {
         variant: "secondary",
-        className: "bg-blue-100 text-blue-800",
+        className: "bg-blue-50 text-blue-700 border border-blue-200/80 font-semibold text-[11px] px-2 py-0.5",
       },
       confirmed: {
         variant: "secondary",
-        className: "bg-yellow-100 text-yellow-800",
+        className: "bg-blue-50 text-blue-700 border border-blue-200/80 font-semibold text-[11px] px-2 py-0.5",
       },
       in_progress: {
         variant: "secondary",
-        className: "bg-orange-100 text-orange-800",
+        className: "bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-semibold text-[11px] px-2 py-0.5",
       },
       cancelled: {
         variant: "destructive",
-        className: "bg-red-100 text-red-800",
+        className: "bg-rose-50 text-rose-700 border border-rose-200/80 font-semibold text-[11px] px-2 py-0.5",
       },
-      paid: { variant: "default", className: "bg-green-100 text-green-800" },
+      paid: { 
+        variant: "default", 
+        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-[11px] px-2 py-0.5",
+      },
       pending: {
         variant: "secondary",
-        className: "bg-yellow-100 text-yellow-800",
+        className: "bg-amber-50 text-amber-700 border border-amber-200/80 font-semibold text-[11px] px-2 py-0.5",
       },
-      overdue: { variant: "destructive", className: "bg-red-100 text-red-800" },
+      overdue: { 
+        variant: "destructive", 
+        className: "bg-rose-50 text-rose-700 border border-rose-200/80 font-semibold text-[11px] px-2 py-0.5",
+      },
     };
     const config = statusConfig[status] || statusConfig.scheduled;
     return (
@@ -1248,14 +1257,14 @@ const BillingPage = () => {
   }
 
   return (
-    <div className="poppins-regular w-full space-y-6 py-6">
+    <div className="p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 font-sans bg-[#f8fafc] min-h-full">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-stone-800">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             Billing & Invoices
           </h1>
-          <p className="text-stone-600">
+          <p className="text-slate-600">
             Manage your salon billing and payment tracking
           </p>
         </div>
@@ -1265,7 +1274,7 @@ const BillingPage = () => {
             <Button
               variant="outline"
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className="border-stone-200 text-stone-600 hover:bg-stone-50"
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
               title={
                 dateFilter.isActive ? "Export filtered data" : "Export all data"
               }
@@ -1277,14 +1286,14 @@ const BillingPage = () => {
 
             {/* Export Dropdown Menu */}
             {showExportMenu && (
-              <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-stone-200 bg-white shadow-lg">
+              <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
                 <div className="py-1">
                   <button
                     onClick={() => {
                       handleExportToExcel();
                       setShowExportMenu(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     <FileSpreadsheet className="h-4 w-4" />
                     Export as Excel
@@ -1294,7 +1303,7 @@ const BillingPage = () => {
                       handleExportToPDF();
                       setShowExportMenu(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     <FileText className="h-4 w-4" />
                     Export as PDF
@@ -1312,8 +1321,8 @@ const BillingPage = () => {
             }}
             className={
               activeSubPage === "overview"
-                ? "bg-stone-600 text-white hover:bg-stone-700"
-                : "border-stone-200 text-stone-600 hover:bg-stone-50"
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
             }
           >
             Overview
@@ -1326,8 +1335,8 @@ const BillingPage = () => {
             }}
             className={
               activeSubPage === "create-invoice"
-                ? "bg-stone-600 text-white hover:bg-stone-700"
-                : "border-stone-200 text-stone-600 hover:bg-stone-50"
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
             }
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -1400,12 +1409,12 @@ const BillingPage = () => {
       {/* Conditional Content Based on Active Sub Page */}
       {activeSubPage === "overview" && (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <Card className="border-stone-200">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="border-slate-200">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-stone-600">
+                    <p className="text-xs font-medium text-slate-600">
                       {dateFilter.isActive
                         ? "Filtered Revenue"
                         : "Total Revenue"}
@@ -1414,7 +1423,7 @@ const BillingPage = () => {
                       {formatCurrency(displayRevenue)}
                     </p>
                     {dateFilter.isActive && (
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-slate-500">
                         All time: {formatCurrency(totalRevenue)}
                       </p>
                     )}
@@ -1424,11 +1433,11 @@ const BillingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-stone-200">
+            <Card className="border-slate-200">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-stone-600">
+                    <p className="text-xs font-medium text-slate-600">
                       {dateFilter.isActive ? "Filtered Cash" : "Cash Payments"}
                     </p>
                     <p className="text-lg font-bold text-blue-600">
@@ -1441,7 +1450,7 @@ const BillingPage = () => {
                       )}
                     </p>
                     {dateFilter.isActive && (
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-slate-500">
                         All time:{" "}
                         {formatCurrency(
                           bills
@@ -1458,11 +1467,11 @@ const BillingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-stone-200">
+            <Card className="border-slate-200">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-stone-600">
+                    <p className="text-xs font-medium text-slate-600">
                       {dateFilter.isActive
                         ? "Filtered Online"
                         : "Online Payments"}
@@ -1477,7 +1486,7 @@ const BillingPage = () => {
                       )}
                     </p>
                     {dateFilter.isActive && (
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-slate-500">
                         All time:{" "}
                         {formatCurrency(
                           bills
@@ -1494,25 +1503,25 @@ const BillingPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-stone-200">
+            <Card className="border-slate-200">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-stone-600">
+                    <p className="text-xs font-medium text-slate-600">
                       {dateFilter.isActive
                         ? "Filtered Invoices"
                         : "Total Invoices"}
                     </p>
-                    <p className="text-lg font-bold text-stone-600">
+                    <p className="text-lg font-bold text-slate-600">
                       {filteredBills.length}
                     </p>
                     {dateFilter.isActive && (
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-slate-500">
                         All time: {bills.length}
                       </p>
                     )}
                   </div>
-                  <FaBook className="h-5 w-5 text-stone-600" />
+                  <FaBook className="h-5 w-5 text-slate-600" />
                 </div>
               </CardContent>
             </Card>
@@ -1521,12 +1530,12 @@ const BillingPage = () => {
           {/* Search, Stats, and View Toggle */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-stone-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400" />
               <Input
                 placeholder="Search invoices by client name or invoice ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-stone-200 pl-10"
+                className="border-slate-200 pl-10"
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1576,12 +1585,12 @@ const BillingPage = () => {
                 </Badge>
               )}
             </div>
-            <div className="flex gap-1 rounded-lg border border-stone-200 p-1">
+            <div className="flex gap-1 rounded-lg border border-slate-200 p-1">
               <Button
                 variant={viewMode === "table" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("table")}
-                className={`h-8 w-8 p-0 ${viewMode === "table" ? "bg-stone-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}
+                className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "table" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 <Table className="h-4 w-4" />
               </Button>
@@ -1589,7 +1598,7 @@ const BillingPage = () => {
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("grid")}
-                className={`h-8 w-8 p-0 ${viewMode === "grid" ? "bg-stone-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}
+                className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "grid" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
@@ -1598,9 +1607,9 @@ const BillingPage = () => {
 
           {/* Dynamic View Based on Selection */}
           {viewMode === "table" && (
-            <Card className="border-stone-200">
+            <Card className="border-slate-200">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-stone-800">
+                <CardTitle className="text-lg text-slate-900">
                   Invoices & Bills - Table View
                 </CardTitle>
               </CardHeader>
@@ -1609,54 +1618,54 @@ const BillingPage = () => {
                   <TableComponent>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-24 text-stone-600">
+                        <TableHead className="w-24 text-slate-600">
                           ID
                         </TableHead>
-                        <TableHead className="min-w-32 text-stone-600">
+                        <TableHead className="min-w-32 text-slate-600">
                           Client
                         </TableHead>
-                        <TableHead className="w-24 text-stone-600">
+                        <TableHead className="w-24 text-slate-600">
                           Date
                         </TableHead>
-                        <TableHead className="min-w-40 text-stone-600">
+                        <TableHead className="min-w-40 text-slate-600">
                           Services
                         </TableHead>
-                        <TableHead className="w-20 text-stone-600">
+                        <TableHead className="w-20 text-slate-600">
                           Staff
                         </TableHead>
-                        <TableHead className="w-20 text-stone-600">
+                        <TableHead className="w-20 text-slate-600">
                           Payment
                         </TableHead>
-                        <TableHead className="w-20 text-stone-600">
+                        <TableHead className="w-20 text-slate-600">
                           Subtotal
                         </TableHead>
-                        <TableHead className="w-16 text-stone-600">
+                        <TableHead className="w-16 text-slate-600">
                           Tax
                         </TableHead>
-                        <TableHead className="w-20 text-stone-600">
+                        <TableHead className="w-20 text-slate-600">
                           Total
                         </TableHead>
-                        <TableHead className="w-24 text-stone-600">
+                        <TableHead className="w-24 text-slate-600">
                           Status
                         </TableHead>
-                        <TableHead className="w-32 text-stone-600">
+                        <TableHead className="w-32 text-slate-600">
                           Actions
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredBills.map((bill) => (
-                        <TableRow key={bill.id} className="hover:bg-stone-50">
-                          <TableCell className="truncate text-xs font-medium text-stone-800">
+                        <TableRow key={bill.id} className="hover:bg-slate-50">
+                          <TableCell className="truncate text-xs font-medium text-slate-900">
                             {bill.id}
                           </TableCell>
-                          <TableCell className="truncate text-sm text-stone-800">
+                          <TableCell className="truncate text-sm text-slate-900">
                             {bill.clientName}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3 text-stone-500" />
-                              <span className="text-xs text-stone-800">
+                              <Calendar className="h-3 w-3 text-slate-500" />
+                              <span className="text-xs text-slate-900">
                                 {bill.date}
                               </span>
                             </div>
@@ -1669,7 +1678,7 @@ const BillingPage = () => {
                                   <Badge
                                     key={index}
                                     variant="outline"
-                                    className="border-stone-200 px-1 py-0 text-xs text-stone-600"
+                                    className="border-slate-200 px-1 py-0 text-xs text-slate-600"
                                   >
                                     {service}
                                   </Badge>
@@ -1677,7 +1686,7 @@ const BillingPage = () => {
                               {bill.services.length > 1 && (
                                 <Badge
                                   variant="outline"
-                                  className="border-stone-200 px-1 py-0 text-xs text-stone-600"
+                                  className="border-slate-200 px-1 py-0 text-xs text-slate-600"
                                 >
                                   +{bill.services.length - 1}
                                 </Badge>
@@ -1685,22 +1694,22 @@ const BillingPage = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="truncate text-xs text-stone-800">
+                            <span className="truncate text-xs text-slate-900">
                               {bill.staff}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className="truncate text-xs text-stone-800">
+                            <span className="truncate text-xs text-slate-900">
                               {bill.paymentMethod}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs text-stone-800">
+                          <TableCell className="text-xs text-slate-900">
                             {formatCurrency(bill.subtotal)}
                           </TableCell>
-                          <TableCell className="text-xs text-stone-800">
+                          <TableCell className="text-xs text-slate-900">
                             {formatCurrency(bill.tax)}
                           </TableCell>
-                          <TableCell className="text-xs font-medium text-stone-800">
+                          <TableCell className="text-xs font-medium text-slate-900">
                             {formatCurrency(bill.total)}
                           </TableCell>
                           <TableCell>{getStatusBadge(bill.status)}</TableCell>
@@ -1709,14 +1718,14 @@ const BillingPage = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0 hover:bg-stone-100"
+                                className="h-6 w-6 p-0 hover:bg-slate-100"
                                 title="View invoice"
                                 onClick={() => {
                                   setBillData(bill);
                                   setActiveSubPage("create-invoice");
                                 }}
                               >
-                                <Eye className="h-3 w-3 text-stone-600" />
+                                <Eye className="h-3 w-3 text-slate-600" />
                               </Button>
                               {bill.status === "in_progress" && (
                                 <Button
@@ -1758,11 +1767,11 @@ const BillingPage = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0 hover:bg-stone-100"
+                                className="h-6 w-6 p-0 hover:bg-slate-100"
                                 onClick={() => handleEditBilling(bill)}
                                 title="Edit invoice"
                               >
-                                <Edit className="h-3 w-3 text-stone-600" />
+                                <Edit className="h-3 w-3 text-slate-600" />
                               </Button>
                             </div>
                           </TableCell>
@@ -1776,169 +1785,131 @@ const BillingPage = () => {
           )}
 
           {viewMode === "grid" && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {filteredBills.map((bill) => (
-                <Card
-                  key={bill.id}
-                  className="border-stone-200 transition-shadow hover:shadow-md"
-                >
-                  <CardContent className="p-3">
-                    {/* Header */}
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-stone-800">
-                          {bill.id}
-                        </h3>
-                        <span className="text-xs text-stone-500">•</span>
-                        <span className="text-xs text-stone-600">
-                          {bill.clientName}
-                        </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+              {filteredBills.map((bill) => {
+                const clientInitials = (bill.clientName || "CL").slice(0, 2).toUpperCase();
+                return (
+                  <div
+                    key={bill.id}
+                    className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between gap-3 group relative overflow-hidden"
+                  >
+                    {/* Header: Client & Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
+                          {clientInitials}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm text-slate-900 truncate">
+                            {bill.clientName || "Walk-in Client"}
+                          </h3>
+                          <span className="text-[11px] font-mono font-medium text-slate-400">
+                            #{bill.id}
+                          </span>
+                        </div>
                       </div>
                       {getStatusBadge(bill.status)}
                     </div>
 
-                    {/* Main Info Grid */}
-                    <div className="mb-2 grid grid-cols-3 gap-2 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3 text-stone-500" />
-                        <span className="text-stone-800">{bill.date}</span>
+                    {/* Details Box */}
+                    <div className="bg-slate-50/80 rounded-xl p-3 space-y-2 border border-slate-100 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-slate-700 font-medium">
+                          <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span>{bill.date}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                          <CreditCard className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span className="capitalize">{bill.paymentMethod || "Cash"}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3 text-stone-500" />
-                        <span className="truncate text-stone-800">
-                          {bill.staff}
-                        </span>
+
+                      <div className="flex items-center gap-1.5 text-slate-600 text-[11px] pt-1 border-t border-slate-200/60">
+                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Stylist: <strong className="text-slate-800 font-semibold">{bill.staff || "Any"}</strong></span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <CreditCard className="h-3 w-3 text-stone-500" />
-                        <span className="truncate text-stone-800">
-                          {bill.paymentMethod}
-                        </span>
-                      </div>
+
+                      {/* Services Pills */}
+                      {bill.services && bill.services.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {bill.services.slice(0, 3).map((service, index) => (
+                            <span
+                              key={index}
+                              className="text-[10px] font-medium bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 truncate max-w-[140px]"
+                            >
+                              {service}
+                            </span>
+                          ))}
+                          {bill.services.length > 3 && (
+                            <span className="text-[10px] font-bold bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-600">
+                              +{bill.services.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Services */}
-                    <div className="mb-2">
-                      <div className="flex flex-wrap gap-1">
-                        {bill.services.map((service, index) => (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            className="h-5 border-stone-200 px-1 py-0 text-xs text-stone-600"
-                          >
-                            {service}
-                          </Badge>
-                        ))}
+                    {/* Bottom Row: Financials & Action Buttons */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-slate-400 leading-tight">
+                          Sub: {formatCurrency(bill.subtotal)}
+                        </div>
+                        <div className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                          {formatCurrency(bill.total)}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Financial Details */}
-                    <div className="mb-2 flex items-center justify-between text-xs">
-                      <div className="flex gap-3 text-stone-600">
-                        <span>Sub: {formatCurrency(bill.subtotal)}</span>
-                        <span>Tax: {formatCurrency(bill.tax)}</span>
-                      </div>
-                      <div className="font-semibold text-stone-800">
-                        Total: {formatCurrency(bill.total)}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between border-t border-stone-100 pt-1">
-                      <div className="text-xs text-stone-500">
-                        {bill.status === "completed" && "✓ Completed"}
-                        {bill.status === "settled" && "💰 Settled"}
-                        {bill.status === "scheduled" && "📅 Scheduled"}
-                        {bill.status === "confirmed" && "✅ Confirmed"}
-                        {bill.status === "in_progress" && "🔄 In Progress"}
-                        {bill.status === "cancelled" && "❌ Cancelled"}
-                        {bill.status === "paid" && "✓ Paid"}
-                        {bill.status === "pending" && "⏳ Pending"}
-                        {bill.status === "overdue" && "⚠ Overdue"}
-                      </div>
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 hover:bg-stone-100"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"
                           title="View invoice"
                           onClick={() => {
                             setBillData(bill);
                             setActiveSubPage("create-invoice");
                           }}
                         >
-                          <Eye className="h-3 w-3 text-stone-600" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                        {/* {bill.status === "in_progress" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-green-100"
-                            onClick={() => handleSettle(bill.id)}
-                            title="Settle"
-                          >
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                          </Button>
-                        )} */}
+
                         {bill.status === "completed" && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0 hover:bg-blue-100"
+                            className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-blue-600 cursor-pointer"
                             onClick={() => handleReprint(bill)}
-                            title="Reprint"
+                            title="Reprint Receipt"
                           >
-                            <Download className="h-3 w-3 text-blue-600" />
+                            <Download className="h-4 w-4" />
                           </Button>
                         )}
-                        {/* {(bill.status === "scheduled" ||
-                          bill.status === "confirmed" ||
-                          bill.status === "pending") && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-green-100"
-                            onClick={() =>
-                              handleStatusUpdate(bill.id, "completed")
-                            }
-                            title="Mark as completed"
-                          >
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                          </Button>
-                        )} */}
-                        {/* <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:bg-stone-100"
-                          onClick={() => handleEditBilling(bill)}
-                          title="Edit invoice"
-                        >
-                          <Edit className="h-3 w-3 text-stone-600" />
-                        </Button>
+
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 hover:bg-red-100"
-                          onClick={() => handleDeleteBilling(bill)}
-                          title="Delete invoice"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"
+                          onClick={() => handleEditBilling(bill)}
+                          title="Edit invoice"
                         >
-                          <Trash2 className="h-3 w-3 text-red-600" />
-                        </Button> */}
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
 
           {filteredBills.length === 0 && (
             <div className="py-12 text-center">
-              <CreditCard className="mx-auto mb-4 h-12 w-12 text-stone-300" />
-              <h3 className="mb-2 text-lg font-medium text-stone-600">
+              <CreditCard className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+              <h3 className="mb-2 text-lg font-medium text-slate-600">
                 No invoices found
               </h3>
-              <p className="text-stone-500">
+              <p className="text-slate-500">
                 Try adjusting your search criteria
               </p>
             </div>
@@ -2566,8 +2537,8 @@ const CreateInvoicePage = ({
         <button
           className={`rounded px-4 py-2 ${
             !showProducts
-              ? "bg-stone-600 text-white"
-              : "bg-stone-100 text-stone-800"
+              ? "bg-blue-600 text-white"
+              : "bg-slate-100 text-slate-900"
           }`}
           onClick={() => setShowProducts(false)}
         >
@@ -2576,8 +2547,8 @@ const CreateInvoicePage = ({
         <button
           className={`rounded px-4 py-2 ${
             showProducts
-              ? "bg-stone-600 text-white"
-              : "bg-stone-100 text-stone-800"
+              ? "bg-blue-600 text-white"
+              : "bg-slate-100 text-slate-900"
           }`}
           onClick={() => setShowProducts(true)}
         >
@@ -2587,8 +2558,8 @@ const CreateInvoicePage = ({
 
       <div className="flex h-full w-3/5 gap-3">
         {/* Categories Sidebar */}
-        <div className="w-48 rounded-lg bg-stone-50 px-4">
-          <h3 className="mb-4 text-lg font-semibold text-stone-800">
+        <div className="w-48 rounded-lg bg-slate-50 px-4">
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">
             {showProducts ? "Product" : "Service"} Categories
           </h3>
           <div className="space-y-2">
@@ -2600,8 +2571,8 @@ const CreateInvoicePage = ({
                   onClick={() => setSelectedCategory(category.id)}
                   className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
                     selectedCategory === category.id
-                      ? "bg-stone-600 text-white"
-                      : "bg-white text-stone-700 hover:bg-stone-100"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   {IconComponent && <IconComponent className="h-5 w-5" />}
@@ -2616,19 +2587,19 @@ const CreateInvoicePage = ({
         <div className="flex-1">
           <div className="mb-6 flex items-center justify-start gap-2">
             <div>
-              <h2 className="text-lg font-semibold text-stone-800">
+              <h2 className="text-lg font-semibold text-slate-900">
                 {categories.find((cat) => cat.id === selectedCategory)?.name}{" "}
                 {showProducts ? "Products" : "Services"}
               </h2>
-              <p className="text-sm text-stone-600">
+              <p className="text-sm text-slate-600">
                 Select {showProducts ? "products" : "services"} to add to your
                 invoice
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 rounded-lg bg-stone-100 px-3 py-2">
-                <ShoppingCart className="h-5 w-5 text-stone-600" />
-                <span className="text-sm font-medium text-stone-800">
+              <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
+                <ShoppingCart className="h-5 w-5 text-slate-600" />
+                <span className="text-sm font-medium text-slate-900">
                   {cart?.length} {showProducts ? "products" : "services"} -{" "}
                   {formatCurrency(getTotal())}
                 </span>
@@ -2646,7 +2617,7 @@ const CreateInvoicePage = ({
               return (
                 <Card
                   key={id}
-                  className="w-40 border-stone-200 transition-shadow hover:shadow-md"
+                  className="w-40 border-slate-200 transition-shadow hover:shadow-md"
                 >
                   <div className="relative">
                     {imageUrl ? (
@@ -2666,20 +2637,20 @@ const CreateInvoicePage = ({
                       </div>
                     )}
                     <div className="absolute right-2 top-2">
-                      <Badge className="bg-stone-600 px-1.5 py-0.5 text-[10px]">
+                      <Badge className="bg-blue-600 px-1.5 py-0.5 text-[10px]">
                         {item.currency} {amount}
                       </Badge>
                     </div>
                   </div>
 
                   <CardContent className="p-2">
-                    <h3 className="mb-1 truncate text-xs font-semibold text-stone-800">
+                    <h3 className="mb-1 truncate text-xs font-semibold text-slate-900">
                       {name}
                     </h3>
 
                     {/* Service description only if services are being shown */}
                     {item.serviceDescription && !showProducts && (
-                      <p className="mb-1 line-clamp-2 text-[10px] text-stone-600">
+                      <p className="mb-1 line-clamp-2 text-[10px] text-slate-600">
                         {item.serviceDescription}
                       </p>
                     )}
@@ -2687,14 +2658,14 @@ const CreateInvoicePage = ({
                     {/* Duration + Add Button for Services */}
                     {!showProducts && (
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-stone-500">
+                        <span className="text-[10px] text-slate-500">
                           ⏱ {formatDuration(item.duration)}
                         </span>
 
                         {/* Same add button logic for services */}
                         <Button
                           onClick={() => addToCart(item)}
-                          className="h-6 w-6 bg-stone-600 p-0 text-white hover:bg-stone-700"
+                          className="h-6 w-6 bg-blue-600 p-0 text-white hover:bg-blue-700"
                           size="icon"
                           disabled={cart?.some((c) => c.serviceId === id)}
                         >
@@ -2712,7 +2683,7 @@ const CreateInvoicePage = ({
                       <div className="flex items-center justify-end">
                         <Button
                           onClick={() => addToCart(item)}
-                          className="h-6 w-6 bg-stone-600 p-0 text-white hover:bg-stone-700"
+                          className="h-6 w-6 bg-blue-600 p-0 text-white hover:bg-blue-700"
                           size="icon"
                         >
                           {cart?.some((c) => c.productId === id) ? (
@@ -2732,14 +2703,14 @@ const CreateInvoicePage = ({
       </div>
 
       {/* Cart / Invoice Sidebar */}
-      <div className="absolute right-0 top-4 z-30 -mx-7 w-[460px] rounded-lg border border-stone-200 bg-white p-4">
-        <h3 className="mb-4 text-lg font-semibold text-stone-800">
+      <div className="absolute right-0 top-4 z-30 -mx-7 w-[460px] rounded-lg border border-slate-200 bg-white p-4">
+        <h3 className="mb-4 text-lg font-semibold text-slate-900">
           Invoice Details
         </h3>
         {/* Customer Info */}
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div className="relative col-span-1">
-            <label className="mb-1 block text-xs font-medium text-stone-700">
+            <label className="mb-1 block text-xs font-medium text-slate-700">
               Name
             </label>
             <Input
@@ -2751,18 +2722,18 @@ const CreateInvoicePage = ({
               }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               onFocus={() => setShowSuggestions(true)}
-              className="w-full rounded-lg border border-stone-200 p-1 text-sm"
+              className="w-full rounded-lg border border-slate-200 p-1 text-sm"
               placeholder="Enter name"
             />
             {showSuggestions &&
               client.clientName &&
               filteredClients.length > 0 && (
-                <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-stone-200 bg-white shadow-md">
+                <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-md">
                   {filteredClients.map((c, i) => (
                     <li
                       key={i}
                       onMouseDown={() => handleSelect(c)}
-                      className="cursor-pointer px-3 py-2 text-sm hover:bg-stone-100"
+                      className="cursor-pointer px-3 py-2 text-sm hover:bg-slate-100"
                     >
                       {c.clientName} – {c.phoneNumber}
                     </li>
@@ -2771,7 +2742,7 @@ const CreateInvoicePage = ({
               )}
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-stone-700">
+            <label className="mb-1 block text-xs font-medium text-slate-700">
               Phone
             </label>
             <Input
@@ -2780,7 +2751,7 @@ const CreateInvoicePage = ({
               onChange={(e) =>
                 setClient({ ...client, phoneNumber: e.target.value })
               }
-              className="w-full rounded-lg border border-stone-200 p-1 text-sm"
+              className="w-full rounded-lg border border-slate-200 p-1 text-sm"
               placeholder="Phone number"
             />
           </div>
@@ -2788,13 +2759,13 @@ const CreateInvoicePage = ({
 
         {/* Staff Select */}
         <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-stone-700">
+          <label className="mb-1 block text-xs font-medium text-slate-700">
             Staff
           </label>
           <select
             value={selectedStaff}
             onChange={(e) => setSelectedStaff(e.target.value)}
-            className="w-full rounded-lg border border-stone-200 p-1 text-sm focus:outline-none focus:ring-2 focus:ring-stone-500"
+            className="w-full rounded-lg border border-slate-200 p-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select</option>
             {barbers.map((staff) => (
@@ -2807,7 +2778,7 @@ const CreateInvoicePage = ({
 
         {/* Selected Items (services or products) */}
         <div className="my-3">
-          <h4 className="mb-2 text-sm font-medium text-stone-700">
+          <h4 className="mb-2 text-sm font-medium text-slate-700">
             Selected {showProducts ? "Products" : "Services"}
           </h4>
           <div className="grid max-h-32 grid-cols-2 gap-2 overflow-y-auto">
@@ -2817,13 +2788,13 @@ const CreateInvoicePage = ({
                 return (
                   <div
                     key={isProduct ? item.productId : item.serviceId}
-                    className="flex items-center justify-between rounded border border-stone-200 bg-white p-2"
+                    className="flex items-center justify-between rounded border border-slate-200 bg-white p-2"
                   >
                     <div>
-                      <h4 className="text-sm font-medium text-stone-800">
+                      <h4 className="text-sm font-medium text-slate-900">
                         {isProduct ? item.productName : item.serviceName}
                       </h4>
-                      <p className="text-xs text-stone-600">
+                      <p className="text-xs text-slate-600">
                         {formatCurrency(item.amount)}
                       </p>
 
@@ -2831,14 +2802,14 @@ const CreateInvoicePage = ({
                       {isProduct && (
                         <div className="mt-1 flex items-center gap-2">
                           <button
-                            className="rounded bg-stone-200 px-2 text-sm font-bold"
+                            className="rounded bg-slate-200 px-2 text-sm font-bold"
                             onClick={() => removeFromCart(item.productId)}
                           >
                             −
                           </button>
                           <span className="text-sm">{item.quantity}</span>
                           <button
-                            className="rounded bg-stone-200 px-2 text-sm font-bold"
+                            className="rounded bg-slate-200 px-2 text-sm font-bold"
                             onClick={() => addToCart(item)}
                           >
                             +
@@ -2862,7 +2833,7 @@ const CreateInvoicePage = ({
                 );
               })
             ) : (
-              <div className="col-span-2 py-4 text-center text-stone-500">
+              <div className="col-span-2 py-4 text-center text-slate-500">
                 <ShoppingCart className="mx-auto mb-1 h-6 w-6 opacity-50" />
                 <p className="text-xs">No products or services selected</p>
               </div>
@@ -2872,14 +2843,14 @@ const CreateInvoicePage = ({
 
         {/* GST Options */}
         <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-stone-700">
+          <label className="mb-1 block text-xs font-medium text-slate-700">
             GST
           </label>
           <div className="flex flex-wrap gap-2">
             {[0, 2.5, 6, 12, 18, 24].map((rate) => (
               <label
                 key={rate}
-                className="flex cursor-pointer items-center gap-1 rounded border border-stone-300 px-2 py-1 text-xs hover:bg-stone-50"
+                className="flex cursor-pointer items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
               >
                 <input
                   type="radio"
@@ -2887,7 +2858,7 @@ const CreateInvoicePage = ({
                   value={rate}
                   checked={selectedGst === rate}
                   onChange={() => setSelectedGst(rate)}
-                  className="text-stone-600"
+                  className="text-slate-600"
                 />
                 {rate}%
               </label>
@@ -2896,21 +2867,21 @@ const CreateInvoicePage = ({
         </div>
 
         {/* Summary */}
-        <div className="space-y-2 border-t border-stone-200 pt-3">
+        <div className="space-y-2 border-t border-slate-200 pt-3">
           <div className="flex justify-between text-sm">
-            <span className="text-stone-600">Subtotal:</span>
+            <span className="text-slate-600">Subtotal:</span>
             <span className="font-medium">
               {formatCurrency(getTotal(), "INR")}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-stone-600">GST:</span>
+            <span className="text-slate-600">GST:</span>
             <span className="font-medium">
               {formatCurrency(getGSTAmount())}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-stone-600">Total:</span>
+            <span className="text-slate-600">Total:</span>
             <span className="font-medium">
               {formatCurrency(getFinalTotal())}
             </span>
@@ -2952,7 +2923,7 @@ const CreateInvoicePage = ({
 
           {/* Final Bill Amount */}
           <div className="mb-4">
-            <label className="mb-2 block text-sm font-medium text-stone-700">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Final Bill Amount
             </label>
             <div className="flex flex-col gap-1">
@@ -2964,7 +2935,7 @@ const CreateInvoicePage = ({
                   placeholder={getFinalTotal().toString()}
                   className="h-8 flex-1 text-sm"
                 />
-                <span className="text-xs text-stone-500">₹</span>
+                <span className="text-xs text-slate-500">₹</span>
               </div>
               {errorMessage && (
                 <p className="text-xs text-red-600">{errorMessage}</p>
@@ -2974,7 +2945,7 @@ const CreateInvoicePage = ({
 
           <div className="mt-2 flex gap-2">
             <Button
-              className="flex-1 bg-stone-300 text-stone-800 hover:bg-stone-200"
+              className="flex-1 bg-stone-300 text-slate-900 hover:bg-slate-200"
               disabled={cart.length === 0 || !selectedStaff}
               onClick={() =>
                 handleCreateInvoice({
@@ -2993,7 +2964,7 @@ const CreateInvoicePage = ({
               Generate Bill
             </Button>
             <Button
-              className="flex-1 bg-stone-800 text-stone-100 hover:bg-stone-700"
+              className="flex-1 bg-stone-800 text-stone-100 hover:bg-blue-700"
               disabled={
                 cart.length === 0 ||
                 !selectedStaff ||
@@ -3023,7 +2994,7 @@ const CreateInvoicePage = ({
                 setPaymentMode(e.target.value);
                 setPaymentPlatform("");
               }}
-              className="w-full rounded border border-stone-300 p-2 text-sm"
+              className="w-full rounded border border-slate-300 p-2 text-sm"
             >
               <option value="">Select Payment Mode</option>
               <option value="upi">UPI</option>

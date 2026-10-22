@@ -25,17 +25,17 @@ const ScissorsLoader = ({ text = "Loading..." }) => {
     <div className="flex flex-col items-center justify-center h-64 space-y-4">
       <div className="relative">
         <div className="animate-pulse">
-          <Scissors className="h-16 w-16 text-stone-600 animate-bounce" />
+          <Scissors className="h-16 w-16 text-slate-600 animate-bounce" />
         </div>
-        <div className="absolute -top-2 -right-2 h-4 w-4 bg-stone-300 rounded-full animate-ping"></div>
-        <div className="absolute -bottom-2 -left-2 h-3 w-3 bg-stone-400 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
+        <div className="absolute -top-2 -right-2 h-4 w-4 bg-blue-100 rounded-full animate-ping"></div>
+        <div className="absolute -bottom-2 -left-2 h-3 w-3 bg-blue-300 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
       </div>
       <div className="text-center">
-        <p className="text-lg font-medium text-stone-700 animate-pulse">{text}</p>
+        <p className="text-lg font-medium text-slate-700 animate-pulse">{text}</p>
         <div className="flex items-center justify-center mt-2 space-x-1">
-          <div className="h-2 w-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="h-2 w-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="h-2 w-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          <div className="h-2 w-2 bg-blue-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+          <div className="h-2 w-2 bg-blue-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+          <div className="h-2 w-2 bg-blue-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
         </div>
       </div>
     </div>
@@ -294,7 +294,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, title, staffData = null, isLoad
     <Dialog open={isOpen} onOpenChange={(open) => { handleModalChange(open); if (!open) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-stone-800">{title}</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-slate-900">{title}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -423,7 +423,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, title, staffData = null, isLoad
               <Button
                 type="button"
                 onClick={handleAddSpecialization}
-                className="bg-stone-600 hover:bg-stone-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={isLoading}
               >
                 Add
@@ -447,7 +447,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, title, staffData = null, isLoad
               </div>
             )}
             <div className="mt-2">
-              <p className="text-xs text-stone-500 mb-1">Quick add:</p>
+              <p className="text-xs text-slate-500 mb-1">Quick add:</p>
               <div className="flex flex-wrap gap-1">
                 {predefinedSpecializations.map((spec) => (
                   <Button
@@ -492,7 +492,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, title, staffData = null, isLoad
               type="button"
               variant="outline"
               onClick={() => { resetForm(); onClose(); }}
-              className="border-stone-200 text-stone-600 hover:bg-stone-50"
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
               disabled={isLoading}
             >
               Cancel
@@ -507,7 +507,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, title, staffData = null, isLoad
             </Button>
             <Button
               type="submit"
-              className="bg-stone-600 hover:bg-stone-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -537,8 +537,8 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, staffName, isLoading =
               <Trash2 className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold text-stone-800">Delete Staff</DialogTitle>
-              <DialogDescription className="text-sm text-stone-600">
+              <DialogTitle className="text-lg font-bold text-slate-900">Delete Staff</DialogTitle>
+              <DialogDescription className="text-sm text-slate-600">
                 This action cannot be undone
               </DialogDescription>
             </div>
@@ -546,7 +546,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, staffName, isLoading =
         </DialogHeader>
         
         <div className="py-4">
-          <p className="text-stone-700">
+          <p className="text-slate-700">
             Are you sure you want to delete <strong>{staffName}</strong>? This will permanently remove their information from the system.
           </p>
         </div>
@@ -555,7 +555,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, staffName, isLoading =
           <Button
             variant="outline"
             onClick={onClose}
-            className="border-stone-200 text-stone-600 hover:bg-stone-50"
+            className="border-slate-200 text-slate-600 hover:bg-slate-50"
             disabled={isLoading}
           >
             Cancel
@@ -598,17 +598,17 @@ const StaffsPage = () => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      available: { variant: "default", className: "bg-green-100 text-green-800" },
-      occupied: { variant: "secondary", className: "bg-yellow-100 text-yellow-800" },
-      on_break: { variant: "secondary", className: "bg-orange-100 text-orange-800" },
-      inactive: { variant: "destructive", className: "bg-red-100 text-red-800" },
+      available: { className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+      occupied: { className: "bg-amber-50 text-amber-700 border-amber-200" },
+      on_break: { className: "bg-orange-50 text-orange-700 border-orange-200" },
+      inactive: { className: "bg-rose-50 text-rose-700 border-rose-200" },
     };
     const safeStatus = status || 'available';
     const config = statusConfig[safeStatus] || statusConfig.available;
     return (
-      <Badge variant={config.variant} className={config.className}>
-        {safeStatus.replace("_", " ").toUpperCase()}
-      </Badge>
+      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${config.className}`}>
+        {safeStatus.replace("_", " ")}
+      </span>
     );
   };
 
@@ -721,143 +721,135 @@ const StaffsPage = () => {
   };
 
   return (
-    <div className="poppins-regular space-y-6 p-6">
-      {/* Header - Static */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 font-sans bg-[#f8fafc] min-h-full">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div>
-          <h1 className="text-3xl font-bold text-stone-800">Staff Management</h1>
-          <p className="text-stone-600">Manage your salon staff and their information</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Staff & Stylists</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Manage your salon styling team, availability, and roles</p>
         </div>
         <Button 
-          className="bg-stone-600 hover:bg-stone-700 text-white"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-all w-full sm:w-auto h-10 px-4 cursor-pointer"
           onClick={handleAddStaff}
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Staff
+          Add Stylist
         </Button>
       </div>
 
-      {/* Search and Stats - Static */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* Search and Stats */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-400 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
           <Input
             placeholder="Search staff by name or role..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 border-stone-200"
+            className="pl-9 bg-white border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm h-10"
           />
         </div>
-        <div className="flex gap-2">
-          <Badge variant="secondary" className="bg-stone-100 text-stone-800">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs">
             Total: {loader ? '...' : barbers.length}
           </Badge>
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
+          <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 rounded-xl px-3 py-1.5 text-xs">
             Available: {loader ? '...' : barbers.filter(s => s.status === 'available').length}
           </Badge>
+          <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 ml-auto">
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "grid" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "table" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* View Toggle - Static */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-stone-800">Staff Members</h2>
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === "grid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className={viewMode === "grid" ? "bg-stone-600 hover:bg-stone-700 text-white" : "border-stone-200 text-stone-600 hover:bg-stone-50"}
-          >
-            <Grid3X3 className="h-4 w-4 mr-1" />
-          </Button>
-          <Button
-            variant={viewMode === "table" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("table")}
-            className={viewMode === "table" ? "bg-stone-600 hover:bg-stone-700 text-white" : "border-stone-200 text-stone-600 hover:bg-stone-50"}
-          >
-            <List className="h-4 w-4 mr-1" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Staff Content - Dynamic Content */}
+      {/* Staff Content */}
       {loader ? (
         <div className="flex justify-center py-12">
           <ScissorsLoader text="Loading staff..." />
         </div>
       ) : viewMode === "grid" ? (
         /* Grid View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {filteredStaffs.map((staff) => (
-            <Card key={staff.staffId || staff.id} className="border-stone-200 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-stone-200 flex items-center justify-center">
-                      <Users className="h-6 w-6 text-stone-600" />
+            <Card key={staff.staffId || staff.id} className="border-slate-200/90 rounded-2xl bg-white shadow-2xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+              <CardHeader className="p-4 pb-3 border-b border-slate-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-11 w-11 rounded-full bg-blue-50 text-blue-600 font-bold text-sm flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
+                      {(staff.name || 'ST').slice(0, 2).toUpperCase()}
                     </div>
-                    <div>
-                      <CardTitle className="text-lg text-stone-800">{staff.name || 'N/A'}</CardTitle>
-                      {/* <p className="text-sm text-stone-600">
-                        {Array.isArray(staff.specialization) 
-                          ? staff.specialization.join(', ') 
-                          : (staff.role || staff.specialization || 'Staff Member')}
-                      </p> */}
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm font-bold text-slate-900 truncate">{staff.name || 'N/A'}</CardTitle>
+                      <span className="text-[11px] font-medium text-slate-500 truncate block mt-0.5">
+                        {staff.yearsOfExperience ? `${staff.yearsOfExperience} yrs experience` : 'Stylist'}
+                      </span>
                     </div>
                   </div>
                   {getStatusBadge(staff.status)}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
-                    <Phone className="h-4 w-4" />
-                    <span>{staff.phoneNumber || 'N/A'}</span>
+              <CardContent className="p-4 pt-3 space-y-3 flex-1 flex flex-col justify-between">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{staff.phoneNumber || 'N/A'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
-                    <Mail className="h-4 w-4" />
-                    <span>{staff.email || staff.emailId || 'N/A'}</span>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{staff.email || staff.emailId || 'N/A'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
-                    <MapPin className="h-4 w-4" />
-                    <span>{staff.gender || 'N/A'}</span>
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{staff.gender || 'N/A'}</span>
                   </div>
                 </div>
                 
-                <div className="pt-3 border-t border-stone-100">
-                  <p className="text-sm text-stone-600 mb-2">Experience: {staff.yearsOfExperience ? `${staff.yearsOfExperience} years` : 'N/A'}</p>
+                <div className="pt-2 border-t border-slate-100">
                   {staff.bio && (
-                    <p className="text-xs text-stone-500 mb-2 italic">"{staff.bio}"</p>
+                    <p className="text-xs text-slate-500 mb-2 italic break-words line-clamp-2">"{staff.bio}"</p>
                   )}
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 max-w-full overflow-hidden">
                     {(staff.specialization || []).map((spec, index) => (
-                      <Badge key={index} variant="outline" className="text-xs border-stone-200 text-stone-600">
+                      <Badge key={index} variant="outline" className="text-[10px] font-semibold border-slate-200 text-slate-600 bg-slate-50 break-all">
                         {spec}
                       </Badge>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-3">
+                <div className="flex gap-2 pt-2 border-t border-slate-100">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-1 border-stone-200 text-stone-600 hover:bg-stone-50"
+                    className="flex-1 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 font-semibold rounded-xl text-xs h-8 cursor-pointer"
                     onClick={() => handleEditStaff(staff)}
                     disabled={isCreating || isUpdating || isDeleting}
                   >
-                    <Edit className="h-4 w-4 mr-1" />
+                    <Edit className="h-3.5 w-3.5 mr-1" />
                     Edit
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="border-red-200 text-red-600 hover:bg-red-50"
+                    className="border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl h-8 w-8 p-0 cursor-pointer"
                     onClick={() => handleDeleteStaff(staff)}
                     disabled={isCreating || isUpdating || isDeleting}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </CardContent>
@@ -866,107 +858,109 @@ const StaffsPage = () => {
         </div>
       ) : (
         /* Table View */
-        <Card className="border-stone-200">
+        <Card className="border-slate-200/90 rounded-2xl bg-white shadow-2xs overflow-hidden">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-stone-600">Staff Member</TableHead>
-                  <TableHead className="text-stone-600">Contact</TableHead>
-                  <TableHead className="text-stone-600">Specialization</TableHead>
-                  <TableHead className="text-stone-600">Experience</TableHead>
-                  <TableHead className="text-stone-600">Status</TableHead>
-                  <TableHead className="text-stone-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStaffs.map((staff) => (
-                  <TableRow key={staff.staffId || staff.id} className="hover:bg-stone-50">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-stone-200 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-stone-600" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-stone-800">{staff.name || 'N/A'}</div>
-                          <div className="text-sm text-stone-500">{staff.gender || 'N/A'}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-stone-600">
-                          <Phone className="h-4 w-4" />
-                          <span>{staff.phoneNumber || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-stone-600">
-                          <Mail className="h-4 w-4" />
-                          <span>{staff.email || staff.emailId || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {(staff.specialization || []).map((spec, index) => (
-                          <Badge key={index} variant="outline" className="text-xs border-stone-200 text-stone-600">
-                            {spec}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-stone-600">
-                        {staff.yearsOfExperience ? `${staff.yearsOfExperience} years` : 'N/A'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(staff.status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 hover:bg-stone-100"
-                          onClick={() => handleEditStaff(staff)}
-                          title="Edit staff"
-                          disabled={isCreating || isUpdating || isDeleting}
-                        >
-                          <Edit className="h-4 w-4 text-stone-600" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 hover:bg-red-100"
-                          onClick={() => handleDeleteStaff(staff)}
-                          title="Delete staff"
-                          disabled={isCreating || isUpdating || isDeleting}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/70 border-b border-slate-200/80">
+                    <TableHead className="text-slate-700 font-bold text-xs">Staff Member</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Contact</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Specialization</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Experience</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Status</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredStaffs.map((staff) => (
+                    <TableRow key={staff.staffId || staff.id} className="hover:bg-slate-50/70 border-b border-slate-100">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100">
+                            {(staff.name || 'ST').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-bold text-xs sm:text-sm text-slate-900">{staff.name || 'N/A'}</div>
+                            <div className="text-[11px] text-slate-500">{staff.gender || 'N/A'}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <Phone className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{staff.phoneNumber || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                            <Mail className="h-3 w-3 text-slate-400" />
+                            <span>{staff.email || staff.emailId || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {(staff.specialization || []).map((spec, index) => (
+                            <Badge key={index} variant="outline" className="text-[10px] border-slate-200 text-slate-600 bg-slate-50">
+                              {spec}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-semibold text-slate-700">
+                          {staff.yearsOfExperience ? `${staff.yearsOfExperience} yrs` : 'N/A'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(staff.status)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
+                            onClick={() => handleEditStaff(staff)}
+                            title="Edit staff"
+                            disabled={isCreating || isUpdating || isDeleting}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                            onClick={() => handleDeleteStaff(staff)}
+                            title="Delete staff"
+                            disabled={isCreating || isUpdating || isDeleting}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
 
       {!loader && hasInitiallyLoaded && barbers.length === 0 && (
         <div className="text-center py-12">
-          <Users className="h-12 w-12 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-stone-600 mb-2">No staff found</h3>
-          <p className="text-stone-500">No staff members have been added yet</p>
+          <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-600 mb-2">No staff found</h3>
+          <p className="text-slate-500">No staff members have been added yet</p>
         </div>
       )}
 
       {!loader && hasInitiallyLoaded && barbers.length > 0 && filteredStaffs.length === 0 && (
         <div className="text-center py-12">
-          <Users className="h-12 w-12 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-stone-600 mb-2">No matching staff found</h3>
-          <p className="text-stone-500">Try adjusting your search criteria</p>
+          <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-600 mb-2">No matching staff found</h3>
+          <p className="text-slate-500">Try adjusting your search criteria</p>
         </div>
       )}
 

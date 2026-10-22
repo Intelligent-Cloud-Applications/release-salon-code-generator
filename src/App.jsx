@@ -1,16 +1,9 @@
 import React, { useEffect, useContext } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import Context from "./development/Context/Context";
-import Hero from "./development/components/Hero";
-import AboutUs from "./development/components/AboutUs";
-import Service from "./development/components/Service";
+import Navbar from "./development/components/landing/Navbar";
+import { SiteProvider } from "./development/components/context/SiteContext";
 import Services from "./development/dashboard/Services";
-import Gallery from "./development/components/Gallery";
-import Testimonial from "./development/components/Testimonial";
-import Contact from "./development/components/Contact";
-import Navbar from "./development/components/Navbar";
-import Footer from "./development/components/Footer";
-import FAQ from "./development/components/FAQ";
 import Login from "./development/Auth/Login";
 import Logout from "./development/Auth/Logout";
 import Redirect from "./development/Auth/Login/Redirect";
@@ -28,7 +21,7 @@ import ExpenseManagementPage from "./development/dashboard/ExpenseManagementPage
 import LoyaltyPointsPage from "./development/dashboard/LoyaltyPointsPage";
 import { Toaster } from "./development/components/toaster";
 import metaTagsData from "./operation/metatags.json";
-import { Scissors } from "lucide-react";
+import LandingHome from "./development/components/landing/LandingHome";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -38,16 +31,7 @@ const ScrollToTop = () => {
   return null;
 };
 
-const Home = () => (
-  <>
-    <Hero />
-    {/* <AboutUs />
-    <Service />
-    <Gallery />
-    <Testimonial />
-    <FAQ /> */}
-  </>
-);
+const Home = () => <LandingHome />;
 
 const verifyMetaTags = () => {
   const metaTags = {
@@ -143,37 +127,24 @@ const App = () => {
     document.body.appendChild(noscript);
   }, [gtmId]);
 
-  // Check if the current route is dashboard, login, or logout to hide Footer
   const location = useLocation();
-  const hideFooterRoutes = [
-    "/dashboard",
-    "/login",
-    "/logout",
-    "/redirect",
-    "/",
-    "/bill",
-  ];
-  const shouldHideFooter = hideFooterRoutes.some((route) =>
-    location.pathname.startsWith(route),
-  );
 
   return (
     <>
-      {(
-        (location.pathname === "/" ||
-          location.pathname === "/aboutus" ||
-          location.pathname === "/services" ||
-          location.pathname === "/gallery" ||
-          location.pathname === "/contact" ||
-          location.pathname === "/login") && <Navbar />
+      {location.pathname === "/login" && (
+        <SiteProvider>
+          <Navbar />
+          <div className="h-[60px] sm:h-[72px]" />
+        </SiteProvider>
       )}
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/aboutus" element={<AboutUs />} />
-        <Route path="/services" element={<Service />} />
-        <Route path="/gallery" element={<Gallery />} />
-        <Route path="/contact" element={<Contact />} />
+        <Route path="/aboutus" element={<Navigate to="/#about" replace />} />
+        <Route path="/services" element={<Navigate to="/#services" replace />} />
+        <Route path="/gallery" element={<Navigate to="/#gallery" replace />} />
+        <Route path="/contact" element={<Navigate to="/#contact" replace />} />
+        <Route path="/faq" element={<Navigate to="/#faq" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/logout" element={<Logout />} />
         {/* Standalone bill preview route (outside dashboard) */}
@@ -209,7 +180,6 @@ const App = () => {
         </Route>
         <Route path="/redirect" element={<Redirect />} />
       </Routes>
-      {!shouldHideFooter && <Footer />}
       <Toaster />
     </>
   );

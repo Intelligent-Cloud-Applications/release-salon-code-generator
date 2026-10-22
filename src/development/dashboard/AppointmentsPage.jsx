@@ -11,6 +11,9 @@ import {
   AlertCircle,
   Edit,
   ChevronDown,
+  Grid3X3,
+  List,
+  Phone,
 } from "lucide-react";
 import {
   Card,
@@ -55,29 +58,29 @@ const ScissorsLoader = ({ text = "Loading..." }) => {
     <div className="flex h-64 flex-col items-center justify-center space-y-4">
       <div className="relative">
         <div className="animate-pulse">
-          <Scissors className="h-16 w-16 animate-bounce text-stone-600" />
+          <Scissors className="h-16 w-16 animate-bounce text-slate-600" />
         </div>
-        <div className="absolute -right-2 -top-2 h-4 w-4 animate-ping rounded-full bg-stone-300"></div>
+        <div className="absolute -right-2 -top-2 h-4 w-4 animate-ping rounded-full bg-blue-100"></div>
         <div
-          className="absolute -bottom-2 -left-2 h-3 w-3 animate-ping rounded-full bg-stone-400"
+          className="absolute -bottom-2 -left-2 h-3 w-3 animate-ping rounded-full bg-blue-300"
           style={{ animationDelay: "0.5s" }}
         ></div>
       </div>
       <div className="text-center">
-        <p className="animate-pulse text-lg font-medium text-stone-700">
+        <p className="animate-pulse text-lg font-medium text-slate-700">
           {text}
         </p>
         <div className="mt-2 flex items-center justify-center space-x-1">
           <div
-            className="h-2 w-2 animate-bounce rounded-full bg-stone-400"
+            className="h-2 w-2 animate-bounce rounded-full bg-blue-300"
             style={{ animationDelay: "0ms" }}
           ></div>
           <div
-            className="h-2 w-2 animate-bounce rounded-full bg-stone-400"
+            className="h-2 w-2 animate-bounce rounded-full bg-blue-300"
             style={{ animationDelay: "150ms" }}
           ></div>
           <div
-            className="h-2 w-2 animate-bounce rounded-full bg-stone-400"
+            className="h-2 w-2 animate-bounce rounded-full bg-blue-300"
             style={{ animationDelay: "300ms" }}
           ></div>
         </div>
@@ -142,10 +145,10 @@ const MultiSelectDropdown = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <div
-        className={`w-full rounded-md border border-stone-200 bg-white p-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-stone-500 ${
+        className={`w-full rounded-md border border-slate-200 bg-white p-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 ${
           disabled
             ? "cursor-not-allowed opacity-50"
-            : "cursor-pointer hover:border-stone-300"
+            : "cursor-pointer hover:border-slate-300"
         }`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={(e) => {
@@ -163,12 +166,12 @@ const MultiSelectDropdown = ({
         <div className="flex items-center justify-between">
           <div className="flex flex-1 flex-wrap gap-1">
             {selectedCount === 0 ? (
-              <span className="text-stone-500">{placeholder}</span>
+              <span className="text-slate-500">{placeholder}</span>
             ) : (
               selectedValues.map((value) => (
                 <span
                   key={value}
-                  className="inline-flex items-center gap-1 rounded bg-stone-100 px-2 py-1 text-sm text-stone-700"
+                  className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-sm text-slate-700"
                 >
                   {value}
                   <X
@@ -183,19 +186,19 @@ const MultiSelectDropdown = ({
             )}
           </div>
           <ChevronDown
-            className={`h-4 w-4 text-stone-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </div>
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-hidden rounded-md border border-stone-200 bg-white shadow-lg">
-          <div className="border-b border-stone-200 p-2">
+        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
+          <div className="border-b border-slate-200 p-2">
             <Input
               placeholder="Search services..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="border-stone-200 text-sm"
+              className="border-slate-200 text-sm"
             />
             <div className="mt-2 flex gap-2">
               <Button
@@ -220,22 +223,22 @@ const MultiSelectDropdown = ({
           </div>
           <div className="max-h-48 overflow-y-auto">
             {filteredOptions.length === 0 ? (
-              <div className="p-3 text-center text-sm text-stone-500">
+              <div className="p-3 text-center text-sm text-slate-500">
                 No services found
               </div>
             ) : (
               filteredOptions.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center p-2 hover:bg-stone-50"
+                  className="flex cursor-pointer items-center p-2 hover:bg-slate-50"
                 >
                   <input
                     type="checkbox"
                     checked={selectedValues.includes(option)}
                     onChange={() => handleToggle(option)}
-                    className="mr-3 h-4 w-4 rounded border-stone-300 text-stone-600 focus:ring-stone-500"
+                    className="mr-3 h-4 w-4 rounded border-slate-300 text-slate-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-stone-700">{option}</span>
+                  <span className="text-sm text-slate-700">{option}</span>
                 </label>
               ))
             )}
@@ -407,7 +410,7 @@ const AppointmentEditModal = ({
     <Dialog open={isOpen} onOpenChange={handleModalChange}>
       <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-stone-800">
+          <DialogTitle className="text-xl font-bold text-slate-900">
             Edit Appointment
           </DialogTitle>
           <DialogDescription>
@@ -420,7 +423,7 @@ const AppointmentEditModal = ({
           {/* Client Details */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-stone-700">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
                 Client Name *
               </label>
               <Input
@@ -433,7 +436,7 @@ const AppointmentEditModal = ({
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-stone-700">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
                 Phone Number *
               </label>
               <Input
@@ -450,7 +453,7 @@ const AppointmentEditModal = ({
           {/* Appointment Details */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-stone-700">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
                 Date & Time *
               </label>
               <Input
@@ -463,7 +466,7 @@ const AppointmentEditModal = ({
               />
             </div>
             {/* <div>
-              <label className="mb-2 block text-sm font-medium text-stone-700">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
                 Staff Member *
               </label>
               <select
@@ -471,7 +474,7 @@ const AppointmentEditModal = ({
                 value={formData.staffId}
                 onChange={handleInputChange}
                 required
-                className="w-full rounded-lg border border-stone-200 p-2 focus:outline-none focus:ring-2 focus:ring-stone-500"
+                className="w-full rounded-lg border border-slate-200 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Staff Member *</option>
                 {staffMembers.map((staff) => (
@@ -482,7 +485,7 @@ const AppointmentEditModal = ({
               </select>
             </div> */}
             <div>
-              <Label className="mb-2 block text-sm font-medium text-stone-700">
+              <Label className="mb-2 block text-sm font-medium text-slate-700">
                 Status
               </Label>
               <Select
@@ -508,7 +511,7 @@ const AppointmentEditModal = ({
 
           {/* Services Selection */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-stone-700">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Services *
             </label>
             <MultiSelectDropdown
@@ -527,14 +530,14 @@ const AppointmentEditModal = ({
               placeholder="Select services"
               disabled={isLoading}
             />
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-slate-500">
               Select multiple services (searchable)
             </p>
           </div>
 
           {/* Notes */}
           <div>
-            <Label className="mb-2 block text-sm font-medium text-stone-700">
+            <Label className="mb-2 block text-sm font-medium text-slate-700">
               Notes (Optional)
             </Label>
             <Textarea
@@ -548,12 +551,12 @@ const AppointmentEditModal = ({
           </div>
         </form>
 
-        <DialogFooter className="flex justify-end gap-3 border-t border-stone-200 pt-4">
+        <DialogFooter className="flex justify-end gap-3 border-t border-slate-200 pt-4">
           <Button
             type="button"
             variant="outline"
             onClick={() => handleModalChange(false)}
-            className="border-stone-200 text-stone-600 hover:bg-stone-50"
+            className="border-slate-200 text-slate-600 hover:bg-slate-50"
             disabled={isLoading}
           >
             Cancel
@@ -561,7 +564,7 @@ const AppointmentEditModal = ({
           <Button
             type="submit"
             form="edit-form"
-            className="bg-stone-600 text-white hover:bg-stone-700"
+            className="bg-blue-600 text-white hover:bg-blue-700"
             disabled={
               !formData.clientName ||
               !formData.phoneNumber ||
@@ -603,6 +606,7 @@ const AppointmentsPage = () => {
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
 
   const { toast } = useToast();
 
@@ -624,27 +628,27 @@ const AppointmentsPage = () => {
     const statusConfig = {
       pending: {
         variant: "secondary",
-        className: "bg-yellow-100 text-yellow-800",
+        className: "bg-amber-50 text-amber-700 border border-amber-200/80 font-medium",
         icon: Clock,
       },
       confirmed: {
         variant: "default",
-        className: "bg-blue-100 text-blue-800",
+        className: "bg-blue-50 text-blue-700 border border-blue-200/80 font-medium",
         icon: CheckCircle,
       },
       in_progress: {
         variant: "default",
-        className: "bg-green-100 text-green-800",
+        className: "bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-medium",
         icon: AlertCircle,
       },
       completed: {
         variant: "default",
-        className: "bg-emerald-100 text-emerald-800",
+        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium",
         icon: CheckCircle,
       },
       cancelled: {
         variant: "destructive",
-        className: "bg-red-100 text-red-800",
+        className: "bg-rose-50 text-rose-700 border border-rose-200/80 font-medium",
         icon: X,
       },
     };
@@ -969,7 +973,7 @@ const AppointmentsPage = () => {
       <Dialog open={isOpen} onOpenChange={handleModalChange}>
         <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-stone-800">
+            <DialogTitle className="text-xl font-bold text-slate-900">
               Book New Appointment
             </DialogTitle>
             <DialogDescription>
@@ -981,7 +985,7 @@ const AppointmentsPage = () => {
           <form id="booking-form" onSubmit={handleSubmit} className="space-y-4">
             {/* Client Search */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-stone-700">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
                 Search Existing Client (Optional)
               </label>
               <div className="relative">
@@ -993,21 +997,21 @@ const AppointmentsPage = () => {
                   className="pr-10"
                   disabled={isLoading}
                 />
-                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-stone-400" />
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400" />
               </div>
 
               {filteredClients.length > 0 && (
-                <div className="mt-2 max-h-32 overflow-y-auto rounded-lg border border-stone-200">
+                <div className="mt-2 max-h-32 overflow-y-auto rounded-lg border border-slate-200">
                   {filteredClients.map((client) => (
                     <div
                       key={client.clientId || client.ClientId || client.id}
-                      className="cursor-pointer border-b border-stone-100 p-2 last:border-b-0 hover:bg-stone-50"
+                      className="cursor-pointer border-b border-slate-100 p-2 last:border-b-0 hover:bg-slate-50"
                       onClick={() => handleClientSelect(client)}
                     >
-                      <div className="font-medium text-stone-800">
+                      <div className="font-medium text-slate-900">
                         {client.clientName || client.ClientName || client.name}
                       </div>
-                      <div className="text-sm text-stone-500">
+                      <div className="text-sm text-slate-500">
                         {client.phoneNumber ||
                           client.PhoneNumber ||
                           client.phone}
@@ -1032,7 +1036,7 @@ const AppointmentsPage = () => {
             {/* Client Details */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-stone-700">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Client Name *
                 </label>
                 <Input
@@ -1045,7 +1049,7 @@ const AppointmentsPage = () => {
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-stone-700">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Phone Number *
                 </label>
                 <Input
@@ -1062,7 +1066,7 @@ const AppointmentsPage = () => {
             {/* Appointment Details */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-stone-700">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Date & Time *
                 </label>
                 <Input
@@ -1075,7 +1079,7 @@ const AppointmentsPage = () => {
                 />
               </div>
               {/* <div>
-                <label className="mb-2 block text-sm font-medium text-stone-700">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Staff Member *
                 </label>
                 <select
@@ -1083,7 +1087,7 @@ const AppointmentsPage = () => {
                   value={formData.staffId}
                   onChange={handleInputChange}
                   required
-                  className="w-full rounded-lg border border-stone-200 p-2 focus:outline-none focus:ring-2 focus:ring-stone-500"
+                  className="w-full rounded-lg border border-slate-200 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Staff Member *</option>
                   {staffMembers.map((staff) => (
@@ -1094,7 +1098,7 @@ const AppointmentsPage = () => {
                 </select>
               </div> */}
               <div>
-                <Label className="mb-2 block text-sm font-medium text-stone-700">
+                <Label className="mb-2 block text-sm font-medium text-slate-700">
                   Status
                 </Label>
                 <Select
@@ -1120,7 +1124,7 @@ const AppointmentsPage = () => {
 
             {/* Services Selection */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-stone-700">
+              <label className="mb-2 block text-sm font-medium text-slate-700">
                 Services *
               </label>
               <MultiSelectDropdown
@@ -1139,14 +1143,14 @@ const AppointmentsPage = () => {
                 placeholder="Select services"
                 disabled={isCreating}
               />
-              <p className="mt-1 text-xs text-stone-500">
+              <p className="mt-1 text-xs text-slate-500">
                 Select multiple services (searchable)
               </p>
             </div>
 
             {/* Notes */}
             <div>
-              <Label className="mb-2 block text-sm font-medium text-stone-700">
+              <Label className="mb-2 block text-sm font-medium text-slate-700">
                 Notes (Optional)
               </Label>
               <Textarea
@@ -1160,12 +1164,12 @@ const AppointmentsPage = () => {
             </div>
           </form>
 
-          <DialogFooter className="flex justify-end gap-3 border-t border-stone-200 pt-4">
+          <DialogFooter className="flex justify-end gap-3 border-t border-slate-200 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => handleModalChange(false)}
-              className="border-stone-200 text-stone-600 hover:bg-stone-50"
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
               disabled={isLoading || isCreating}
             >
               Cancel
@@ -1173,7 +1177,7 @@ const AppointmentsPage = () => {
             <Button
               type="submit"
               form="booking-form"
-              className="bg-stone-600 text-white hover:bg-stone-700"
+              className="bg-blue-600 text-white hover:bg-blue-700"
               disabled={
                 !formData.clientName ||
                 !formData.phoneNumber ||
@@ -1198,17 +1202,17 @@ const AppointmentsPage = () => {
   };
 
   return (
-    <div className="poppins-regular space-y-6 p-6">
-      {/* Header - Static */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 font-sans bg-[#f8fafc] min-h-full">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div>
-          <h1 className="text-3xl font-bold text-stone-800">Appointments</h1>
-          <p className="text-stone-600">
-            Manage your salon appointments and bookings
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Appointments Roster</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Manage your salon bookings, stylist schedules, and live chair queue
           </p>
         </div>
         <Button
-          className="bg-stone-600 text-white hover:bg-stone-700"
+          className="bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl shadow-xs transition-all w-full sm:w-auto h-10 px-4 cursor-pointer"
           onClick={handleAddAppointment}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -1216,28 +1220,28 @@ const AppointmentsPage = () => {
         </Button>
       </div>
 
-      {/* Search and Stats - Static */}
-      <div className="flex flex-col gap-4 sm:flex-row">
+      {/* Search, Stats, and View Mode Toggle */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-stone-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 transform text-slate-400 h-4 w-4" />
           <Input
             placeholder="Search appointments by client, service, or staff..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border-stone-200 pl-10"
+            className="pl-9 bg-white border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm h-10"
           />
         </div>
-        <div className="flex gap-2">
-          <Badge variant="secondary" className="bg-stone-100 text-stone-800">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs">
             Total: {loader ? "..." : filteredAppointments.length}
           </Badge>
-          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+          <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-bold border border-blue-200 rounded-xl px-3 py-1.5 text-xs">
             Today:{" "}
             {loader
               ? "..."
               : appointments.filter((a) => {
                   const status = a.status || a.Status || a.appointment_status;
-                  if (status === "completed") return false; // Exclude completed
+                  if (status === "completed") return false;
                   const appointmentDate = a.dateTime
                     ? new Date(a.dateTime).toISOString().split("T")[0]
                     : a.date || a.Date || a.appointment_date;
@@ -1245,7 +1249,7 @@ const AppointmentsPage = () => {
                   return appointmentDate === today;
                 }).length}
           </Badge>
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+          <Badge variant="secondary" className="bg-amber-50 text-amber-700 font-bold border border-amber-200 rounded-xl px-3 py-1.5 text-xs">
             Pending:{" "}
             {loader
               ? "..."
@@ -1254,256 +1258,462 @@ const AppointmentsPage = () => {
                   return status === "pending" || status === "scheduled";
                 }).length}
           </Badge>
+          <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 ml-auto">
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              title="Box / Card View (Mobile & Tablet)"
+              className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "grid" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              title="Table View"
+              className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "table" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Appointments Table - Dynamic Content */}
-      <Card className="border-stone-200">
-        <CardContent>
-          {loader ? (
-            <div className="flex justify-center py-12">
-              <ScissorsLoader text="Loading appointments..." />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-stone-600">Client</TableHead>
-                  <TableHead className="text-stone-600">Date & Time</TableHead>
-                  <TableHead className="text-stone-600">Service</TableHead>
-                  <TableHead className="text-stone-600">Duration</TableHead>
-                  <TableHead className="text-stone-600">Amount</TableHead>
-                  <TableHead className="text-stone-600">Status</TableHead>
-                  <TableHead className="text-stone-600">Notes</TableHead>
-                  <TableHead className="text-stone-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAppointments.map((appointment) => (
-                  <TableRow
-                    key={appointment.appointmentId || appointment.id}
-                    className="hover:bg-stone-50"
-                  >
-                    <TableCell>
-                      <div>
-                        <div className="font-medium text-stone-800">
-                          {appointment.client?.clientName ||
-                            appointment.clientName ||
-                            appointment.ClientName ||
-                            appointment.client_name ||
-                            "N/A"}
-                        </div>
-                        <div className="text-sm text-stone-500">
-                          {appointment.client?.phoneNumber ||
-                            appointment.clientPhone ||
-                            appointment.ClientPhone ||
-                            appointment.phone_number ||
-                            "N/A"}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-stone-500" />
-                        <div>
-                          <div className="text-sm font-medium text-stone-800">
-                            {appointment.dateTime
-                              ? formatDate(appointment.dateTime)
-                              : formatDate(
-                                  appointment.date ||
-                                    appointment.Date ||
-                                    appointment.appointment_date,
-                                )}
-                          </div>
-                          <div className="text-xs text-stone-600">
-                            {appointment.dateTime
-                              ? formatTime(appointment.dateTime)
-                              : formatTime(
-                                  appointment.time ||
-                                    appointment.Time ||
-                                    appointment.appointment_time,
-                                )}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Scissors className="h-4 w-4 text-stone-500" />
-                        <span className="text-sm text-stone-800">
-                          {appointment.service ||
-                            appointment.Service ||
-                            appointment.service_name ||
-                            "N/A"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="border-stone-200 text-stone-600"
-                      >
-                        {appointment.duration ||
-                        appointment.Duration ||
-                        appointment.duration_minutes
-                          ? `${appointment.duration || appointment.Duration || appointment.duration_minutes} min`
-                          : "N/A"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-stone-800">
-                        {formatCurrency(
-                          appointment.total ||
-                            appointment.totalAmount ||
-                            appointment.TotalAmount ||
-                            appointment.total_amount ||
-                            0,
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(
-                        appointment.status ||
-                          appointment.Status ||
-                          appointment.appointment_status ||
-                          "pending",
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {appointment.notes ||
-                      appointment.Notes ||
-                      appointment.notes_text ? (
-                        <div className="max-w-xs">
-                          <p
-                            className="truncate text-xs text-stone-600"
-                            title={
-                              appointment.notes ||
-                              appointment.Notes ||
-                              appointment.notes_text
-                            }
-                          >
-                            "
-                            {appointment.notes ||
-                              appointment.Notes ||
-                              appointment.notes_text}
-                            "
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-stone-400">No notes</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {(() => {
-                          const status =
-                            appointment.status ||
-                            appointment.Status ||
-                            appointment.appointment_status;
-                          const appointmentId =
-                            appointment.appointmentId ||
-                            appointment.id ||
-                            appointment.Id ||
-                            appointment.appointment_id;
+      {/* Appointments Content */}
+      {loader ? (
+        <div className="flex justify-center py-12">
+          <ScissorsLoader text="Loading appointments..." />
+        </div>
+      ) : viewMode === "grid" ? (
+        /* Box / Card View for Mobile, Tablet & Responsive Grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          {filteredAppointments.map((appointment) => {
+            const clientName =
+              appointment.client?.clientName ||
+              appointment.clientName ||
+              appointment.ClientName ||
+              appointment.client_name ||
+              "Walk-in Client";
+            const clientPhone =
+              appointment.client?.phoneNumber ||
+              appointment.clientPhone ||
+              appointment.ClientPhone ||
+              appointment.phone_number ||
+              "No phone";
+            const serviceName =
+              appointment.service ||
+              appointment.Service ||
+              appointment.service_name ||
+              "General Styling";
+            const staffName =
+              appointment.staff ||
+              appointment.Staff ||
+              appointment.staff_name ||
+              appointment.barberName ||
+              appointment.barber?.name ||
+              "Unassigned";
+            const duration =
+              appointment.duration ||
+              appointment.Duration ||
+              appointment.duration_minutes ||
+              30;
+            const status =
+              appointment.status ||
+              appointment.Status ||
+              appointment.appointment_status ||
+              "pending";
+            const totalAmount =
+              appointment.total ||
+              appointment.totalAmount ||
+              appointment.TotalAmount ||
+              appointment.total_amount ||
+              0;
+            const appointmentId =
+              appointment.appointmentId ||
+              appointment.id ||
+              appointment.Id ||
+              appointment.appointment_id;
+            const notes =
+              appointment.notes ||
+              appointment.Notes ||
+              appointment.notes_text;
 
-                          if (status === "pending") {
-                            return (
+            return (
+              <div
+                key={appointmentId}
+                className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between gap-3 group relative overflow-hidden"
+              >
+                {/* Top Row: Client Info + Status Badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
+                      {clientName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-sm text-slate-900 truncate">
+                        {clientName}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                        <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{clientPhone}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {getStatusBadge(status)}
+                </div>
+
+                {/* Middle Details Grid */}
+                <div className="bg-slate-50/80 rounded-xl p-3 space-y-2 border border-slate-100 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-slate-700 font-medium">
+                      <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>
+                        {appointment.dateTime
+                          ? formatDate(appointment.dateTime)
+                          : formatDate(
+                              appointment.date ||
+                                appointment.Date ||
+                                appointment.appointment_date
+                            )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                      <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>
+                        {appointment.dateTime
+                          ? formatTime(appointment.dateTime)
+                          : formatTime(
+                              appointment.time ||
+                                appointment.Time ||
+                                appointment.appointment_time
+                            )}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2 pt-1.5 border-t border-slate-200/60">
+                    <div className="flex items-center gap-1.5 text-slate-700 font-medium truncate">
+                      <Scissors className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                      <span className="truncate text-slate-800 font-semibold">{serviceName}</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md shrink-0">
+                      {duration} min
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-slate-500 text-[11px] pt-1">
+                    <User className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span>Stylist: <strong className="text-slate-700 font-semibold">{staffName}</strong></span>
+                  </div>
+
+                  {notes && (
+                    <p className="text-[11px] text-slate-500 italic border-t border-slate-200/60 pt-1 line-clamp-2 break-words">
+                      "{notes}"
+                    </p>
+                  )}
+                </div>
+
+                {/* Bottom Row: Amount + Action Buttons */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">Total</span>
+                    <span className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                      {formatCurrency(totalAmount)}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5">
+                    {status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => handleStatusUpdate(appointmentId, "confirmed")}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          title="Confirm appointment"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+                          <span className="hidden sm:inline">Confirm</span>
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(appointmentId, "cancelled")}
+                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl transition-all cursor-pointer"
+                          title="Cancel appointment"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+
+                    {status === "confirmed" && (
+                      <button
+                        onClick={() => handleStatusUpdate(appointmentId, "in_progress")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                        title="Start Service"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>Start</span>
+                      </button>
+                    )}
+
+                    {status === "in_progress" && (
+                      <button
+                        onClick={() => handleStatusUpdate(appointmentId, "completed")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                        title="Complete Appointment"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span>Complete</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleEditAppointment(appointment)}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer"
+                      title="Edit appointment"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Professional Table View */
+        <Card className="border-slate-200/90 rounded-2xl bg-white shadow-2xs overflow-hidden">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/80 border-b border-slate-200/90">
+                    <TableHead className="text-slate-700 font-bold text-xs">Client</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Date & Time</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Service</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Duration</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Amount</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Status</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs">Notes</TableHead>
+                    <TableHead className="text-slate-700 font-bold text-xs text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAppointments.map((appointment) => {
+                    const status =
+                      appointment.status ||
+                      appointment.Status ||
+                      appointment.appointment_status;
+                    const appointmentId =
+                      appointment.appointmentId ||
+                      appointment.id ||
+                      appointment.Id ||
+                      appointment.appointment_id;
+
+                    return (
+                      <TableRow
+                        key={appointmentId}
+                        className="hover:bg-slate-50/70 border-b border-slate-100 transition-colors"
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100">
+                              {(
+                                appointment.client?.clientName ||
+                                appointment.clientName ||
+                                appointment.ClientName ||
+                                "WL"
+                              )
+                                .slice(0, 2)
+                                .toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-bold text-xs sm:text-sm text-slate-900">
+                                {appointment.client?.clientName ||
+                                  appointment.clientName ||
+                                  appointment.ClientName ||
+                                  appointment.client_name ||
+                                  "Walk-in Client"}
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                {appointment.client?.phoneNumber ||
+                                  appointment.clientPhone ||
+                                  appointment.ClientPhone ||
+                                  appointment.phone_number ||
+                                  "No phone"}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <div>
+                              <div className="text-xs font-semibold text-slate-800">
+                                {appointment.dateTime
+                                  ? formatDate(appointment.dateTime)
+                                  : formatDate(
+                                      appointment.date ||
+                                        appointment.Date ||
+                                        appointment.appointment_date,
+                                    )}
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                {appointment.dateTime
+                                  ? formatTime(appointment.dateTime)
+                                  : formatTime(
+                                      appointment.time ||
+                                        appointment.Time ||
+                                        appointment.appointment_time,
+                                    )}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Scissors className="h-4 w-4 text-pink-500" />
+                            <span className="text-xs font-medium text-slate-800">
+                              {appointment.service ||
+                                appointment.Service ||
+                                appointment.service_name ||
+                                "N/A"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {appointment.duration ||
+                            appointment.Duration ||
+                            appointment.duration_minutes
+                              ? `${appointment.duration || appointment.Duration || appointment.duration_minutes} min`
+                              : "N/A"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-black text-xs sm:text-sm text-slate-900">
+                            {formatCurrency(
+                              appointment.total ||
+                                appointment.totalAmount ||
+                                appointment.TotalAmount ||
+                                appointment.total_amount ||
+                                0,
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(status || "pending")}
+                        </TableCell>
+                        <TableCell>
+                          {appointment.notes ||
+                          appointment.Notes ||
+                          appointment.notes_text ? (
+                            <div className="max-w-xs">
+                              <p
+                                className="truncate text-xs text-slate-600"
+                                title={
+                                  appointment.notes ||
+                                  appointment.Notes ||
+                                  appointment.notes_text
+                                }
+                              >
+                                "
+                                {appointment.notes ||
+                                  appointment.Notes ||
+                                  appointment.notes_text}
+                                "
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {status === "pending" && (
                               <>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 hover:bg-green-100"
+                                  className="h-8 w-8 p-0 hover:bg-blue-50 text-blue-600 cursor-pointer"
                                   onClick={() =>
-                                    handleStatusUpdate(
-                                      appointmentId,
-                                      "confirmed",
-                                    )
+                                    handleStatusUpdate(appointmentId, "confirmed")
                                   }
                                   title="Confirm appointment"
                                 >
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <CheckCircle className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 hover:bg-red-100"
+                                  className="h-8 w-8 p-0 hover:bg-rose-50 text-rose-600 cursor-pointer"
                                   onClick={() =>
-                                    handleStatusUpdate(
-                                      appointmentId,
-                                      "cancelled",
-                                    )
+                                    handleStatusUpdate(appointmentId, "cancelled")
                                   }
                                   title="Cancel appointment"
                                 >
-                                  <X className="h-4 w-4 text-red-600" />
+                                  <X className="h-4 w-4" />
                                 </Button>
                               </>
-                            );
-                          }
+                            )}
 
-                          if (status === "confirmed") {
-                            return (
+                            {status === "confirmed" && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                className="h-8 w-8 p-0 hover:bg-indigo-50 text-indigo-600 cursor-pointer"
                                 onClick={() =>
-                                  handleStatusUpdate(
-                                    appointmentId,
-                                    "in_progress",
-                                  )
+                                  handleStatusUpdate(appointmentId, "in_progress")
                                 }
                                 title="Start appointment"
                               >
-                                <AlertCircle className="h-4 w-4 text-blue-600" />
+                                <AlertCircle className="h-4 w-4" />
                               </Button>
-                            );
-                          }
+                            )}
 
-                          if (status === "in_progress") {
-                            return (
+                            {status === "in_progress" && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 hover:bg-emerald-100"
+                                className="h-8 w-8 p-0 hover:bg-emerald-50 text-emerald-600 cursor-pointer"
                                 onClick={() =>
                                   handleStatusUpdate(appointmentId, "completed")
                                 }
                                 title="Complete appointment"
                               >
-                                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                <CheckCircle className="h-4 w-4" />
                               </Button>
-                            );
-                          }
+                            )}
 
-                          return null;
-                        })()}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:bg-stone-100"
-                          onClick={() => handleEditAppointment(appointment)}
-                          title="Edit appointment"
-                        >
-                          <Edit className="h-4 w-4 text-stone-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:bg-slate-100 text-slate-600 cursor-pointer"
+                              onClick={() => handleEditAppointment(appointment)}
+                              title="Edit appointment"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!loader && hasInitiallyLoaded && appointments.length === 0 && (
-        <div className="py-12 text-center">
-          <Calendar className="mx-auto mb-4 h-12 w-12 text-stone-300" />
-          <h3 className="mb-2 text-lg font-medium text-stone-600">
+        <div className="py-12 text-center bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+          <Calendar className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+          <h3 className="mb-1 text-base font-bold text-slate-800">
             No appointments found
           </h3>
-          <p className="text-stone-500">
+          <p className="text-xs text-slate-500">
             No appointments have been scheduled yet
           </p>
         </div>
@@ -1513,12 +1723,12 @@ const AppointmentsPage = () => {
         hasInitiallyLoaded &&
         appointments.length > 0 &&
         filteredAppointments.length === 0 && (
-          <div className="py-12 text-center">
-            <Calendar className="mx-auto mb-4 h-12 w-12 text-stone-300" />
-            <h3 className="mb-2 text-lg font-medium text-stone-600">
+          <div className="py-12 text-center bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+            <Calendar className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+            <h3 className="mb-1 text-base font-bold text-slate-800">
               No matching appointments found
             </h3>
-            <p className="text-stone-500">Try adjusting your search criteria</p>
+            <p className="text-xs text-slate-500">Try adjusting your search criteria</p>
           </div>
         )}
 

@@ -1,10 +1,39 @@
 import React, { useState, useEffect } from "react";
 // CHANGE: New Modular Imports
 import { getCurrentUser } from "aws-amplify/auth";
-import { get, post, put, del } from "aws-amplify/api";
+import { get, post, put, del, patch } from "aws-amplify/api";
 import Context from "./Context";
 import data from "../../operation/data.json";
+import defaultLandingData from "../../operation/landingData.json";
 import { useToast } from "@/development/hooks/use-toast.js";
+
+const deepMerge = (target, source) => {
+  if (!source || typeof source !== 'object') return target;
+  if (!target || typeof target !== 'object') return source;
+  const output = Array.isArray(target) ? [...target] : { ...target };
+
+  Object.keys(source).forEach((key) => {
+    const sVal = source[key];
+    const tVal = target[key];
+    if (sVal === undefined || sVal === null) return;
+
+    if (Array.isArray(sVal)) {
+      output[key] = sVal.length > 0 ? sVal : tVal;
+    } else if (
+      typeof sVal === 'object' &&
+      sVal !== null &&
+      typeof tVal === 'object' &&
+      tVal !== null &&
+      !Array.isArray(tVal)
+    ) {
+      output[key] = deepMerge(tVal, sVal);
+    } else {
+      output[key] = sVal;
+    }
+  });
+
+  return output;
+};
 
 const ContextProvider = (props) => {
   console.log("ContextProvider rendered");
@@ -12,6 +41,7 @@ const ContextProvider = (props) => {
 
   const [loader, setLoader] = useState(true);
   const [institutionData, setInstitutionData] = useState({});
+  const [landingPageData, setLandingPageData] = useState(defaultLandingData);
   const [isAuth, setIsAuth] = useState(false);
   const [userData, setUserData] = useState({});
   const [services, setServices] = useState([]);
@@ -50,9 +80,48 @@ const ContextProvider = (props) => {
         `/any/get-institution-data/${institutionId}`,
       );
       setInstitutionData(response);
+      if (response && response.landingPageData) {
+        setLandingPageData(deepMerge(defaultLandingData, response.landingPageData));
+      } else {
+        setLandingPageData(defaultLandingData);
+      }
       console.log("Institution data fetched successfully:", response);
     } catch (error) {
       console.error("Error fetching institution data:", error);
+    } finally {
+      setLoader(false);
+    }
+  };
+
+  const updateLandingPageData = async (newData) => {
+    try {
+      setLoader(true);
+      const response = await apiRequest(
+        patch,
+        `/admin/${institutionId}/update-ui`,
+        {
+          body: { index: "0", data: { landingPageData: newData } },
+        },
+      );
+      setLandingPageData(newData);
+      setInstitutionData((prev) => ({ ...(prev || {}), landingPageData: newData }));
+      toast({
+        variant: "default",
+        title: "Website Updated!",
+        description: "Your landing page changes have been saved successfully.",
+      });
+      return response;
+    } catch (error) {
+      console.error("Error updating landing page data:", error);
+      // Still update locally so the user sees the changes in current session
+      setLandingPageData(newData);
+      setInstitutionData((prev) => ({ ...(prev || {}), landingPageData: newData }));
+      toast({
+        variant: "destructive",
+        title: "Database Notice",
+        description: error.message || "Failed to persist changes to the database.",
+      });
+      return newData;
     } finally {
       setLoader(false);
     }
@@ -1046,11 +1115,16 @@ const ContextProvider = (props) => {
       adminCreateOrder,
       adminUpdateOrder,
       adminDeleteOrder,
+      // Landing Page Dynamic Data & Customization
+      landingPageData,
+      setLandingPageData,
+      updateLandingPageData,
     }),
     [
       isAuth,
       loader,
       institutionData,
+      landingPageData,
       userData,
       barbers,
       services,
