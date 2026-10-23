@@ -13,12 +13,15 @@ import {
   List,
   AlertCircle,
   UserCheck,
+  ShieldCheck,
   Sparkles,
   CheckCircle2,
   Clock,
   Coffee,
   PowerOff,
   UserMinus,
+  Shield,
+  Lock,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -164,6 +167,24 @@ const StatusPill = ({ status, compact = false }) => {
   );
 };
 
+// Role / userType Badge component
+const UserTypeBadge = ({ userType }) => {
+  const isStaffAdmin = String(userType || "").toLowerCase() === "admin";
+  if (isStaffAdmin) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs">
+        <ShieldCheck className="w-2.5 h-2.5 text-purple-600" />
+        <span>Admin</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+      <span>Staff</span>
+    </span>
+  );
+};
+
 // Predefined specializations for quick-select
 const PREDEFINED_SPECIALIZATIONS = [
   "Hair Stylist",
@@ -176,7 +197,7 @@ const PREDEFINED_SPECIALIZATIONS = [
   "Beard Grooming",
 ];
 
-// Add & Edit Staff Modal (Compact & Mobile-Optimized)
+// Add & Edit Staff Modal (Compact, Mobile-Optimized with userType selector)
 const StaffModal = ({
   isOpen,
   onClose,
@@ -187,11 +208,13 @@ const StaffModal = ({
 }) => {
   const { toast } = useToast();
 
-  // Canonical variable: userName
+  // Canonical variable: userName, plus userType ('staff' | 'admin')
   const [formData, setFormData] = useState({
     userName: "",
+    userType: "staff",
     phoneNumber: "",
     emailId: "",
+    password: "",
     gender: "Male",
     specialization: [],
     yearsOfExperience: "",
@@ -206,8 +229,10 @@ const StaffModal = ({
     if (staffData) {
       setFormData({
         userName: staffData.userName || staffData.name || "",
+        userType: (staffData.userType || "staff").toLowerCase().trim(),
         phoneNumber: staffData.phoneNumber || staffData.phone || "",
         emailId: staffData.emailId || staffData.email || "",
+        password: "",
         gender: staffData.gender || "Male",
         specialization: Array.isArray(staffData.specialization)
           ? staffData.specialization
@@ -225,8 +250,10 @@ const StaffModal = ({
     } else {
       setFormData({
         userName: "",
+        userType: "staff",
         phoneNumber: "",
         emailId: "",
+        password: "",
         gender: "Male",
         specialization: [],
         yearsOfExperience: "",
@@ -309,6 +336,8 @@ const StaffModal = ({
       const payload = {
         userName: cleanUserName,
         name: cleanUserName, // backward compatibility
+        userType: formData.userType || "staff",
+        password: formData.password ? formData.password.trim() : "Password@123",
         phoneNumber: rawPhone || formData.phoneNumber.trim(),
         phone: rawPhone || formData.phoneNumber.trim(),
         emailId: cleanEmail,
@@ -337,7 +366,7 @@ const StaffModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       {/* Sleek, compact modal that never overwhelms mobile screen */}
-      <DialogContent className="w-[92vw] sm:w-[460px] max-h-[82vh] p-0 rounded-2xl overflow-hidden bg-white shadow-xl border border-slate-200 flex flex-col">
+      <DialogContent className="w-[92vw] sm:w-[460px] max-h-[84vh] p-0 rounded-2xl overflow-hidden bg-white shadow-xl border border-slate-200 flex flex-col">
         {/* Compact Header */}
         <DialogHeader className="shrink-0 px-4 py-3 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-2.5 pr-6">
@@ -349,7 +378,7 @@ const StaffModal = ({
                 {title}
               </DialogTitle>
               <DialogDescription className="text-[11px] text-slate-500 mt-0.5">
-                Stylist credentials and salon floor status
+                Configure stylist credentials, role, and floor status
               </DialogDescription>
             </div>
           </div>
@@ -419,8 +448,14 @@ const StaffModal = ({
           {/* Row 2: Email & Gender */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
-              <Label htmlFor="emailId" className="text-[11px] font-bold text-slate-700">
-                Email Address
+              <Label htmlFor="emailId" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>Email Address</span>
+                {staffData && (
+                  <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Locked</span>
+                  </span>
+                )}
               </Label>
               <Input
                 id="emailId"
@@ -429,10 +464,13 @@ const StaffModal = ({
                 value={formData.emailId}
                 onChange={handleInputChange}
                 placeholder="e.g. rahul@salon.com"
-                disabled={isLoading}
+                disabled={isLoading || Boolean(staffData)}
+                readOnly={Boolean(staffData)}
                 className={clsx(
                   "rounded-lg text-xs h-8.5 transition-all",
-                  errors.emailId
+                  staffData
+                    ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 select-none"
+                    : errors.emailId
                     ? "border-rose-400 focus:ring-rose-100"
                     : "border-slate-200 focus:border-blue-500"
                 )}
@@ -462,8 +500,34 @@ const StaffModal = ({
             </div>
           </div>
 
-          {/* Row 3: Experience & Floor Status */}
+          {/* Row 3: Account Role (userType) & Experience */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label htmlFor="userType" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>Account Role</span>
+                {formData.userType === "admin" && (
+                  <span className="text-[9px] font-extrabold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200">
+                    Co-Admin
+                  </span>
+                )}
+              </Label>
+              <Select
+                value={formData.userType}
+                onValueChange={(val) =>
+                  setFormData((prev) => ({ ...prev, userType: val }))
+                }
+                disabled={isLoading}
+              >
+                <SelectTrigger className="rounded-lg text-xs h-8.5 border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="staff">Staff / Stylist (Floor Team)</SelectItem>
+                  <SelectItem value="admin">Admin (Salon Co-Administrator)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1">
               <Label htmlFor="yearsOfExperience" className="text-[11px] font-bold text-slate-700">
                 Experience (Years)
@@ -481,7 +545,10 @@ const StaffModal = ({
                 className="rounded-lg text-xs h-8.5 border-slate-200"
               />
             </div>
+          </div>
 
+          {/* Row 4: Floor Status & Login Password */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <Label htmlFor="status" className="text-[11px] font-bold text-slate-700">
                 Floor Status
@@ -497,16 +564,33 @@ const StaffModal = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="available">Available (Free chair)</SelectItem>
-                  <SelectItem value="occupied">In Service (With client)</SelectItem>
+                  <SelectItem value="available">Available (Ready for clients)</SelectItem>
+                  <SelectItem value="occupied">In Service (Occupied chair)</SelectItem>
                   <SelectItem value="on_break">On Break</SelectItem>
                   <SelectItem value="inactive">Off Duty / Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="password" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>Login Password</span>
+                <span className="text-[9px] text-slate-400">Default: Password@123</span>
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="text"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Default: Password@123"
+                disabled={isLoading}
+                className="rounded-lg text-xs h-8.5 border-slate-200"
+              />
+            </div>
           </div>
 
-          {/* Row 4: Specializations */}
+          {/* Row 5: Specializations */}
           <div className="space-y-1.5 pt-1">
             <Label className="text-[11px] font-bold text-slate-700">
               Specializations
@@ -580,7 +664,7 @@ const StaffModal = ({
             </div>
           </div>
 
-          {/* Row 5: Bio */}
+          {/* Row 6: Bio */}
           <div className="space-y-1">
             <Label htmlFor="bio" className="text-[11px] font-bold text-slate-700">
               Stylist Bio (Optional)
@@ -772,7 +856,7 @@ export default function StaffsPage() {
     }
   }, []);
 
-  // Filtered staff list by userName, phone, email, or skill
+  // Filtered staff list by userName, phone, email, userType, or skill
   const filteredStaffs = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
     if (!q) return barbers;
@@ -781,6 +865,7 @@ export default function StaffsPage() {
       const staffName = (staff.userName || staff.name || "").toLowerCase();
       const staffPhone = (staff.phoneNumber || staff.phone || "").toLowerCase();
       const staffEmail = (staff.emailId || staff.email || "").toLowerCase();
+      const staffRole = (staff.userType || "staff").toLowerCase();
       const specializations = Array.isArray(staff.specialization)
         ? staff.specialization.join(" ").toLowerCase()
         : (staff.specialization || "").toLowerCase();
@@ -789,6 +874,7 @@ export default function StaffsPage() {
         staffName.includes(q) ||
         staffPhone.includes(q) ||
         staffEmail.includes(q) ||
+        staffRole.includes(q) ||
         specializations.includes(q)
       );
     });
@@ -877,11 +963,14 @@ export default function StaffsPage() {
     }
   };
 
-  // Floor stats
+  // Counts
   const availableCount = barbers.filter((s) => s.status === "available").length;
   const inServiceCount = barbers.filter((s) => s.status === "occupied").length;
   const onBreakCount = barbers.filter((s) => s.status === "on_break").length;
   const offDutyCount = barbers.filter((s) => s.status === "inactive").length;
+  const adminCount = barbers.filter(
+    (s) => String(s.userType || "").toLowerCase() === "admin"
+  ).length;
 
   return (
     <div className="p-3 sm:p-4 lg:p-5 space-y-3 font-sans bg-[#f8fafc] min-h-full text-slate-800">
@@ -893,7 +982,7 @@ export default function StaffsPage() {
             Staff & Stylists
           </h1>
           <span className="text-[11px] font-semibold text-slate-400 hidden md:inline">
-            ({barbers.length} stylists)
+            ({barbers.length} rostered • {adminCount} {adminCount === 1 ? "admin" : "admins"})
           </span>
         </div>
 
@@ -934,8 +1023,13 @@ export default function StaffsPage() {
             <div className="text-base font-extrabold text-slate-900 leading-none">
               {barbers.length}
             </div>
-            <div className="text-[10px] font-semibold text-slate-500 mt-0.5 truncate">
-              Total Roster
+            <div className="text-[10px] font-semibold text-slate-500 mt-0.5 truncate flex items-center gap-1">
+              <span>Total Roster</span>
+              {adminCount > 0 && (
+                <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 rounded border border-purple-200">
+                  {adminCount} Admin
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -995,7 +1089,7 @@ export default function StaffsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-3.5 w-3.5" />
           <Input
-            placeholder="Search name, phone, or skill..."
+            placeholder="Search name, phone, admin, or skill..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8 pr-7 bg-white border-slate-200/90 rounded-xl text-xs h-8.5 shadow-2xs"
@@ -1064,7 +1158,7 @@ export default function StaffsPage() {
             No staff members added yet
           </h3>
           <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
-            Add your salon stylists, barbers, or beauticians to begin.
+            Add your salon stylists, barbers, or co-admins to begin.
           </p>
           <Button
             onClick={() => setShowAddModal(true)}
@@ -1127,7 +1221,7 @@ export default function StaffsPage() {
                         </TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
+                    <TableBody className="[&_tr:last-child]:border-b-0">
                       {filteredStaffs.map((staff, idx) => {
                         const displayName =
                           staff.userName || staff.name || "Stylist";
@@ -1135,29 +1229,39 @@ export default function StaffsPage() {
                         const displayEmail = staff.emailId || staff.email || "";
                         const exp = staff.yearsOfExperience;
                         const statusConfig = getStatusConfig(staff.status);
+                        const isStaffAdmin =
+                          String(staff.userType || "").toLowerCase() === "admin";
 
                         return (
                           <TableRow
                             key={staff.staffId || staff.id || idx}
-                            className={clsx(
-                              "hover:bg-slate-50/80 border-b border-slate-100 transition-colors border-l-[3px]",
-                              statusConfig.borderLeft
-                            )}
+                            className="hover:bg-slate-50/80 border-b border-slate-100 transition-colors"
                           >
-                            {/* Member Avatar & Name */}
-                            <TableCell className="py-2.5 px-3">
+                            {/* Member Avatar, Name & Role Badge with guaranteed status left border on every row */}
+                            <TableCell
+                              className={clsx(
+                                "py-2.5 px-3 border-l-[4px] relative",
+                                statusConfig.borderLeft
+                              )}
+                            >
                               <div className="flex items-center gap-2.5">
                                 <div
                                   className={clsx(
-                                    "h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 ring-2",
+                                    "h-8 w-8 rounded-full text-white font-bold text-[11px] flex items-center justify-center shrink-0 ring-2",
+                                    isStaffAdmin
+                                      ? "bg-gradient-to-tr from-purple-600 to-indigo-600 ring-purple-300"
+                                      : "bg-gradient-to-tr from-blue-600 to-indigo-600 ring-blue-200",
                                     statusConfig.avatarRing
                                   )}
                                 >
                                   {displayName.slice(0, 2).toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="font-bold text-xs text-slate-900 truncate">
-                                    {displayName}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-xs text-slate-900 truncate">
+                                      {displayName}
+                                    </span>
+                                    <UserTypeBadge userType={staff.userType} />
                                   </div>
                                   <div className="text-[10px] text-slate-400 leading-tight">
                                     {staff.gender || "Stylist"}
@@ -1262,7 +1366,7 @@ export default function StaffsPage() {
             </Card>
           </div>
 
-          {/* MOBILE & TABLET CARD VIEW: Compact horizontal cards (~85px-95px high, no screen hogging!) */}
+          {/* MOBILE & TABLET CARD VIEW: Compact horizontal cards with role badge */}
           <div
             className={clsx(
               viewMode === "grid"
@@ -1280,6 +1384,8 @@ export default function StaffsPage() {
                 const displayEmail = staff.emailId || staff.email || "";
                 const exp = staff.yearsOfExperience;
                 const statusConfig = getStatusConfig(staff.status);
+                const isStaffAdmin =
+                  String(staff.userType || "").toLowerCase() === "admin";
 
                 return (
                   <div
@@ -1289,21 +1395,27 @@ export default function StaffsPage() {
                       statusConfig.borderLeft
                     )}
                   >
-                    {/* Top Row: Avatar + Name + Subtitle + Status Pill + Direct Icon Buttons */}
+                    {/* Top Row: Avatar + Name + Role Badge + Status Pill + Direct Icon Buttons */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
                           className={clsx(
-                            "h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 ring-2",
+                            "h-8 w-8 rounded-full text-white font-bold text-[11px] flex items-center justify-center shrink-0 ring-2",
+                            isStaffAdmin
+                              ? "bg-gradient-to-tr from-purple-600 to-indigo-600 ring-purple-300"
+                              : "bg-gradient-to-tr from-blue-600 to-indigo-600 ring-blue-200",
                             statusConfig.avatarRing
                           )}
                         >
                           {displayName.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <h4 className="font-bold text-xs text-slate-900 truncate">
-                            {displayName}
-                          </h4>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="font-bold text-xs text-slate-900 truncate">
+                              {displayName}
+                            </h4>
+                            <UserTypeBadge userType={staff.userType} />
+                          </div>
                           <span className="text-[10px] text-slate-400 block leading-tight truncate">
                             {staff.gender || "Stylist"}
                             {exp ? ` • ${exp}y exp` : ""}

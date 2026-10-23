@@ -481,6 +481,7 @@ const ContextProvider = (props) => {
             id: rawId,
             name: rawName,
             userName: rawName,
+            userType: (b.userType || "staff").toLowerCase().trim(),
             phoneNumber: rawPhone,
             phone: rawPhone,
             emailId: rawEmail,
@@ -517,10 +518,12 @@ const ContextProvider = (props) => {
       const staffName = (rawData.userName || rawData.name || "").trim();
       const staffPhone = (rawData.phoneNumber || rawData.phone || "").trim();
       const staffEmail = (rawData.emailId || rawData.email || "").trim();
+      const userType = (rawData.userType || "staff").toLowerCase().trim();
 
       const payload = {
         userName: staffName,
         name: staffName,
+        userType: userType,
         phoneNumber: staffPhone,
         emailId: staffEmail,
         specialization: Array.isArray(rawData.specialization)
@@ -585,11 +588,15 @@ const ContextProvider = (props) => {
       const staffName = (rawData.userName || rawData.name || "").trim();
       const staffPhone = (rawData.phoneNumber || rawData.phone || "").trim();
       const staffEmail = (rawData.emailId || rawData.email || "").trim();
+      const userType = rawData.userType !== undefined
+        ? String(rawData.userType).toLowerCase().trim()
+        : undefined;
 
       const payload = {
         staffId: targetStaffId,
         userName: staffName,
         name: staffName,
+        ...(userType && { userType }),
         phoneNumber: staffPhone,
         emailId: staffEmail,
         specialization: Array.isArray(rawData.specialization)
