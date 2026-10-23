@@ -467,8 +467,36 @@ const ContextProvider = (props) => {
         get,
         `/admin/${institutionId}/get-barbers`,
       );
-      if (response.barbers) {
-        setBarbers(response.barbers);
+      if (response && response.barbers) {
+        // Normalize staff items so that both userName and name, phoneNumber and phone, emailId and email are available!
+        const normalized = response.barbers.map((b) => {
+          const rawName = (b.userName || b.name || b.barberName || b.fullName || "").trim();
+          const rawPhone = (b.phoneNumber || b.phone || "").trim();
+          const rawEmail = (b.emailId || b.email || "").trim();
+          const rawId = b.staffId || b.id || b._id || "";
+
+          return {
+            ...b,
+            staffId: rawId,
+            id: rawId,
+            name: rawName,
+            userName: rawName,
+            phoneNumber: rawPhone,
+            phone: rawPhone,
+            emailId: rawEmail,
+            email: rawEmail,
+            specialization: Array.isArray(b.specialization)
+              ? b.specialization
+              : b.specialization
+              ? [b.specialization]
+              : [],
+            yearsOfExperience: Number(b.yearsOfExperience) || 0,
+            gender: b.gender || "Male",
+            status: b.status || "available",
+            bio: b.bio || "",
+          };
+        });
+        setBarbers(normalized);
       }
     } catch (error) {
       console.error("Error fetching barbers:", error);
@@ -482,14 +510,35 @@ const ContextProvider = (props) => {
     }
   };
 
-  const createStaff = async ({ staffData }) => {
+  const createStaff = async (dataParam) => {
     try {
       setLoader(true);
+      const rawData = dataParam?.staffData || dataParam || {};
+      const staffName = (rawData.userName || rawData.name || "").trim();
+      const staffPhone = (rawData.phoneNumber || rawData.phone || "").trim();
+      const staffEmail = (rawData.emailId || rawData.email || "").trim();
+
+      const payload = {
+        userName: staffName,
+        name: staffName,
+        phoneNumber: staffPhone,
+        emailId: staffEmail,
+        specialization: Array.isArray(rawData.specialization)
+          ? rawData.specialization
+          : rawData.specialization
+          ? [rawData.specialization]
+          : [],
+        yearsOfExperience: Number(rawData.yearsOfExperience) || 0,
+        gender: rawData.gender || "Male",
+        bio: rawData.bio || "",
+        status: rawData.status || "available",
+      };
+
       const response = await apiRequest(
         post,
         `/admin/${institutionId}/create-barber`,
         {
-          body: staffData,
+          body: payload,
         },
       );
       if (response) {
@@ -499,34 +548,66 @@ const ContextProvider = (props) => {
           description: "Staff created successfully",
         });
         await fetchBarbers();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to create staff",
-        });
+        return response;
       }
     } catch (error) {
       console.error("Error creating staff:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create staff",
+        description: error.message || "Failed to create staff",
       });
+      throw error;
     } finally {
       setLoader(false);
     }
   };
 
-  const updateStaff = async ({ staffId, staffData }) => {
+  const updateStaff = async (param1, param2) => {
     try {
-      console.log("Updating staff:", staffId, staffData);
       setLoader(true);
+      // Support all call styles: updateStaff({ staffId, staffData }), updateStaff(staffId, staffData), updateStaff(mergedObject)
+      let targetStaffId = "";
+      let rawData = {};
+
+      if (typeof param1 === "string") {
+        targetStaffId = param1;
+        rawData = param2 || {};
+      } else if (param1 && typeof param1 === "object") {
+        targetStaffId =
+          param1.staffId ||
+          param1.id ||
+          (param1.staffData && (param1.staffData.staffId || param1.staffData.id)) ||
+          "";
+        rawData = param1.staffData ? param1.staffData : param1;
+      }
+
+      const staffName = (rawData.userName || rawData.name || "").trim();
+      const staffPhone = (rawData.phoneNumber || rawData.phone || "").trim();
+      const staffEmail = (rawData.emailId || rawData.email || "").trim();
+
+      const payload = {
+        staffId: targetStaffId,
+        userName: staffName,
+        name: staffName,
+        phoneNumber: staffPhone,
+        emailId: staffEmail,
+        specialization: Array.isArray(rawData.specialization)
+          ? rawData.specialization
+          : rawData.specialization
+          ? [rawData.specialization]
+          : [],
+        yearsOfExperience: Number(rawData.yearsOfExperience) || 0,
+        gender: rawData.gender || "Male",
+        bio: rawData.bio || "",
+        status: rawData.status || "available",
+      };
+
       const response = await apiRequest(
         put,
         `/admin/${institutionId}/update-barbers`,
         {
-          body: { staffId, ...staffData },
+          body: payload,
         },
       );
       if (response) {
@@ -536,28 +617,29 @@ const ContextProvider = (props) => {
           description: "Staff updated successfully",
         });
         await fetchBarbers();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to update staff",
-        });
+        return response;
       }
     } catch (error) {
       console.error("Error updating staff:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update staff",
+        description: error.message || "Failed to update staff",
       });
+      throw error;
     } finally {
       setLoader(false);
     }
   };
 
-  const deleteStaff = async (staffId) => {
+  const deleteStaff = async (staffIdParam) => {
     try {
       setLoader(true);
+      const staffId =
+        typeof staffIdParam === "object"
+          ? staffIdParam.staffId || staffIdParam.id || staffIdParam._id
+          : staffIdParam;
+
       const response = await apiRequest(
         del,
         `/admin/${institutionId}/delete-barbers`,
@@ -572,20 +654,16 @@ const ContextProvider = (props) => {
           description: "Staff deleted successfully",
         });
         await fetchBarbers();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to delete staff",
-        });
+        return response;
       }
     } catch (error) {
       console.error("Error deleting staff:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete staff",
+        description: error.message || "Failed to delete staff",
       });
+      throw error;
     } finally {
       setLoader(false);
     }
