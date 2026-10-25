@@ -1,12 +1,12 @@
-import React, { useContext, useState } from "react";
-import { signIn } from "aws-amplify/auth";
+import React, { useContext, useState, useEffect } from "react";
+import { signIn, getCurrentUser } from "aws-amplify/auth";
 import { toast } from "react-toastify";
 import Context from "../../Context/Context";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Lock, Mail, ArrowLeft, Sparkle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ArrowLeft, Loader2 } from "lucide-react";
 
 const AuthPage = () => {
-  const { setLoader, landingPageData, institutionData } = useContext(Context);
+  const { isAuth, getUserData, setLoader, landingPageData, institutionData } = useContext(Context);
   const navigate = useNavigate();
 
   const theme = landingPageData?.theme || institutionData?.landingPageData?.theme || {};
@@ -18,6 +18,50 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // If already logged in, directly navigate to dashboard
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkAuthStatus = async () => {
+      if (isAuth) {
+        const path = window.sessionStorage.getItem("login_redirect");
+        window.sessionStorage.removeItem("login_redirect");
+        navigate(path || "/dashboard", { replace: true });
+        return;
+      }
+
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser && isMounted) {
+          if (getUserData) {
+            try {
+              await getUserData();
+            } catch (err) {
+              console.error("Error fetching user data on check:", err);
+            }
+          }
+          const path = window.sessionStorage.getItem("login_redirect");
+          window.sessionStorage.removeItem("login_redirect");
+          navigate(path || "/dashboard", { replace: true });
+          return;
+        }
+      } catch (err) {
+        // User is not authenticated, show login form
+      } finally {
+        if (isMounted) {
+          setCheckingAuth(false);
+        }
+      }
+    };
+
+    checkAuthStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuth, navigate, getUserData]);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -44,8 +88,22 @@ const AuthPage = () => {
       console.log("Login successful", isSignedIn);
 
       if (isSignedIn) {
-        window.sessionStorage.setItem("auth_success", "true");
-        navigate("/redirect");
+        // Load user profile details immediately
+        if (getUserData) {
+          try {
+            await getUserData();
+          } catch (err) {
+            console.error("Error fetching user data:", err);
+          }
+        }
+
+        toast.success("Login successful");
+        const path = window.sessionStorage.getItem("login_redirect");
+        window.sessionStorage.removeItem("login_redirect");
+        window.sessionStorage.removeItem("auth_success");
+
+        // Directly navigate to dashboard
+        navigate(path || "/dashboard", { replace: true });
       } else {
         console.log("Next step required:", nextStep);
       }
@@ -65,6 +123,22 @@ const AuthPage = () => {
       setLoader(false);
     }
   };
+
+  if (isAuth || checkingAuth) {
+    return (
+      <div
+        className="min-h-[calc(100vh-72px)] flex items-center justify-center p-4 sm:p-6 transition-colors duration-500 relative overflow-hidden font-sans select-none"
+        style={{ backgroundColor: canvasBg }}
+      >
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Loader2 size={32} className="animate-spin" style={{ color: primaryColor }} />
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#5C524E]">
+            {isAuth ? "Redirecting to Dashboard..." : "Loading..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

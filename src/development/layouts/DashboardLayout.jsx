@@ -21,10 +21,10 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
 
   const isAdmin = Boolean(
-    userData?.userType?.toLowerCase() === 'admin' ||
-    userData?.role?.toLowerCase() === 'admin' ||
+    String(userData?.userType || '').toLowerCase() === 'admin' ||
+    String(userData?.role || '').toLowerCase() === 'admin' ||
     localStorage.getItem('adminDevBypass') ||
-    localStorage.getItem('userType')?.toLowerCase() === 'admin'
+    String(localStorage.getItem('userType') || '').toLowerCase() === 'admin'
   );
 
   const [searchQuery, setSearchQuery] = useState("");

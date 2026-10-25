@@ -210,9 +210,11 @@ const ContextProvider = (props) => {
       );
       setUserData(userData);
       setIsAuth(true);
+      return userData;
     } catch (e) {
       console.log("Error fetching user data:", e);
       setIsAuth(false);
+      return null;
     } finally {
       setLoader(false);
     }
@@ -1219,6 +1221,7 @@ const ContextProvider = (props) => {
       setInstitutionData,
       userData: userData,
       setUserData: setUserData,
+      getUserData,
       // Staff (Barber) Management
       barbers,
       setBarbers,

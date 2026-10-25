@@ -379,7 +379,7 @@ const Navbar = () => {
                 transition={{ delay: 0.6, duration: 0.5, type: "spring" }}
                 className="flex items-center"
               >
-                <RouterLink to="/dashboard/billing" className="">
+                <RouterLink to="/dashboard" className="">
                   <motion.div
                     className="relative flex items-center justify-center"
                     whileHover={{ scale: 1.05 }}
@@ -444,7 +444,7 @@ const Navbar = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5, duration: 0.5, type: "spring" }}
               >
-                <RouterLink to="/dashboard/billing" className="mr-4">
+                <RouterLink to="/dashboard" className="mr-4">
                   <motion.div
                     className="relative"
                     whileHover={{ scale: 1.05 }}

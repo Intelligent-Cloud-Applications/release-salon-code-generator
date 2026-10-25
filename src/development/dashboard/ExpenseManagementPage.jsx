@@ -10,6 +10,8 @@ import {
   Trash2,
   TrendingDown,
   Table,
+  List,
+  X,
   Grid3X3,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -48,7 +50,8 @@ const NO_VENDOR_ID = "NO_VENDOR";
 
 const ExpenseManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("grid");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [viewMode, setViewMode] = useState("auto"); // "auto", "table", "grid"
 
   const {
     vendors,
@@ -267,11 +270,16 @@ const ExpenseManagementPage = () => {
     }));
   }, [effectiveOrders, vendors, selectedVendorId]);
 
-  const filteredExpenses = ordersAsExpenses.filter(
-    (expense) =>
-      expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredExpenses = ordersAsExpenses.filter((expense) => {
+    const matchesSearch =
+      !searchTerm ||
+      String(expense.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(expense.vendor || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(expense.category || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "ALL" || String(expense.status || "").toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
 
   const totalExpenses = ordersAsExpenses.reduce((sum, e) => sum + e.amount, 0);
   const paidExpenses = ordersAsExpenses
@@ -307,16 +315,25 @@ const ExpenseManagementPage = () => {
   };
 
   const getStatusBadge = (status) => {
-    const statusConfig = {
-      paid: { variant: "default", className: "bg-green-100 text-green-800" },
-      pending: { variant: "secondary", className: "bg-yellow-100 text-yellow-800" },
-      overdue: { variant: "destructive", className: "bg-red-100 text-red-800" },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
+    const s = String(status || "pending").toLowerCase();
+    if (s === "paid") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-800 shadow-2xs">
+          PAID
+        </span>
+      );
+    }
+    if (s === "overdue") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-rose-100 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-rose-800 shadow-2xs">
+          OVERDUE
+        </span>
+      );
+    }
     return (
-      <Badge variant={config.variant} className={config.className}>
-        {String(status || "pending").toUpperCase()}
-      </Badge>
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-amber-900 shadow-2xs">
+        PENDING
+      </span>
     );
   };
 
@@ -349,11 +366,15 @@ const ExpenseManagementPage = () => {
   })();
 
   return (
-    <div className="poppins-regular space-y-6 p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="poppins-regular space-y-4 sm:space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-stone-800">Expense Management</h1>
-          <p className="text-stone-600">Track expenses with or without vendor</p>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            Expense Management
+          </h1>
+          <p className="text-xs text-slate-500 sm:text-sm">
+            Track vendor purchases, salon overheads, and payment statuses
+          </p>
         </div>
 
         <Dialog
@@ -370,14 +391,14 @@ const ExpenseManagementPage = () => {
           }}
         >
           <DialogTrigger asChild>
-            <Button className="bg-stone-600 hover:bg-stone-700 text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Order/Expense
+            <Button className="h-9 gap-1.5 rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all">
+              <Plus className="h-4 w-4" />
+              Add Expense
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Add Expense/Order</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">Add Expense / Order</DialogTitle>
               <DialogDescription>
                 Create vendor or no-vendor expense. Vendor purchases increase inventory stock.
               </DialogDescription>
@@ -491,7 +512,7 @@ const ExpenseManagementPage = () => {
                   setIsCreatingExpense(false);
                 }
               }}
-              className="space-y-6"
+              className="space-y-4 pt-1"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5 sm:col-span-2">
@@ -704,7 +725,7 @@ const ExpenseManagementPage = () => {
                 </DialogClose>
                 <Button
                   type="submit"
-                  className="bg-stone-600 text-white"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold"
                   disabled={loader || isCreatingExpense || !canSave}
                 >
                   {isCreatingExpense ? "Creating..." : "Save"}
@@ -721,9 +742,9 @@ const ExpenseManagementPage = () => {
             if (!open) resetEditDialog();
           }}
         >
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Edit Expense</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">Edit Expense</DialogTitle>
               <DialogDescription>
                 Update expense details and save changes.
               </DialogDescription>
@@ -779,7 +800,7 @@ const ExpenseManagementPage = () => {
                     <Label>Items (Read Only)</Label>
                     <div className="rounded-md border p-2 space-y-1 text-sm">
                       {editOrderItems.map((item, index) => (
-                        <div key={`${item?.productId || item?.productName || "item"}-${index}`} className="flex items-center justify-between text-stone-700">
+                        <div key={`${item?.productId || item?.productName || "item"}-${index}`} className="flex items-center justify-between text-slate-700">
                           <span>{item?.productName || "Item"}</span>
                           <span>
                             Qty: {Number(item?.quantity ?? 1) || 1}
@@ -883,7 +904,7 @@ const ExpenseManagementPage = () => {
                 </DialogClose>
                 <Button
                   type="submit"
-                  className="bg-stone-600 text-white"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold"
                   disabled={loader || !canEditSave}
                 >
                   {loader ? "Saving..." : "Update"}
@@ -894,287 +915,425 @@ const ExpenseManagementPage = () => {
         </Dialog>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-        <div className="flex-1">
-          <Label className="mb-1 block text-sm">Vendor</Label>
-          <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a vendor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All vendors</SelectItem>
-              <SelectItem value={NO_VENDOR_ID}>No vendor</SelectItem>
-              {(vendors || [])
-                .filter((vendor) => String(getVendorId(vendor)) !== NO_VENDOR_ID)
-                .map((vendor) => (
-                <SelectItem
-                  key={vendor.vendorId || vendor.id}
-                  value={String(vendor.vendorId || vendor.id)}
-                >
-                  {vendor.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Expense Summary - Compact Tinted KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="rounded-xl border border-rose-200/90 bg-gradient-to-br from-rose-50/90 via-white to-rose-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-rose-800 truncate">Total Expenses</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-rose-600 text-white shadow-2xs shrink-0">
+              <TrendingDown className="h-3 w-3" />
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm font-black tracking-tight text-rose-950 truncate">
+            {formatCurrency(totalExpenses)}
+          </p>
         </div>
-        <div className="flex-1">
-          <Label className="mb-1 block text-sm">Search</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-400 h-4 w-4" />
-            <Input
-              placeholder="Search orders by product or vendor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-stone-200"
-            />
+
+        <div className="rounded-xl border border-emerald-200/90 bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-emerald-800 truncate">Paid Expenses</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-emerald-600 text-white shadow-2xs shrink-0">
+              <Receipt className="h-3 w-3" />
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm font-black tracking-tight text-emerald-950 truncate">
+            {formatCurrency(paidExpenses)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-amber-200/90 bg-gradient-to-br from-amber-50/90 via-white to-amber-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-amber-800 truncate">Pending Expenses</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-amber-500 text-white shadow-2xs shrink-0">
+              <Calendar className="h-3 w-3" />
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm font-black tracking-tight text-amber-950 truncate">
+            {formatCurrency(pendingExpenses)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200/90 bg-gradient-to-br from-blue-50/90 via-white to-blue-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-blue-700 truncate">Top Category</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-blue-600 text-white shadow-2xs shrink-0">
+              <Tag className="h-3 w-3" />
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm font-black tracking-tight text-blue-950 truncate">
+            {topCategory?.[0] || "General"}
+          </p>
+        </div>
+      </div>
+
+      {/* Symmetrical Search & Controls Bar */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {/* Search Bar */}
+        <div className="relative flex-1 sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search expenses, vendor, category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 rounded-xl border-slate-200 bg-white pl-9 pr-8 text-xs sm:text-sm shadow-xs focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Row 2 on mobile: Filters & View Toggle */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+          {/* Vendor Filter */}
+          <div className="w-full sm:w-40">
+            <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+              <SelectTrigger className="h-9 rounded-xl border-slate-200 bg-white text-xs shadow-xs w-full">
+                <SelectValue placeholder="All Vendors" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Vendors</SelectItem>
+                <SelectItem value={NO_VENDOR_ID}>No Vendor</SelectItem>
+                {(vendors || [])
+                  .filter((vendor) => String(getVendorId(vendor)) !== NO_VENDOR_ID)
+                  .map((vendor) => (
+                    <SelectItem
+                      key={vendor.vendorId || vendor.id}
+                      value={String(vendor.vendorId || vendor.id)}
+                    >
+                      {vendor.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* View Mode Toggle: Table (List) / Grid / Auto */}
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-0.5 shadow-xs h-9 w-full sm:w-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className={`h-7.5 flex-1 sm:w-8 sm:flex-initial rounded-lg p-0 transition-colors cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-blue-600 text-white shadow-xs hover:bg-blue-600 hover:text-white"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+              title="Table view (Desktop)"
+            >
+              <List className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className={`h-7.5 flex-1 sm:w-8 sm:flex-initial rounded-lg p-0 transition-colors cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-blue-600 text-white shadow-xs hover:bg-blue-600 hover:text-white"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+              title="Card view (Tablet & Mobile)"
+            >
+              <Grid3X3 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("auto")}
+              className={`h-7.5 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+                viewMode === "auto"
+                  ? "bg-blue-600 text-white shadow-xs hover:bg-blue-600 hover:text-white"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+              title="Auto: Table on Big Screen, Cards on Tablet & Mobile"
+            >
+              Auto
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">Total Expenses</p>
-                <p className="text-lg font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
-              </div>
-              <TrendingDown className="h-5 w-5 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* 1. TABLE VIEW (Desktop 8-Column Table + Native Mobile Table List) */}
+      <div
+        className={
+          viewMode === "table"
+            ? "block"
+            : viewMode === "grid"
+            ? "hidden"
+            : "hidden lg:block"
+        }
+      >
+        {/* DESKTOP TABLE (hidden sm:block): Full 8-Column Table */}
+        <div className="hidden sm:block rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+          <TableComponent>
+            <TableHeader className="bg-slate-50/75">
+              <TableRow className="border-b border-slate-200/80">
+                <TableHead className="text-xs font-semibold text-slate-600">Description</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Category</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Vendor</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Amount</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Payment</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
+                <TableHead className="text-right text-xs font-semibold text-slate-600">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredExpenses.map((expense) => {
+                const orderId = expense.raw?.id || expense.raw?.orderId || expense.id;
+                const isVendorItemExpense =
+                  !expense.raw?.noVendor &&
+                  String(expense.raw?.vendorId || "") !== NO_VENDOR_ID &&
+                  Array.isArray(expense.raw?.items) &&
+                  expense.raw.items.length > 0;
+                const isPaid = expense.status === "paid";
+                const isOverdue = expense.status === "overdue";
+                const statusBorder = isPaid
+                  ? "border-l-4 border-l-emerald-500"
+                  : isOverdue
+                  ? "border-l-4 border-l-rose-500"
+                  : "border-l-4 border-l-amber-500";
 
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">Paid Expenses</p>
-                <p className="text-lg font-bold text-green-600">{formatCurrency(paidExpenses)}</p>
-              </div>
-              <Receipt className="h-5 w-5 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">Pending Expenses</p>
-                <p className="text-lg font-bold text-yellow-600">{formatCurrency(pendingExpenses)}</p>
-              </div>
-              <Calendar className="h-5 w-5 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">Top Category</p>
-                <p className="text-lg font-bold text-blue-600">{topCategory?.[0] || "N/A"}</p>
-                <p className="text-xs text-stone-600">{formatCurrency(topCategory?.[1] || 0)}</p>
-              </div>
-              <Tag className="h-5 w-5 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-400 h-4 w-4" />
-          <Input
-            placeholder="Search expenses by description, category, or vendor..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 border-stone-200"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            Paid: {ordersAsExpenses.filter((e) => e.status === "paid").length}
-          </Badge>
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-            Pending: {ordersAsExpenses.filter((e) => e.status === "pending").length}
-          </Badge>
-          <Badge variant="secondary" className="bg-red-100 text-red-800">
-            Overdue: {ordersAsExpenses.filter((e) => e.status === "overdue").length}
-          </Badge>
-        </div>
-        <div className="flex gap-1 border border-stone-200 rounded-lg p-1">
-          <Button
-            variant={viewMode === "table" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("table")}
-            className={`h-8 w-8 p-0 ${viewMode === "table" ? "bg-stone-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}
-          >
-            <Table className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className={`h-8 w-8 p-0 ${viewMode === "grid" ? "bg-stone-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}
-          >
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {viewMode === "table" && (
-        <Card className="border-stone-200">
-          <CardHeader>
-            <CardTitle className="text-stone-800">Expenses - Table View</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TableComponent>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-stone-600">Description</TableHead>
-                  <TableHead className="text-stone-600">Category</TableHead>
-                  <TableHead className="text-stone-600">Vendor</TableHead>
-                  <TableHead className="text-stone-600">Amount</TableHead>
-                  <TableHead className="text-stone-600">Date</TableHead>
-                  <TableHead className="text-stone-600">Payment Method</TableHead>
-                  <TableHead className="text-stone-600">Status</TableHead>
-                  <TableHead className="text-stone-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredExpenses.map((expense) => {
-                  const orderId = expense.raw?.id || expense.raw?.orderId || expense.id;
-                  const isVendorItemExpense =
-                    !expense.raw?.noVendor &&
-                    String(expense.raw?.vendorId || "") !== NO_VENDOR_ID &&
-                    Array.isArray(expense.raw?.items) &&
-                    expense.raw.items.length > 0;
-                  return (
-                    <TableRow key={expense.id} className="hover:bg-stone-50">
-                      <TableCell className="font-medium text-stone-800">
-                        <div>{expense.description}</div>
-                        {expense.itemSummary && (
-                          <div className="text-xs text-stone-500 mt-1">{expense.itemSummary}</div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="border-stone-200 text-stone-600">
-                          {expense.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-stone-800">{expense.vendor}</TableCell>
-                      <TableCell className="font-medium text-stone-800">{formatCurrency(expense.amount)}</TableCell>
-                      <TableCell className="text-stone-800">{formatDate(expense.date)}</TableCell>
-                      <TableCell className="text-stone-800">{expense.paymentMethod}</TableCell>
-                      <TableCell>{getStatusBadge(expense.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                return (
+                  <TableRow key={expense.id} className={`hover:bg-slate-50/75 transition-colors border-b border-slate-100 ${statusBorder}`}>
+                    <TableCell className={`font-bold text-slate-900 text-xs sm:text-sm border-l-4 ${statusBorder}`}>
+                      <div>{expense.description}</div>
+                      {expense.itemSummary && (
+                        <div className="text-[11px] text-slate-400 mt-0.5 font-normal">{expense.itemSummary}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-block text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-full shadow-2xs">
+                        {expense.category || "General"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs font-semibold text-slate-700">
+                      <span className="bg-slate-100/90 text-slate-800 border border-slate-200/90 px-2 py-0.5 rounded-md">
+                        {expense.vendor || "No Vendor"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-extrabold text-xs sm:text-sm px-2 py-0.5 rounded-lg border shadow-2xs bg-emerald-50/90 text-emerald-800 border-emerald-200/90">
+                        {formatCurrency(expense.amount)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500 font-medium">{formatDate(expense.date)}</TableCell>
+                    <TableCell>
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-full shadow-2xs">
+                        {expense.paymentMethod || "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(expense.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 rounded-lg p-0 text-slate-500 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                          onClick={() => openEditDialog(expense)}
+                          title="Edit expense"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {!isVendorItemExpense && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 hover:bg-stone-100"
-                            onClick={() => openEditDialog(expense)}
+                            className="h-7 w-7 rounded-lg p-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                            onClick={async () => {
+                              const vendorId =
+                                selectedVendorId === "ALL"
+                                  ? expense.raw?.vendorId
+                                  : selectedVendorId;
+                              if (!vendorId) return;
+                              await (adminDeleteOrder && adminDeleteOrder(vendorId, orderId, { skipRefresh: true }));
+                              await refreshAllOrders();
+                            }}
+                            title="Delete expense"
                           >
-                            <Pencil className="h-4 w-4 text-stone-700" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                          {!isVendorItemExpense && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 hover:bg-red-100"
-                              onClick={async () => {
-                                const vendorId =
-                                  selectedVendorId === "ALL"
-                                    ? expense.raw?.vendorId
-                                    : selectedVendorId;
-                                if (!vendorId) return;
-                                await (adminDeleteOrder && adminDeleteOrder(vendorId, orderId, { skipRefresh: true }));
-                                await refreshAllOrders();
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </TableComponent>
-          </CardContent>
-        </Card>
-      )}
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </TableComponent>
+        </div>
 
-      {viewMode === "grid" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {/* MOBILE TABLE VIEW (sm:hidden): Native Compact Row List (No Sideways Scroll!) */}
+        <div className="sm:hidden bg-white rounded-2xl border border-slate-200/90 shadow-2xs divide-y divide-slate-100 overflow-hidden">
+          {filteredExpenses.map((expense) => {
+            const orderId = expense.raw?.id || expense.raw?.orderId || expense.id;
+            const isVendorItemExpense =
+              !expense.raw?.noVendor &&
+              String(expense.raw?.vendorId || "") !== NO_VENDOR_ID &&
+              Array.isArray(expense.raw?.items) &&
+              expense.raw.items.length > 0;
+            const isPaid = expense.status === "paid";
+            const isOverdue = expense.status === "overdue";
+            const statusBorder = isPaid
+              ? "border-l-4 border-l-emerald-500"
+              : isOverdue
+              ? "border-l-4 border-l-rose-500"
+              : "border-l-4 border-l-amber-500";
+
+            return (
+              <div
+                key={expense.id}
+                className={`p-2 sm:p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 transition-colors ${statusBorder}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-[150px]">
+                      {expense.description}
+                    </h4>
+                    <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-1.5 py-0.2 rounded shrink-0">
+                      {expense.category || "General"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
+                    <span className="font-bold text-slate-800">{expense.vendor || "No Vendor"}</span>
+                    <span>•</span>
+                    <span className="font-extrabold text-emerald-800 bg-emerald-50/90 border border-emerald-200/90 px-1.5 py-0.2 rounded text-[10px]">
+                      {formatCurrency(expense.amount)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {getStatusBadge(expense.status)}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 rounded-lg p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                    onClick={() => openEditDialog(expense)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  {!isVendorItemExpense && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 rounded-lg p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                      onClick={async () => {
+                        const vendorId =
+                          selectedVendorId === "ALL"
+                            ? expense.raw?.vendorId
+                            : selectedVendorId;
+                        if (!vendorId) return;
+                        await (adminDeleteOrder && adminDeleteOrder(vendorId, orderId, { skipRefresh: true }));
+                        await refreshAllOrders();
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. RESPONSIVE CARD DESIGN: 1 Card per row on mobile (grid-cols-1) for compact, spacious design! */}
+      <div
+        className={
+          viewMode === "grid"
+            ? "block"
+            : viewMode === "table"
+            ? "hidden"
+            : "block lg:hidden"
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {filteredExpenses.map((expense) => {
             const isVendorItemExpense =
               !expense.raw?.noVendor &&
               String(expense.raw?.vendorId || "") !== NO_VENDOR_ID &&
               Array.isArray(expense.raw?.items) &&
               expense.raw.items.length > 0;
+            const isPaid = expense.status === "paid";
+            const isOverdue = expense.status === "overdue";
+            const statusBorder = isPaid
+              ? "border-l-4 border-l-emerald-500"
+              : isOverdue
+              ? "border-l-4 border-l-rose-500"
+              : "border-l-4 border-l-amber-500";
+
             return (
-              <Card key={expense.id} className="border-stone-200 hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-stone-800">{expense.description}</h3>
-                      <span className="text-xs text-stone-500">•</span>
-                      <span className="text-xs text-stone-600">{expense.vendor}</span>
+              <Card
+                key={expense.id}
+                className={`group relative rounded-xl border border-slate-200/90 bg-white p-2.5 sm:p-3 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all cursor-pointer border-l-4 ${statusBorder}`}
+              >
+                {/* Top Row: Description + Category on left, Status Badge on right */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3
+                        className="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors"
+                        title={expense.description}
+                      >
+                        {expense.description}
+                      </h3>
+                      <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-1.5 py-0.2 rounded-md truncate shadow-2xs">
+                        {expense.category || "General"}
+                      </span>
                     </div>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {expense.vendor ? (
+                        <span className="font-medium text-slate-600">Vendor: {expense.vendor}</span>
+                      ) : (
+                        "No Vendor"
+                      )}
+                      {" • "}
+                      <span>{formatDate(expense.date)}</span>
+                    </p>
+                  </div>
+                  <div className="shrink-0">
                     {getStatusBadge(expense.status)}
                   </div>
+                </div>
 
-                  {expense.itemSummary && (
-                    <p className="text-xs text-stone-500 mb-2 truncate" title={expense.itemSummary}>
-                      {expense.itemSummary}
-                    </p>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
-                    <div className="flex items-center gap-1">
-                      <IndianRupee className="h-3 w-3 text-stone-500" />
-                      <span className="text-stone-800">{formatCurrency(expense.amount)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-stone-500" />
-                      <span className="text-stone-800">{formatDate(expense.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Tag className="h-3 w-3 text-stone-500" />
-                      <span className="text-stone-800 truncate">{expense.category}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Receipt className="h-3 w-3 text-stone-500" />
-                      <span className="text-stone-800 truncate">{expense.paymentMethod}</span>
-                    </div>
+                {/* Bottom Row: Amount & Payment method on left, Actions on right */}
+                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-slate-100">
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
+                      {formatCurrency(expense.amount)}
+                    </span>
+                    {expense.paymentMethod && (
+                      <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded-md shadow-2xs">
+                        {expense.paymentMethod}
+                      </span>
+                    )}
                   </div>
 
-                  {expense.notes && (
-                    <div className="mb-2">
-                      <p className="text-xs text-stone-600 italic truncate" title={expense.notes}>
-                        "{expense.notes}"
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end items-center pt-1 border-t border-stone-100">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 hover:bg-stone-100"
-                      onClick={() => openEditDialog(expense)}
+                      className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg p-0 text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditDialog(expense);
+                      }}
+                      title="Edit expense"
                     >
-                      <Pencil className="h-3 w-3 text-stone-700" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     {!isVendorItemExpense && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 w-6 p-0 hover:bg-red-100"
-                        onClick={async () => {
+                        className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                        onClick={async (e) => {
+                          e.stopPropagation();
                           const orderId = expense.raw?.id || expense.raw?.orderId || expense.id;
                           const vendorId =
                             selectedVendorId === "ALL"
@@ -1185,23 +1344,24 @@ const ExpenseManagementPage = () => {
                           await (adminDeleteOrder && adminDeleteOrder(vendorId, orderId, { skipRefresh: true }));
                           await refreshAllOrders();
                         }}
+                        title="Delete expense"
                       >
-                        <Trash2 className="h-3 w-3 text-red-600" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>
-                </CardContent>
+                </div>
               </Card>
             );
           })}
         </div>
-      )}
+      </div>
 
-      {filteredExpenses.length === 0 && (
+            {filteredExpenses.length === 0 && (
         <div className="text-center py-12">
-          <Receipt className="h-12 w-12 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-stone-600 mb-2">No expenses found</h3>
-          <p className="text-stone-500">Try adjusting your search criteria</p>
+          <Receipt className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-sm font-medium text-slate-700 mb-1">No expenses found</h3>
+          <p className="text-xs text-slate-400">Try adjusting your search or filters</p>
         </div>
       )}
     </div>

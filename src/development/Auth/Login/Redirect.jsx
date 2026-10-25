@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import institutionData from "../../../operation/data.json";
 
 const Redirect = () => {
-  const { setLoader, setUserData } = useContext(Context);
+  const { setLoader, setUserData, setIsAuth } = useContext(Context);
   const { institutionId } = institutionData;
   const navigate = useNavigate();
 
@@ -15,26 +15,17 @@ const Redirect = () => {
     const redirect = async () => {
       setLoader(true);
 
-      const authSuccess = window.sessionStorage.getItem("auth_success");
-
-      if (!authSuccess) {
-        toast.error("Authentication failed");
-        setLoader(false);
-        navigate("/");
-        return;
-      }
-
       try {
         window.sessionStorage.removeItem("auth_success");
 
-        // CHANGE 1: getCurrentUser replaces Auth.currentAuthenticatedUser
+        // getCurrentUser verifies user authentication
         const currentUser = await getCurrentUser();
 
         if (!currentUser) {
           throw new Error("No authenticated user found");
         }
 
-        // CHANGE 2: API.get replaced with get() logic
+        // Fetch authenticated user profile data
         const restOperation = get({
           apiName: "main",
           path: `/auth/${institutionId}/user-data`,
@@ -44,12 +35,13 @@ const Redirect = () => {
         const userdata = await body.json();
 
         setUserData(userdata);
+        if (setIsAuth) setIsAuth(true);
         toast.success("Login successful");
 
         const path = window.sessionStorage.getItem("login_redirect");
         window.sessionStorage.removeItem("login_redirect");
 
-        navigate(path || "/dashboard/billing", { replace: true });
+        navigate(path || "/dashboard", { replace: true });
       } catch (e) {
         console.error("Redirect error:", e);
         toast.error(e.message || "Authentication failed");
@@ -61,7 +53,7 @@ const Redirect = () => {
     };
 
     redirect();
-  }, [navigate, setLoader, setUserData, institutionId]);
+  }, [navigate, setLoader, setUserData, setIsAuth, institutionId]);
 
   return null;
 };
