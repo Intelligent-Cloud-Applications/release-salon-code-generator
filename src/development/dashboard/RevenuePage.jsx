@@ -22,6 +22,7 @@ import Context from "../Context/Context";
 import { format } from "date-fns";
 import { formatCurrency, parseAppointmentDate } from "./BillPrintModal";
 import { FaMoneyBillWave, FaCreditCard, FaQrcode } from "react-icons/fa";
+import { getCollectionBreakdown, isSplitPayment, formatPaymentSummary } from "../lib/paymentUtils";
 
 /* ----------------------------------------------------------------------------
  * Safe date helpers (an invalid date passed to date-fns format() would crash
@@ -192,18 +193,10 @@ const computeStats = (bills) => {
 
   bills.forEach((b) => {
     totalRev += b.total || 0;
-    const mode = String(b.paymentMethod || "").toLowerCase();
-    if (mode === "split" && b.paymentSplit) {
-      cash += Number(b.paymentSplit.cash || 0);
-      upi += Number(b.paymentSplit.upi || 0);
-      card += Number(b.paymentSplit.card || 0);
-    } else if (mode === "cash") {
-      cash += b.total || 0;
-    } else if (mode.includes("card")) {
-      card += b.total || 0;
-    } else {
-      upi += b.total || 0;
-    }
+    const bd = getCollectionBreakdown(b);
+    cash += bd.cash;
+    upi += bd.upi;
+    card += bd.card;
   });
 
   const orders = bills.length;
@@ -406,7 +399,13 @@ const RevenuePage = () => {
         services: normServices,
         total,
         paymentMethod: apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || "Cash",
+        paymentMode: apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || "Cash",
         paymentSplit: apt.paymentSplit || apt.paymentsplit || null,
+        paymentSummary: apt.paymentSummary || "",
+        cashAmount: apt.cashAmount,
+        upiAmount: apt.upiAmount,
+        cardAmount: apt.cardAmount,
+        payments: apt.payments || [],
         staff: foundStaff ? foundStaff.name : staffId || "Unassigned",
       });
     });
@@ -1273,14 +1272,21 @@ const RevenuePage = () => {
                       </div>
                       <div className="text-right shrink-0 space-y-0.5">
                         <p className="text-sm font-black text-slate-900 font-mono">{formatCurrency(b.total)}</p>
-                        <span
-                          className={cn(
-                            "inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border",
-                            PAY_BADGE[pk]
+                        <div className="flex flex-col items-end">
+                          <span
+                            className={cn(
+                              "inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border",
+                              PAY_BADGE[pk]
+                            )}
+                          >
+                            {isSplitPayment(b) ? "Split" : pk}
+                          </span>
+                          {isSplitPayment(b) && (
+                            <span className="text-[10px] text-slate-500 font-medium truncate max-w-[160px] text-right mt-0.5">
+                              {formatPaymentSummary(b)}
+                            </span>
                           )}
-                        >
-                          {pk}
-                        </span>
+                        </div>
                       </div>
                     </li>
                   );

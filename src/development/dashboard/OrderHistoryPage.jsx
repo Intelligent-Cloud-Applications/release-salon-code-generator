@@ -12,6 +12,7 @@ import {
   X,
   Calendar,
   Scissors,
+  Printer,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -28,6 +29,13 @@ import Context from "../Context/Context";
 import { useToast } from "../hooks/use-toast";
 import { format } from "date-fns";
 import { BillPrintModal, formatCurrency, parseAppointmentDate } from "./BillPrintModal";
+import { directPrintBill } from "../lib/printerService";
+import {
+  getCollectionBreakdown,
+  isSplitPayment,
+  formatPaymentSummary,
+  parsePaymentSplit,
+} from "../lib/paymentUtils";
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -52,17 +60,9 @@ const escapeHtml = (v) =>
 
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
-const splitText = (b) =>
-  b.paymentSummary ||
-  [
-    b.paymentSplit?.cash ? `Cash ₹${b.paymentSplit.cash}` : "",
-    b.paymentSplit?.upi ? `UPI ₹${b.paymentSplit.upi}` : "",
-    b.paymentSplit?.card ? `Card ₹${b.paymentSplit.card}` : "",
-  ]
-    .filter(Boolean)
-    .join(", ");
+const splitText = (b) => formatPaymentSummary(b);
 
-const isSplit = (b) => (b.paymentMethod || "").toLowerCase() === "split" || !!b.paymentSplit;
+const isSplit = (b) => isSplitPayment(b);
 
 /* ------------------------- small components ------------------------- */
 
@@ -95,14 +95,18 @@ const Pill = ({ active, children, ...props }) => (
 const PaymentLabel = ({ bill }) => {
   if (isSplit(bill)) {
     return (
-      <div>
-        <p className="text-sm font-medium text-slate-800">Split</p>
-        <p className="text-xs text-slate-500 truncate max-w-[180px]">{splitText(bill)}</p>
+      <div className="space-y-0.5">
+        <span className="inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+          Split
+        </span>
+        <p className="text-xs font-semibold text-slate-700 truncate max-w-[180px]" title={splitText(bill)}>
+          {splitText(bill)}
+        </p>
       </div>
     );
   }
   const mode = (bill.paymentMethod || "").toLowerCase();
-  const dot = mode === "cash" ? "bg-orange-500" : "bg-emerald-500";
+  const dot = mode === "cash" ? "bg-amber-500" : mode.includes("card") ? "bg-indigo-500" : "bg-emerald-500";
   return (
     <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-800 capitalize">
       <span className={cn("w-2 h-2 rounded-full", dot)} />
@@ -204,11 +208,19 @@ const OrderHistoryPage = () => {
           });
         }
 
-        const subtotal = Number(apt.subtotal || apt.amount || 0);
+        const rawSubtotal = Number(apt.subtotal || apt.billAmount || apt.amount || 0);
+        const rawTotal = Number(apt.total != null ? apt.total : apt.totalAmount != null ? apt.totalAmount : 0);
         const tax = Number(apt.tax || 0);
         const discount = Number(apt.discountAmount || apt.discount || apt.discount_value || 0);
-        const computed = subtotal + tax - discount;
-        const total = Number(apt.total != null ? apt.total : computed > 0 ? computed : subtotal);
+
+        let subtotal = rawSubtotal;
+        let total = rawTotal;
+        if (!subtotal && total) {
+          subtotal = Math.max(0, total - tax + discount);
+        }
+        if (!total && subtotal) {
+          total = Math.max(0, subtotal + tax - discount);
+        }
 
         const assignedStaff = getStaffName(staffId);
 
@@ -242,8 +254,12 @@ const OrderHistoryPage = () => {
             apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || apt.payment_method || "Cash",
           paymentMode:
             apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || apt.payment_method || "Cash",
-          paymentSplit: apt.paymentSplit || apt.paymentsplit || null,
+          paymentSplit: parsePaymentSplit(apt),
           paymentSummary: apt.paymentSummary || "",
+          cashAmount: apt.cashAmount,
+          upiAmount: apt.upiAmount,
+          cardAmount: apt.cardAmount,
+          payments: apt.payments || [],
           paymentPlatform: apt.paymentPlatform || "",
           staff: assignedStaff,
           staffId,
@@ -292,12 +308,9 @@ const OrderHistoryPage = () => {
     let t = 0, c = 0, d = 0;
     filtered.forEach((b) => {
       t += b.total || 0;
-      const mode = (b.paymentMethod || "").toLowerCase();
-      if (mode === "split" && b.paymentSplit) {
-        c += Number(b.paymentSplit.cash || 0);
-        d += Number(b.paymentSplit.upi || 0) + Number(b.paymentSplit.card || 0);
-      } else if (mode === "cash") c += b.total || 0;
-      else d += b.total || 0;
+      const bd = getCollectionBreakdown(b);
+      c += bd.cash;
+      d += bd.digital;
     });
     return { total: t, cash: c, digital: d, avg: filtered.length ? t / filtered.length : 0 };
   }, [filtered]);
@@ -313,6 +326,15 @@ const OrderHistoryPage = () => {
   const open = (b) => {
     setBillToPrint(b);
     setShowBillPrint(true);
+  };
+  const handleQuickPrint = async (e, b) => {
+    e.stopPropagation();
+    try {
+      await directPrintBill(b, institutionData);
+    } catch (err) {
+      console.warn("Direct print fallback to modal:", err);
+      open(b);
+    }
   };
 
   const periodLabel =
@@ -590,17 +612,29 @@ const OrderHistoryPage = () => {
                         </TableCell>
                       )}
                       <TableCell className="pr-5 py-3.5 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            open(b);
-                          }}
-                          className="h-8 gap-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:border-blue-200 cursor-pointer"
-                        >
-                          <Receipt className="w-3.5 h-3.5" /> View Bill
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleQuickPrint(e, b)}
+                            className="h-8 px-2.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer text-xs font-semibold flex items-center gap-1"
+                            title="Print directly to configured thermal printer"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span className="hidden lg:inline">Print</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              open(b);
+                            }}
+                            className="h-8 gap-1.5 rounded-lg text-slate-700 hover:text-blue-600 hover:border-blue-200 cursor-pointer"
+                          >
+                            <Receipt className="w-3.5 h-3.5" /> View
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -668,18 +702,30 @@ const OrderHistoryPage = () => {
                     <PaymentLabel bill={b} />
                     {status === "all" && <StatusText status={b.status} />}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      open(b);
-                    }}
-                    className="h-8 px-3 rounded-xl bg-blue-50/80 border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer"
-                  >
-                    <Receipt className="w-3.5 h-3.5" />
-                    <span>View Bill</span>
-                  </Button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => handleQuickPrint(e, b)}
+                      className="h-8 px-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                      title="Print directly to configured thermal printer"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Print</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open(b);
+                      }}
+                      className="h-8 px-2.5 rounded-xl bg-blue-50/80 border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 shrink-0 shadow-2xs cursor-pointer"
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                      <span>View</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}

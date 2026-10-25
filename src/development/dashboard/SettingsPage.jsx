@@ -28,6 +28,7 @@ import { useToast } from "../hooks/use-toast";
 import Context from "../Context/Context";
 import { cn } from "../lib/utils";
 import ScissorsLoader from "../components/Loader";
+import { connectBluetoothPrinter, printViaBluetooth, isWebBluetoothSupported } from "../lib/printerService";
 
 export const getStoredPrinterSettings = () => {
   try {
@@ -94,6 +95,58 @@ const SettingsPage = () => {
   );
   const [showStylist, setShowStylist] = useState(true);
   const [showGstBreakdown, setShowGstBreakdown] = useState(true);
+  const [testingBluetooth, setTestingBluetooth] = useState(false);
+
+  const handleTestBluetoothConnection = async () => {
+    if (!isWebBluetoothSupported()) {
+      toast({
+        variant: "destructive",
+        title: "Web Bluetooth Not Supported",
+        description: "Your browser does not support Web Bluetooth. Please use Google Chrome or Microsoft Edge on Android, Windows, Mac, or Linux.",
+      });
+      return;
+    }
+
+    setTestingBluetooth(true);
+    try {
+      toast({
+        title: "Scanning Bluetooth",
+        description: "Please select your thermal printer from the browser prompt...",
+      });
+      const dummyTestBill = {
+        id: "TEST-01",
+        clientName: "Printer Test",
+        phoneNumber: "",
+        date: new Date(),
+        items: [{ serviceName: "Bluetooth Connection Test", quantity: 1, amount: 0 }],
+        subtotal: 0,
+        tax: 0,
+        discount: 0,
+        total: 0,
+        status: "Test OK",
+        paymentMethod: "BLE",
+      };
+      await printViaBluetooth(dummyTestBill, institutionData, {
+        paperSize,
+        receiptTitle: "BLUETOOTH TEST OK",
+        footerMessage: "Thermal Printer Connected Successfully!",
+        termsAndConditions: "",
+      });
+      toast({
+        title: "Bluetooth Print Successful!",
+        description: "Test receipt printed successfully on your Bluetooth printer.",
+      });
+    } catch (err) {
+      console.error("Bluetooth test failed:", err);
+      toast({
+        variant: "destructive",
+        title: "Bluetooth Connection Failed",
+        description: err.message || "Could not pair or print to Bluetooth printer.",
+      });
+    } finally {
+      setTestingBluetooth(false);
+    }
+  };
 
   // Initialize from institutionData and localStorage
   useEffect(() => {
@@ -551,6 +604,30 @@ const SettingsPage = () => {
                       </div>
                     </button>
                   </div>
+
+                  {printerType === "bluetooth" && (
+                    <div className="mt-3 p-3 rounded-xl bg-blue-50/70 border border-blue-200/80 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div>
+                          <p className="font-bold text-xs text-blue-900">Web Bluetooth Thermal Pairing</p>
+                          <p className="text-[11px] text-blue-700">
+                            Connect your 58mm / 80mm wireless thermal printer directly via Bluetooth
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleTestBluetoothConnection}
+                        disabled={testingBluetooth}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-8 px-3 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>{testingBluetooth ? "Connecting..." : "Pair & Test Printer"}</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Paper Size */}

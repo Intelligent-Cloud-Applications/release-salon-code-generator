@@ -27,7 +27,8 @@ import Context from "../Context/Context";
 import ScissorsLoader from "../components/Loader";
 import { useToast } from "../hooks/use-toast";
 import { BillPrintModal, formatCurrency, parseAppointmentDate } from "./BillPrintModal";
-import { getStoredGstSettings } from "./SettingsPage";
+import { getStoredGstSettings, getStoredPrinterSettings } from "./SettingsPage";
+import { directPrintBill } from "../lib/printerService";
 import { FaMoneyBillWave, FaCreditCard, FaQrcode } from "react-icons/fa";
 import { format } from "date-fns";
 
@@ -712,12 +713,12 @@ const BillingPage = () => {
 
   /* --------------------------------- Actions ------------------------------- */
 
-  const handlePrintDraftBill = () => {
+  const handlePrintDraftBill = async () => {
     if (cart.length === 0) {
       toast({
         variant: "destructive",
         title: "Cart is empty",
-        description: "Add at least one service or product to preview the bill.",
+        description: "Add at least one service or product to print the bill.",
       });
       return;
     }
@@ -756,11 +757,37 @@ const BillingPage = () => {
       staff: getStaffName(selectedStaff),
     };
 
-    // Close the checkout sheet first so the receipt is the only layer on screen
     setShowMobileCart(false);
-    setBillToPrint(draftBill);
-    setIsDraftPrint(true);
-    setShowBillPrint(true);
+
+    const printerSettings = getStoredPrinterSettings();
+    const isBluetooth = printerSettings?.printerType === "bluetooth";
+
+    toast({
+      title: isBluetooth ? "Printing via Bluetooth..." : "Printing Receipt...",
+      description: isBluetooth
+        ? "Connecting via Web Bluetooth API..."
+        : `Printing on USB (${printerSettings?.paperSize || "80mm"})...`,
+    });
+
+    try {
+      await directPrintBill(draftBill, institutionData, printerSettings);
+      if (isBluetooth) {
+        toast({
+          title: "Receipt Printed",
+          description: "Estimate sent to Bluetooth thermal printer.",
+        });
+      }
+    } catch (err) {
+      console.warn("Direct draft print notice:", err);
+      toast({
+        variant: "destructive",
+        title: "Printer Notice",
+        description: err.message || "Direct print failed. Opening preview modal.",
+      });
+      setBillToPrint(draftBill);
+      setIsDraftPrint(true);
+      setShowBillPrint(true);
+    }
   };
 
   const handleSelectAppointment = (apt) => {
@@ -938,18 +965,45 @@ const BillingPage = () => {
         0
       );
 
+      const cashVal = isSplitPayment
+        ? Number(splitAmounts.cash) || 0
+        : paymentMode === "cash"
+        ? cartFinalTotal
+        : 0;
+      const upiVal = isSplitPayment
+        ? Number(splitAmounts.upi) || 0
+        : (paymentMode === "upi" || paymentMode === "online")
+        ? cartFinalTotal
+        : 0;
+      const cardVal = isSplitPayment
+        ? Number(splitAmounts.card) || 0
+        : paymentMode === "card"
+        ? cartFinalTotal
+        : 0;
+
       const paymentSplitData = isSplitPayment
         ? {
-            cash: Number(splitAmounts.cash) || 0,
-            upi: Number(splitAmounts.upi) || 0,
-            card: Number(splitAmounts.card) || 0,
+            cash: cashVal,
+            upi: upiVal,
+            card: cardVal,
           }
         : null;
 
+      const paymentsArray = isSplitPayment
+        ? [
+            ...(cashVal > 0 ? [{ mode: "cash", amount: cashVal }] : []),
+            ...(upiVal > 0 ? [{ mode: "upi", amount: upiVal }] : []),
+            ...(cardVal > 0 ? [{ mode: "card", amount: cardVal }] : []),
+          ]
+        : [{ mode: paymentMode, amount: cartFinalTotal }];
+
+      const summaryParts = [];
+      if (cashVal > 0) summaryParts.push(`Cash: ₹${cashVal}`);
+      if (upiVal > 0) summaryParts.push(`UPI: ₹${upiVal}`);
+      if (cardVal > 0) summaryParts.push(`Card: ₹${cardVal}`);
+
       const paymentSummaryText = isSplitPayment
-        ? `Cash: ₹${splitAmounts.cash || 0}, UPI: ₹${splitAmounts.upi || 0}${
-            Number(splitAmounts.card) > 0 ? `, Card: ₹${splitAmounts.card}` : ""
-          }`
+        ? summaryParts.join(" + ") || "Split"
         : paymentMode.toUpperCase();
 
       const billPayload = {
@@ -974,6 +1028,10 @@ const BillingPage = () => {
         paymentMode: isSplitPayment ? "split" : paymentMode,
         paymentSplit: paymentSplitData,
         paymentSummary: paymentSummaryText,
+        cashAmount: cashVal,
+        upiAmount: upiVal,
+        cardAmount: cardVal,
+        payments: paymentsArray,
         status: "completed",
         updatedAt: epochNow,
       };
@@ -986,6 +1044,10 @@ const BillingPage = () => {
             paymentMode: isSplitPayment ? "split" : paymentMode,
             paymentSplit: paymentSplitData,
             paymentSummary: paymentSummaryText,
+            cashAmount: cashVal,
+            upiAmount: upiVal,
+            cardAmount: cardVal,
+            payments: paymentsArray,
             total: cartFinalTotal,
             subtotal: cartSubtotal,
             tax: cartTax,
@@ -1012,16 +1074,18 @@ const BillingPage = () => {
         total: cartFinalTotal,
         status: "completed",
         paymentMethod: isSplitPayment ? "split" : paymentMode,
+        paymentMode: isSplitPayment ? "split" : paymentMode,
         paymentSplit: paymentSplitData,
         paymentSummary: paymentSummaryText,
+        cashAmount: cashVal,
+        upiAmount: upiVal,
+        cardAmount: cardVal,
+        payments: paymentsArray,
         staff: getStaffName(selectedStaff),
       };
 
-      // 1) close the checkout sheet, 2) show the receipt, 3) reset the cart
+      // 1) close the checkout sheet, 2) reset the cart
       setShowMobileCart(false);
-      setBillToPrint(completedBill);
-      setIsDraftPrint(false);
-      setShowBillPrint(true);
       clearCart();
 
       toast({
@@ -1030,6 +1094,37 @@ const BillingPage = () => {
           ? `Invoice #${completedBill.id} settled and appointment completed.`
           : `Invoice #${completedBill.id} created.`,
       });
+
+      // 3) DIRECT AUTO-PRINT WITHOUT MODAL: USB or Bluetooth as configured in Settings
+      const printerSettings = getStoredPrinterSettings();
+      const isBluetooth = printerSettings?.printerType === "bluetooth";
+
+      toast({
+        title: isBluetooth ? "Printing via Bluetooth..." : "Printing Receipt...",
+        description: isBluetooth
+          ? "Connecting to Bluetooth thermal printer..."
+          : `Printing on USB printer (${printerSettings?.paperSize || "80mm"})...`,
+      });
+
+      try {
+        await directPrintBill(completedBill, institutionData, printerSettings);
+        if (isBluetooth) {
+          toast({
+            title: "Bill Printed",
+            description: `Invoice #${completedBill.id} printed via Bluetooth.`,
+          });
+        }
+      } catch (printErr) {
+        console.warn("Direct auto-print failed, opening invoice preview:", printErr);
+        toast({
+          variant: "destructive",
+          title: "Printer Notice",
+          description: printErr.message || "Direct print failed. Opening invoice preview.",
+        });
+        setBillToPrint(completedBill);
+        setIsDraftPrint(false);
+        setShowBillPrint(true);
+      }
 
       // Refresh in the background AFTER the receipt is on screen, never blocking it
       setTimeout(() => {
