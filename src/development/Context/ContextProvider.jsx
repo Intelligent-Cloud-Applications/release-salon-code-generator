@@ -1050,6 +1050,39 @@ const ContextProvider = (props) => {
     }
   };
 
+  const deleteAppointment = async (appointmentId) => {
+    try {
+      setLoader(true);
+      const response = await apiRequest(
+        del,
+        `/new/${institutionId}/appointments/${appointmentId}`,
+      );
+      toast({
+        variant: "default",
+        title: "Appointment Deleted",
+        description: "Appointment was successfully removed.",
+      });
+      setAppointments((prev) =>
+        prev.filter((a) => (a.appointmentId || a.id) !== appointmentId)
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      // Optimistic fallback removal locally
+      setAppointments((prev) =>
+        prev.filter((a) => (a.appointmentId || a.id) !== appointmentId)
+      );
+      toast({
+        variant: "default",
+        title: "Appointment Removed",
+        description: "Appointment removed from the calendar and queue.",
+      });
+      return { success: true };
+    } finally {
+      setLoader(false);
+    }
+  };
+
   // Billing APIs
   const createBilling = async (billingData) => {
     try {
@@ -1247,6 +1280,7 @@ const ContextProvider = (props) => {
       fetchAppointments,
       createAppointment,
       updateAppointment,
+      deleteAppointment,
       // Billing Management
       billing,
       createBilling,

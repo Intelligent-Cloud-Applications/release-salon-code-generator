@@ -1,9 +1,11 @@
 
 import React, { useState, useContext, useMemo } from "react";
 import Context from "../Context/Context";
-import { Truck, Plus, Search, Phone, MapPin, Star, Edit, Trash2, Package, Grid3X3, Table as TableIcon,
+import { Truck, Plus, Search, Phone, MapPin, Edit, Trash2, Package, Grid3X3, Table as TableIcon,
   List,
-  X } from "lucide-react";
+  X,
+  ShoppingBag,
+  CreditCard } from "lucide-react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "../components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -79,9 +81,6 @@ const VendorManagementPage = () => {
   const totalVendors = visibleVendors.length;
   const activeVendors = visibleVendors.filter((v) => v.status === "active").length;
   const totalSpent = visibleVendors.reduce((sum, v) => sum + (v.totalSpent || 0), 0);
-  const avgRating = visibleVendors.length > 0
-    ? (visibleVendors.reduce((sum, v) => sum + (v.rating || 0), 0) / visibleVendors.length).toFixed(1)
-    : 0;
 
   const filteredVendors = visibleVendors
     ? visibleVendors.filter((v) => {
@@ -164,6 +163,13 @@ const VendorManagementPage = () => {
   const totalSpentInr = Array.isArray(visibleVendors)
     ? visibleVendors.reduce((sum, v) => sum + (vendorOrderStats[String(v.vendorId || v.id)]?.amount || 0), 0)
     : 0;
+
+  const totalOrdersCount = useMemo(() => {
+    return Object.values(vendorOrderStats).reduce(
+      (sum, s) => sum + (s.count || 0),
+      0
+    );
+  }, [vendorOrderStats]);
 
   const formatDate = (value) => {
     if (!value) return "—";
@@ -274,7 +280,7 @@ const VendorManagementPage = () => {
           <div className="flex items-center justify-between gap-1 mb-1">
             <p className="text-[10px] sm:text-xs font-semibold text-indigo-800 truncate">Total Spent</p>
             <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-indigo-600 text-white shadow-2xs shrink-0">
-              <Package className="h-3 w-3" />
+              <CreditCard className="h-3 w-3" />
             </div>
           </div>
           <p className="text-xs sm:text-sm font-black tracking-tight text-indigo-950 truncate">{formatCurrency(totalSpentInr)}</p>
@@ -282,12 +288,12 @@ const VendorManagementPage = () => {
 
         <div className="rounded-xl border border-amber-200/90 bg-gradient-to-br from-amber-50/90 via-white to-amber-50/30 p-2 sm:p-2.5 shadow-2xs">
           <div className="flex items-center justify-between gap-1 mb-1">
-            <p className="text-[10px] sm:text-xs font-semibold text-amber-800 truncate">Avg Rating</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-amber-800 truncate">Total Orders</p>
             <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-amber-500 text-white shadow-2xs shrink-0">
-              <Star className="h-3 w-3" />
+              <ShoppingBag className="h-3 w-3" />
             </div>
           </div>
-          <p className="text-sm sm:text-base font-black tracking-tight text-amber-950 truncate">{avgRating}</p>
+          <p className="text-sm sm:text-base font-black tracking-tight text-amber-950 truncate">{totalOrdersCount}</p>
         </div>
       </div>
 

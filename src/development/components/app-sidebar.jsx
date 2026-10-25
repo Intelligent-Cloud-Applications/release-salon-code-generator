@@ -15,6 +15,9 @@ import {
   X,
   UserCheck,
   Scale,
+  Clock,
+  TrendingUp,
+  Settings,
 } from "lucide-react";
 import clsx from "clsx";
 import Context from "@/development/Context/Context";
@@ -34,6 +37,16 @@ const sidebarMenuItems = [
     to: "/dashboard/billing",
     label: "Billing & POS",
     icon: CreditCard,
+  },
+  {
+    to: "/dashboard/order-history",
+    label: "Order History",
+    icon: Clock,
+  },
+  {
+    to: "/dashboard/revenue",
+    label: "Revenue",
+    icon: TrendingUp,
   },
   {
     to: "/dashboard/clients",
@@ -74,6 +87,11 @@ const sidebarMenuItems = [
     to: "/dashboard/loyalty-points",
     label: "Loyalty Points",
     icon: Gift,
+  },
+  {
+    to: "/dashboard/settings",
+    label: "Settings & Printer",
+    icon: Settings,
   },
 ];
 
@@ -223,7 +241,7 @@ export function Sidebar({
             const isDashboard = item.to === "/dashboard";
             const isActive = isDashboard
               ? location.pathname === "/dashboard"
-              : location.pathname.startsWith(item.to);
+              : location.pathname === item.to || location.pathname.startsWith(item.to + "/");
             const IconComponent = item.icon;
 
             return (
@@ -274,51 +292,7 @@ export function Sidebar({
         </nav>
 
         {/* Clean Footer Profile */}
-        <div className="p-3 border-t border-[#1e293b] bg-[#0b1120] shrink-0">
-          <div
-            className={clsx(
-              "flex items-center transition-all duration-300",
-              isCollapsedView
-                ? "justify-center relative group cursor-pointer"
-                : "gap-2.5 px-1 py-1"
-            )}
-            title={isCollapsedView ? (userData?.name || displayName) : undefined}
-            onClick={isCollapsedView ? handleToggleCollapse : undefined}
-          >
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-xs shrink-0 relative">
-              {userInitials}
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0b1120]" />
-            </div>
-
-            <div
-              className={clsx(
-                "min-w-0 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap",
-                isCollapsedView
-                  ? "opacity-0 max-w-0 ml-0 pointer-events-none"
-                  : "opacity-100 flex-1 ml-2.5"
-              )}
-            >
-              <div className="text-xs font-semibold text-white truncate">
-                {userData?.name || displayName}
-              </div>
-              <div className="text-[10px] text-slate-400 truncate">
-                {userData?.role || "Salon Administrator"}
-              </div>
-            </div>
-
-            {/* Tooltip for profile in collapsed mode */}
-            {isCollapsedView && (
-              <div className="absolute left-[calc(100%+12px)] bottom-0 hidden group-hover:block bg-[#0b1120] border border-slate-700/80 rounded-xl shadow-xl p-2.5 min-w-36 z-50 whitespace-nowrap animate-in fade-in-50 zoom-in-95 duration-150">
-                <div className="text-xs font-semibold text-white">
-                  {userData?.name || displayName}
-                </div>
-                <div className="text-[10px] text-slate-400">
-                  {userData?.role || "Salon Administrator"}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+       
       </aside>
     </>
   );

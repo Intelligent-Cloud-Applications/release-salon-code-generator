@@ -1,3046 +1,2246 @@
-import React, { useState, useEffect, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useContext, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import {
-  CreditCard,
   Plus,
+  Minus,
   Search,
-  Download,
-  Eye,
-  DollarSign,
   Calendar,
-  User,
-  Edit,
   Trash2,
   CheckCircle,
   X,
-  Table,
-  Grid3X3,
   ShoppingCart,
-  Star,
   Scissors,
-  Sparkles,
-  Heart,
-  Zap,
-  Droplets,
-  Palette,
-  Shield,
-  FileText,
-  FileSpreadsheet,
-  ChevronDown,
-  CalendarIcon,
-  CurrencyIcon,
+  Check,
+  Phone,
+  Layers,
+  ArrowRight,
+  User,
+  Clock,
+  Printer,
+  Pencil,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import {
-  Table as TableComponent,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "../components/ui/popover";
-import { Calendar as CalendarComponent } from "../components/ui/calendar";
 import { cn } from "../lib/utils";
 import Context from "../Context/Context";
 import ScissorsLoader from "../components/Loader";
 import { useToast } from "../hooks/use-toast";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../components/ui/dialog";
+import { BillPrintModal, formatCurrency, parseAppointmentDate } from "./BillPrintModal";
+import { getStoredGstSettings } from "./SettingsPage";
+import { FaMoneyBillWave, FaCreditCard, FaQrcode } from "react-icons/fa";
 import { format } from "date-fns";
-import { FaBook, FaCreditCard, FaDollarSign, FaMoneyBill, FaMoneyBillWave } from "react-icons/fa";
 
-// Bill print/reprint modal
-const BillPrintModal = ({
-  isOpen,
-  onClose,
-  bill,
-  onConfirmSettle,
-  isReprint,
-  isSettling,
-}) => {
-  if (!isOpen || !bill) return null;
+/* ----------------------------------------------------------------------------
+ * Safety helpers
+ * A single invalid date passed to date-fns `format` throws a RangeError and
+ * unmounts the whole React tree = the white page you saw after settling.
+ * Every date in this file now goes through these helpers.
+ * -------------------------------------------------------------------------- */
 
-  const formatCurrency = (amount, currency = "INR") => {
-    const locale = currency === "INR" ? "en-IN" : "en-US";
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currency,
-    }).format(amount || 0);
-  };
+const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 
-  const formatDate = (input) => {
-    if (!input) return "N/A";
-    const d = input instanceof Date ? input : new Date(input);
-    return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString();
-  };
-
-  const handlePrint = () => {
-    try {
-      window.print();
-    } catch (e) {
-      console.error("Print failed:", e);
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-2xl font-bold text-slate-900">
-            Salon Invoice
-          </DialogTitle>
-          <p className="text-sm text-slate-600">
-            Phone: (555) 123-4567 | Email: info@mirrorsalon.com
-          </p>
-        </DialogHeader>
-
-        {/* Scrollable content */}
-        <div className="flex-1 space-y-6 overflow-y-auto pr-2">
-          {/* Bill Details */}
-          <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-            {/* Client Information */}
-            <div>
-              <h3 className="mb-4 text-lg font-semibold text-slate-900">
-                Bill To:
-              </h3>
-              <div className="space-y-2">
-                <p className="text-slate-700">
-                  <strong>Name:</strong> {bill.clientName}
-                </p>
-                <p className="text-slate-700">
-                  <strong>Invoice ID:</strong> {bill.id}
-                </p>
-                <p className="text-slate-700">
-                  <strong>Date:</strong> {formatDate(bill.date)}
-                </p>
-                <p className="text-slate-700">
-                  <strong>Staff:</strong> {bill.staff}
-                </p>
-              </div>
-            </div>
-
-            {/* Service Details */}
-            <div>
-              <h3 className="mb-4 text-lg font-semibold text-slate-900">
-                Service Details:
-              </h3>
-              <div className="space-y-2">
-                <p className="text-slate-700">
-                  <strong>Payment Method:</strong> {bill.paymentMethod}
-                </p>
-                <p className="text-slate-700">
-                  <strong>Status:</strong>{" "}
-                  <span className="capitalize">{bill.status}</span>
-                </p>
-                {bill.duration != null && (
-                  <p className="text-slate-700">
-                    <strong>Duration:</strong> {bill.duration} minutes
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Services Table */}
-          <div className="mb-8">
-            <h3 className="mb-4 text-lg font-semibold text-slate-900">
-              Services Provided:
-            </h3>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-              <table className="w-full">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="p-4 text-left font-semibold text-slate-700">
-                      Service
-                    </th>
-                    <th className="p-4 text-right font-semibold text-slate-700">
-                      Price
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bill.services?.map((service, index) => (
-                    <tr key={index} className="border-t border-slate-200">
-                      <td className="p-4 text-slate-700">{service}</td>
-                      <td className="p-4 text-right text-slate-700">
-                        {formatCurrency(
-                          (bill.subtotal || 0) / (bill.services?.length || 1),
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Financial Summary */}
-          <div className="rounded-lg bg-slate-50 p-6">
-            <div className="ml-auto max-w-md space-y-3">
-              <div className="flex justify-between">
-                <span className="text-slate-700">Subtotal:</span>
-                <span className="text-slate-700">
-                  {formatCurrency(bill.subtotal)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-700">Tax:</span>
-                <span className="text-slate-700">
-                  {formatCurrency(bill.tax)}
-                </span>
-              </div>
-              <div className="border-t border-slate-300 pt-3">
-                <div className="flex justify-between">
-                  <span className="text-lg font-semibold text-slate-900">
-                    Total:
-                  </span>
-                  <span className="text-lg font-semibold text-slate-900">
-                    {formatCurrency(bill.total)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="text-center text-sm text-slate-500">
-            <p>Thank you for choosing Mirror Salon!</p>
-            <p>Visit us again for all your beauty needs.</p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <DialogFooter className="mt-6 flex-shrink-0">
-          {isSettling ? (
-            <div className="flex w-full items-center justify-center py-4">
-              <ScissorsLoader text="Settling bill..." />
-            </div>
-          ) : (
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="border-slate-200 text-slate-600 hover:bg-slate-50"
-              >
-                {isReprint ? "Close" : "Cancel"}
-              </Button>
-              {!isReprint && (
-                <Button
-                  onClick={onConfirmSettle}
-                  className="bg-green-600 text-white hover:bg-green-700"
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Settle & Print
-                </Button>
-              )}
-              {isReprint && (
-                <Button
-                  onClick={handlePrint}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Print Invoice
-                </Button>
-              )}
-            </div>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+const safeFormat = (d, fmt, fallback = "—") => {
+  try {
+    return isValidDate(d) ? format(d, fmt) : fallback;
+  } catch {
+    return fallback;
+  }
 };
 
-const BillingPage = () => {
-  const {
-    billing,
-    createBilling,
-    updateBilling,
-    updateAppointmentBilling,
-    appointments,
-    loader,
-    clients,
-    barbers,
-    createClient,
-    createAppointment,
-    fetchAppointments,
-    institutionData,
-  } = useContext(Context);
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // "table", "grid", "list"
-  const [activeSubPage, setActiveSubPage] = useState("overview"); // "overview", "create-invoice"
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingBill, setEditingBill] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [billToDelete, setBillToDelete] = useState(null);
-  const [showBillPrint, setShowBillPrint] = useState(false);
-  const [billToPrint, setBillToPrint] = useState(null);
-  const [billData, setBillData] = useState(null);
-  const [isSettlingBill, setIsSettlingBill] = useState(false);
-  const [dateFilter, setDateFilter] = useState({
-    from: undefined,
-    to: undefined,
-    isActive: false,
-  });
-  const [showExportMenu, setShowExportMenu] = useState(false);
-
-  // Close export menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        showExportMenu &&
-        !event.target.closest(".export-dropdown-container")
-      ) {
-        setShowExportMenu(false);
+const tryParseDate = (val) => {
+  if (val === null || val === undefined || val === "") return null;
+  try {
+    if (val instanceof Date) return isValidDate(val) ? val : null;
+    if (typeof val === "number") {
+      const d = new Date(val < 10000000000 ? val * 1000 : val);
+      return isValidDate(d) ? d : null;
+    }
+    if (typeof val === "string") {
+      const num = Number(val);
+      if (!isNaN(num) && num > 0) {
+        const d = new Date(num < 10000000000 ? num * 1000 : num);
+        if (isValidDate(d)) return d;
       }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showExportMenu]);
-
-  // // Ensure appointments are loaded when landing on BillingPage
-  // useEffect(() => {
-  //   if (!Array.isArray(appointments) || appointments.length === 0) {
-  //     fetchAppointments?.().catch(() => {});
-  //   }
-  // }, [appointments?.length, fetchAppointments]);
-
-  // Helper function to format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
-
-  // Use appointments data directly as billing data
-
-  // Helper function to get staff name from staff ID
-  const getStaffName = (staffId) => {
-    if (!staffId) return "Not Assigned";
-    const staff = barbers.find(
-      (barber) =>
-        barber.id === staffId ||
-        barber.staffId === staffId ||
-        barber.name === staffId,
-    );
-    return staff ? staff.name : staffId;
-  };
-
-  const bills = appointments
-    .map((appointment) => {
-      const staffId =
-        appointment.staffId ||
-        appointment.staff ||
-        appointment.Staff ||
-        appointment.staff_name ||
-        "Not Assigned";
-
-      return {
-        id:
-          appointment.appointmentId ||
-          appointment.id ||
-          appointment.Id ||
-          appointment.appointment_id,
-        clientName:
-          appointment.client?.clientName ||
-          appointment.clientName ||
-          appointment.ClientName ||
-          appointment.client_name ||
-          "N/A",
-        date: appointment.dateTime
-          ? new Date(appointment.dateTime).toLocaleDateString("en-GB")
-          : "N/A",
-        services: appointment.service
-          ? appointment.service.split(", ")
-          : appointment.services ||
-            appointment.Services ||
-            appointment.service_names ||
-            [],
-        subtotal:
-          appointment.subtotal ||
-          appointment.Subtotal ||
-          appointment.subtotal_amount ||
-          0,
-        tax: appointment.tax || appointment.Tax || appointment.tax_amount || 0,
-        discount:
-          appointment.discount ||
-          appointment.Discount ||
-          appointment.discount_value ||
-          0,
-        discountAmount:
-          appointment.discountAmount ||
-          appointment.discount_amount ||
-          appointment.discount ||
-          0,
-        gstPercent:
-          appointment.gstPercent ||
-          appointment.gst_percent ||
-          appointment.gst ||
-          null,
-        total:
-          appointment.total ||
-          appointment.Total ||
-          appointment.total_amount ||
-          0,
-        status:
-          appointment.status ||
-          appointment.Status ||
-          appointment.appointment_status ||
-          "pending",
-        paymentMethod:
-          appointment.paymentMode ||
-          appointment.paymentMethod ||
-          appointment.PaymentMethod ||
-          appointment.payment_method ||
-          "Cash",
-        staff: getStaffName(staffId),
-        staffId: staffId, // Keep original staffId for reference
-        notes: appointment.notes || "",
-        duration: appointment.duration || 0,
-        createdAt: appointment.createdAt || appointment.created_at || "",
-        updatedAt: appointment.updatedAt || appointment.updated_at || "",
-      };
-    })
-    .filter(
-      (b) =>
-        b.status === "confirmed" ||
-        b.status === "completed" ||
-        b.status === "pending" ||
-        b.status === "in_progress",
-    );
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      completed: {
-        variant: "default",
-        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      settled: { 
-        variant: "default", 
-        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      scheduled: {
-        variant: "secondary",
-        className: "bg-blue-50 text-blue-700 border border-blue-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      confirmed: {
-        variant: "secondary",
-        className: "bg-blue-50 text-blue-700 border border-blue-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      in_progress: {
-        variant: "secondary",
-        className: "bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      cancelled: {
-        variant: "destructive",
-        className: "bg-rose-50 text-rose-700 border border-rose-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      paid: { 
-        variant: "default", 
-        className: "bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      pending: {
-        variant: "secondary",
-        className: "bg-amber-50 text-amber-700 border border-amber-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-      overdue: { 
-        variant: "destructive", 
-        className: "bg-rose-50 text-rose-700 border border-rose-200/80 font-semibold text-[11px] px-2 py-0.5",
-      },
-    };
-    const config = statusConfig[status] || statusConfig.scheduled;
-    return (
-      <Badge variant={config.variant} className={config.className}>
-        {status.toUpperCase()}
-      </Badge>
-    );
-  };
-
-  // Date filtering helper function
-  const isDateInRange = (billDate, startDate, endDate) => {
-    if (!startDate && !endDate) return true;
-    if (!billDate || billDate === "N/A") return false;
-
-    // Convert bill date to YYYY-MM-DD format for comparison
-    let billDateStr;
-    try {
-      if (billDate.includes("/")) {
-        // Handle DD/MM/YYYY format (from toLocaleDateString("en-GB"))
-        const parts = billDate.split("/");
-        if (parts.length === 3) {
-          const day = parts[0].padStart(2, "0");
-          const month = parts[1].padStart(2, "0");
-          const year = parts[2];
-          billDateStr = `${year}-${month}-${day}`;
-        }
-      } else {
-        // Handle other date formats
-        const billDateObj = new Date(billDate);
-        billDateStr = billDateObj.toISOString().split("T")[0];
-      }
-
-      // Convert Date objects to YYYY-MM-DD format for comparison
-      const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : null;
-      const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : null;
-
-      if (startDateStr && endDateStr) {
-        return billDateStr >= startDateStr && billDateStr <= endDateStr;
-      } else if (startDateStr) {
-        return billDateStr >= startDateStr;
-      } else if (endDateStr) {
-        return billDateStr <= endDateStr;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Date filtering error:", error);
-      return false;
+      const d = new Date(val);
+      if (isValidDate(d)) return d;
+      const d2 = parseAppointmentDate(val);
+      return isValidDate(d2) ? d2 : null;
     }
-  };
-
-  // Apply date filter based on date range
-  const applyDateFilter = (bills) => {
-    if (!dateFilter.isActive || (!dateFilter.from && !dateFilter.to)) {
-      return bills;
-    }
-
-    const filtered = bills.filter((bill) =>
-      isDateInRange(bill.date, dateFilter.from, dateFilter.to),
-    );
-    const filterDescription =
-      dateFilter.from && dateFilter.to
-        ? `${format(dateFilter.from, "MMM dd, yyyy")} to ${format(dateFilter.to, "MMM dd, yyyy")}`
-        : dateFilter.from
-          ? `from ${format(dateFilter.from, "MMM dd, yyyy")}`
-          : `to ${format(dateFilter.to, "MMM dd, yyyy")}`;
-
-    console.log(
-      `Date filter: ${filterDescription} - Found ${filtered.length} bills`,
-    );
-    if (filtered.length > 0) {
-      console.log(
-        "Filtered bills:",
-        filtered.map((bill) => ({
-          id: bill.id,
-          date: bill.date,
-          clientName: bill.clientName,
-          status: bill.status,
-        })),
-      );
-    } else {
-      console.log("No bills found for the selected date range");
-    }
-    return filtered;
-  };
-
-  const filteredBills = applyDateFilter(
-    bills.filter(
-      (bill) =>
-        bill.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.id.toLowerCase().includes(searchTerm.toLowerCase()),
-    ),
-  );
-
-  // Handle billing actions
-  const handleAddBilling = () => {
-    setShowAddForm(true);
-  };
-
-  const handleEditBilling = (bill) => {
-    setEditingBill(bill);
-    setShowAddForm(true);
-  };
-
-  const handleDeleteBilling = (bill) => {
-    setBillToDelete(bill);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleStatusUpdate = async (appointmentId, newStatus) => {
-    try {
-      // Map billing status to appointment status
-      const statusMap = {
-        paid: "completed",
-        pending: "scheduled",
-        overdue: "cancelled",
-        settled: "settled",
-      };
-      const appointmentStatus = statusMap[newStatus] || newStatus;
-      await updateBilling(appointmentId, { status: appointmentStatus });
-      toast({
-        variant: "success",
-        title: "Success!",
-        description: "Billing status has been updated successfully.",
-      });
-    } catch (error) {
-      console.error("Error updating billing status:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update billing status. Please try again.",
-      });
-    }
-  };
-
-  const handleSettle = async (appointmentId) => {
-    try {
-      // Find the bill to print
-      const bill = bills.find((b) => b.id === appointmentId);
-      if (bill) {
-        setBillToPrint(bill);
-        setShowBillPrint(true);
-      }
-    } catch (error) {
-      console.error("Error settling appointment:", error);
-    }
-  };
-
-  const handleConfirmSettle = async () => {
-    setIsSettlingBill(true);
-    try {
-      if (billToPrint) {
-        await updateBilling(billToPrint.id, { status: "settled" });
-        setShowBillPrint(false);
-        setBillToPrint(null);
-        toast({
-          variant: "success",
-          title: "Success!",
-          description: "Bill has been settled successfully.",
-        });
-      }
-    } catch (error) {
-      console.error("Error settling appointment:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to settle bill. Please try again.",
-      });
-    } finally {
-      setIsSettlingBill(false);
-    }
-  };
-
-  const handleReprint = (bill) => {
-    // Open print modal for reprinting
-    setBillToPrint(bill);
-    setShowBillPrint(true);
-  };
-
-  const handleCreateInvoice = async (invoiceData) => {
-    // Generate Bill: ensure client + appointment, update appointment billing, then navigate to preview
-    try {
-      // 1) Ensure client exists or create one
-      const name = (invoiceData?.client?.clientName || "").trim();
-      const phone = (invoiceData?.client?.phoneNumber || "").trim();
-      const existingClient = (clients || []).find(
-        (c) =>
-          (c.clientName && c.clientName === name && name) ||
-          (phone && (c.phoneNumber === phone || c.PhoneNumber === phone)),
-      );
-      let clientId =
-        existingClient?.clientId ||
-        existingClient?.ClientId ||
-        existingClient?.id ||
-        existingClient?.Id;
-
-      if (!clientId) {
-        const newClientPayload = {
-          clientName: name || "Walk-in",
-          phoneNumber: phone || "",
-          emailId: "",
-          createdAt: Math.floor(Date.now() / 1000),
-        };
-        const createdResp = await createClient(newClientPayload);
-        const createdClient = createdResp?.client || createdResp;
-        clientId =
-          createdClient?.clientId ||
-          createdClient?.ClientId ||
-          createdClient?.id ||
-          createdClient?.Id;
-      }
-
-      // 2) Determine appointmentId (use selected bill's id if present; else create)
-      let appointmentId = billData?.id || billData?.appointmentId;
-      const epochNow = Math.floor(Date.now() / 1000);
-
-      // Normalize services/products from cart (invoiceData.services)
-      const rawItems = Array.isArray(invoiceData?.services)
-        ? invoiceData.services
-        : [];
-      const serviceItems = rawItems.filter((it) => it.serviceId);
-      const productItems = rawItems.filter((it) => it.productId);
-      const servicesMapped = serviceItems.map((s) => ({
-        serviceName: s.serviceName,
-        amount: s.amount,
-        duration: s.duration || 0,
-      }));
-      const productsMapped = productItems.map((p) => ({
-        productId: p.productId,
-        productName: p.productName,
-        amount: p.amount,
-        quantity: p.quantity || 1,
-      }));
-      const serviceCSV = servicesMapped.map((s) => s.serviceName).join(", ");
-      let duration = servicesMapped.reduce(
-        (sum, s) => sum + (Number(s.duration) || 0),
-        0,
-      );
-      if (!duration || duration <= 0) duration = 1; // Minimum 1
-
-      // invoiceData.staff carries the selected staff option value (likely b.id). Map to staffId if present.
-      const staffObj = (barbers || []).find(
-        (b) => b.id === invoiceData?.staff || b.staffId === invoiceData?.staff,
-      );
-      const staffId =
-        staffObj?.staffId || staffObj?.id || invoiceData?.staff || "";
-
-      if (!appointmentId) {
-        // Create a new appointment only (no update)
-        const createPayload = {
-          clientId,
-          clientName: name,
-          phoneNumber: phone,
-          services: servicesMapped,
-          products: productsMapped,
-          service: serviceCSV,
-          duration,
-          dateTime: epochNow, // epoch format
-          subtotal: Number(invoiceData?.subtotal || 0),
-          tax: Number(invoiceData?.tax || 0),
-          gstPercent: Number(invoiceData?.gstPercent || 0),
-          discount: Number(invoiceData?.discount || 0),
-          discountAmount: Number(invoiceData?.discount || 0),
-          total: Number(
-            invoiceData?.finalAmount != null
-              ? invoiceData.finalAmount
-              : invoiceData?.total || 0,
-          ),
-          amount: Number(invoiceData?.subtotal || 0),
-          staffId,
-          createdAt: epochNow,
-        };
-        const resp = await createAppointment(createPayload);
-        const created = resp?.appointment || resp;
-        appointmentId = created?.appointmentId || created?.id || created?.Id;
-
-        if (!appointmentId) {
-          throw new Error("No appointmentId returned from createAppointment");
-        }
-
-        // Prepare bill state for preview
-        const billForState = {
-          id: appointmentId,
-          clientName: name,
-          phoneNumber: phone,
-          date: new Date(epochNow * 1000),
-          services: servicesMapped.map((s) => s.serviceName),
-          subtotal: createPayload.subtotal,
-          tax: createPayload.tax,
-          gstPercent: createPayload.gstPercent,
-          total: createPayload.total,
-          discount: createPayload.discount,
-          discountAmount: createPayload.discount, // expose for preview
-          staff: invoiceData?.staff || "",
-          paymentMethod: "",
-          status: "completed",
-        };
-
-        // Fetch fresh appointments and use the returned list to find the created one
-        const list = (await fetchAppointments()) || [];
-        const found = list.find((a) => {
-          const aid = String(appointmentId);
-          const candidates = [a?.appointmentId, a?.id, a?.Id, a?.appointment_id]
-            .filter(Boolean)
-            .map(String);
-          return candidates.includes(aid);
-        });
-
-        navigate(`/dashboard/billing/preview/${appointmentId}`, {
-          state: {
-            bill: billForState,
-            appointment: found || null,
-            mode: "generate",
-          },
-        });
-      } else {
-        // Update existing appointment only (no create)
-        const updatePayload = {
-          appointmentId,
-          clientId,
-          clientName: name,
-          phoneNumber: phone,
-          services: servicesMapped,
-          products: productsMapped,
-          service: serviceCSV,
-          duration,
-          dateTime: epochNow, // keep epoch
-          subtotal: Number(invoiceData?.subtotal || 0),
-          tax: Number(invoiceData?.tax || 0),
-          gstPercent: Number(invoiceData?.gstPercent || 0),
-          discount: Number(invoiceData?.discount || 0),
-          discountAmount: Number(invoiceData?.discount || 0),
-          total: Number(
-            invoiceData?.finalAmount != null
-              ? invoiceData.finalAmount
-              : invoiceData?.total || 0,
-          ),
-          amount: Number(invoiceData?.subtotal || 0),
-          staffId,
-          paymentMode: "",
-          paymentPlatform: "",
-        };
-
-        await updateAppointmentBilling(appointmentId, updatePayload);
-
-        const billForState = {
-          id: appointmentId,
-          clientName: name,
-          phoneNumber: phone,
-          date: new Date(epochNow * 1000),
-          services: servicesMapped.map((s) => s.serviceName),
-          subtotal: updatePayload.subtotal,
-          tax: updatePayload.tax,
-          gstPercent: updatePayload.gstPercent,
-          total: updatePayload.total,
-          discount: updatePayload.discount,
-          discountAmount: updatePayload.discount, // expose for preview
-          staff: invoiceData?.staff || "",
-          paymentMethod: "",
-          status: "completed",
-        };
-
-        // Fetch fresh appointments and use the returned list to find the updated one
-        const list = (await fetchAppointments()) || [];
-        const found = list.find((a) => {
-          const aid = String(appointmentId);
-          const candidates = [a?.appointmentId, a?.id, a?.Id, a?.appointment_id]
-            .filter(Boolean)
-            .map(String);
-          return candidates.includes(aid);
-        });
-
-        navigate(`/dashboard/billing/preview/${appointmentId}`, {
-          state: {
-            bill: billForState,
-            appointment: found || null,
-            mode: "generate",
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Error creating invoice:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to generate bill. Please try again.",
-      });
-    }
-  };
-
-  const formatCurrency = (amount, currency = "INR") => {
-    // Choose locale based on currency
-    const locale = currency === "INR" ? "en-IN" : "en-US";
-
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
-  };
-
-  // Export data to CSV
-  const handleExportToCSV = () => {
-    const dataToExport = dateFilter.isActive ? filteredBills : bills;
-
-    if (dataToExport.length === 0) {
-      toast({
-        title: "No Data",
-        description: "There is no data to export.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Create CSV headers
-    const headers = [
-      "Invoice ID",
-      "Client Name",
-      "Date",
-      "Services",
-      "Subtotal",
-      "Tax",
-      "Discount",
-      "Total",
-      "Status",
-      "Payment Method",
-      "Staff",
-      "Duration (min)",
-    ];
-
-    // Create CSV rows
-    const rows = dataToExport.map((bill) => [
-      bill.id,
-      bill.clientName,
-      bill.date,
-      Array.isArray(bill.services)
-        ? bill.services.join("; ")
-        : bill.services || "",
-      bill.subtotal || 0,
-      bill.tax || 0,
-      bill.discountAmount || 0,
-      bill.total || 0,
-      bill.status,
-      bill.paymentMethod,
-      bill.staff,
-      bill.duration || 0,
-    ]);
-
-    // Combine headers and rows
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) =>
-        row
-          .map((cell) => {
-            // Escape quotes and wrap in quotes if contains comma
-            const cellStr = String(cell);
-            if (cellStr.includes(",") || cellStr.includes('"')) {
-              return `"${cellStr.replace(/"/g, '""')}"`;
-            }
-            return cellStr;
-          })
-          .join(","),
-      ),
-    ].join("\n");
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-
-    const fileName = dateFilter.isActive
-      ? `billing_data_${dateFilter.from ? format(dateFilter.from, "yyyy-MM-dd") : "all"}_to_${dateFilter.to ? format(dateFilter.to, "yyyy-MM-dd") : "all"}.csv`
-      : `billing_data_all_${new Date().toISOString().split("T")[0]}.csv`;
-
-    link.setAttribute("href", url);
-    link.setAttribute("download", fileName);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "Export Successful",
-      description: `Exported ${dataToExport.length} records to CSV.`,
-    });
-  };
-
-  // Export data to Excel
-  const handleExportToExcel = () => {
-    const dataToExport = dateFilter.isActive ? filteredBills : bills;
-
-    if (dataToExport.length === 0) {
-      toast({
-        title: "No Data",
-        description: "There is no data to export.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Create Excel XML format
-    const headers = [
-      "Invoice ID",
-      "Client Name",
-      "Date",
-      "Services",
-      "Subtotal",
-      "Tax",
-      "Discount",
-      "Total",
-      "Status",
-      "Payment Method",
-      "Staff",
-      "Duration (min)",
-    ];
-
-    let excelContent = `<?xml version="1.0"?>
-      <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-        xmlns:o="urn:schemas-microsoft-com:office:office"
-        xmlns:x="urn:schemas-microsoft-com:office:excel"
-        xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
-        xmlns:html="http://www.w3.org/TR/REC-html40">
-        <Worksheet ss:Name="Billing Data">
-          <Table>
-            <Row>`;
-
-    // Add headers
-    headers.forEach((header) => {
-      excelContent += `<Cell><Data ss:Type="String">${header}</Data></Cell>`;
-    });
-    excelContent += `</Row>`;
-
-    // Add data rows
-    dataToExport.forEach((bill) => {
-      excelContent += `<Row>`;
-      const rowData = [
-        bill.id,
-        bill.clientName,
-        bill.date,
-        Array.isArray(bill.services)
-          ? bill.services.join("; ")
-          : bill.services || "",
-        bill.subtotal || 0,
-        bill.tax || 0,
-        bill.discountAmount || 0,
-        bill.total || 0,
-        bill.status,
-        bill.paymentMethod,
-        bill.staff,
-        bill.duration || 0,
-      ];
-
-      rowData.forEach((cell, index) => {
-        const isNumber = (index >= 4 && index <= 7) || index === 11;
-        const type = isNumber ? "Number" : "String";
-        const value = String(cell)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-        excelContent += `<Cell><Data ss:Type="${type}">${value}</Data></Cell>`;
-      });
-      excelContent += `</Row>`;
-    });
-
-    excelContent += `</Table></Worksheet></Workbook>`;
-
-    // Create blob and download
-    const blob = new Blob([excelContent], { type: "application/vnd.ms-excel" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-
-    const fileName = dateFilter.isActive
-      ? `billing_data_${dateFilter.from ? format(dateFilter.from, "yyyy-MM-dd") : "all"}_to_${dateFilter.to ? format(dateFilter.to, "yyyy-MM-dd") : "all"}.xls`
-      : `billing_data_all_${new Date().toISOString().split("T")[0]}.xls`;
-
-    link.setAttribute("href", url);
-    link.setAttribute("download", fileName);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "Export Successful",
-      description: `Exported ${dataToExport.length} records to Excel.`,
-    });
-  };
-
-  // Export data to PDF
-  const handleExportToPDF = () => {
-    const dataToExport = dateFilter.isActive ? filteredBills : bills;
-
-    if (dataToExport.length === 0) {
-      toast({
-        title: "No Data",
-        description: "There is no data to export.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const institutionName =
-      institutionData?.companyName ||
-      institutionData?.institutionName ||
-      "Salon";
-
-    // Create HTML content for PDF
-    let htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Billing Report</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .institute-name { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
-          h1 { color: #555; font-size: 20px; margin: 10px 0; }
-          .meta { text-align: center; color: #666; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-          th { background-color: #f4f4f4; font-weight: bold; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-          .status { padding: 2px 6px; border-radius: 3px; font-size: 10px; }
-          .status-completed { background-color: #dcfce7; color: #166534; }
-          .status-pending { background-color: #fef3c7; color: #92400e; }
-          .status-cancelled { background-color: #fee2e2; color: #991b1b; }
-          @media print {
-            body { padding: 0; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="institute-name">${institutionName}</div>
-          <h1>Billing Report</h1>
-        </div>
-        <div class="meta">
-          ${
-            dateFilter.isActive
-              ? `<p>Date Range: ${dateFilter.from ? format(dateFilter.from, "MMM dd, yyyy") : "All"} to ${dateFilter.to ? format(dateFilter.to, "MMM dd, yyyy") : "All"}</p>`
-              : "<p>All Time Report</p>"
-          }
-          <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-          <p>Total Records: ${dataToExport.length}</p>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Invoice ID</th>
-              <th>Client Name</th>
-              <th>Date</th>
-              <th>Services</th>
-              <th>Subtotal</th>
-              <th>Tax</th>
-              <th>Discount</th>
-              <th>Total</th>
-              <th>Status</th>
-              <th>Payment</th>
-              <th>Staff</th>
-            </tr>
-          </thead>
-          <tbody>`;
-
-    dataToExport.forEach((bill) => {
-      const statusClass =
-        bill.status === "completed"
-          ? "status-completed"
-          : bill.status === "pending"
-            ? "status-pending"
-            : "status-cancelled";
-
-      htmlContent += `
-        <tr>
-          <td>${bill.id}</td>
-          <td>${bill.clientName}</td>
-          <td>${bill.date}</td>
-          <td>${Array.isArray(bill.services) ? bill.services.join(", ") : bill.services || ""}</td>
-          <td>₹${(bill.subtotal || 0).toFixed(2)}</td>
-          <td>₹${(bill.tax || 0).toFixed(2)}</td>
-          <td>₹${(bill.discountAmount || 0).toFixed(2)}</td>
-          <td>₹${(bill.total || 0).toFixed(2)}</td>
-          <td><span class="status ${statusClass}">${bill.status.toUpperCase()}</span></td>
-          <td>${bill.paymentMethod}</td>
-          <td>${bill.staff}</td>
-        </tr>`;
-    });
-
-    htmlContent += `
-          </tbody>
-        </table>
-        <script>
-          window.onload = function() {
-            window.print();
-          }
-        </script>
-      </body>
-      </html>`;
-
-    // Create hidden iframe for printing
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-
-    // Write content to iframe and trigger print
-    const iframeDoc = iframe.contentWindow.document;
-    iframeDoc.open();
-    iframeDoc.write(htmlContent);
-    iframeDoc.close();
-
-    // Remove iframe after printing
-    iframe.contentWindow.onafterprint = () => {
-      document.body.removeChild(iframe);
-    };
-
-    toast({
-      title: "PDF Export",
-      description: "Opening print dialog for PDF export...",
-    });
-  };
-
-  // Calculate revenue from filtered bills
-  const filteredRevenue = filteredBills
-    .filter(
-      (b) =>
-        b.status === "completed" ||
-        b.status === "paid" ||
-        b.status === "settled",
-    )
-    .reduce((sum, bill) => sum + bill.total, 0);
-  const filteredPendingAmount = filteredBills
-    .filter(
-      (b) =>
-        b.status === "scheduled" ||
-        b.status === "confirmed" ||
-        b.status === "pending" ||
-        b.status === "in_progress",
-    )
-    .reduce((sum, bill) => sum + bill.total, 0);
-  const filteredOverdueAmount = filteredBills
-    .filter((b) => b.status === "cancelled" || b.status === "overdue")
-    .reduce((sum, bill) => sum + bill.total, 0);
-
-  // Keep original calculations for all-time data
-  const totalRevenue = bills
-    .filter(
-      (b) =>
-        b.status === "completed" ||
-        b.status === "paid" ||
-        b.status === "settled",
-    )
-    .reduce((sum, bill) => sum + bill.total, 0);
-  const pendingAmount = bills
-    .filter(
-      (b) =>
-        b.status === "scheduled" ||
-        b.status === "confirmed" ||
-        b.status === "pending" ||
-        b.status === "in_progress",
-    )
-    .reduce((sum, bill) => sum + bill.total, 0);
-  const overdueAmount = bills
-    .filter((b) => b.status === "cancelled" || b.status === "overdue")
-    .reduce((sum, bill) => sum + bill.total, 0);
-
-  // Use filtered amounts when date filter is active
-  const displayRevenue = dateFilter.isActive ? filteredRevenue : totalRevenue;
-  const displayPending = dateFilter.isActive
-    ? filteredPendingAmount
-    : pendingAmount;
-  const displayOverdue = dateFilter.isActive
-    ? filteredOverdueAmount
-    : overdueAmount;
-
-  if (loader) {
-    return (
-      <div className="poppins-regular flex h-64 items-center justify-center">
-        <ScissorsLoader text="Loading billing data..." />
-      </div>
-    );
+  } catch {
+    return null;
   }
+  return null;
+};
+
+const parseAppointmentDateTime = (dateTimeVal, dateVal, timeVal, createdAt) => {
+  const a = tryParseDate(dateTimeVal);
+  if (a) return a;
+  if (dateVal) {
+    const b = tryParseDate(timeVal ? `${dateVal}T${timeVal}` : dateVal);
+    if (b) return b;
+  }
+  return tryParseDate(createdAt) || new Date();
+};
+
+const formatDateLabel = (dateObj) => {
+  if (!isValidDate(dateObj)) return "Scheduled";
+  const now = new Date();
+  const same = (a, b) =>
+    a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (same(dateObj, now)) return "Today";
+  if (same(dateObj, tomorrow)) return "Tomorrow";
+  return safeFormat(dateObj, "dd MMM");
+};
+
+/* ----------------------------------------------------------------------------
+ * Error boundary — if anything throws, show a message instead of a white page
+ * -------------------------------------------------------------------------- */
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("Billing page crashed:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      if (this.props.inline) return null;
+      return (
+        <div className="h-full flex items-center justify-center p-6">
+          <div className="max-w-sm w-full bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+            <div className="w-12 h-12 mx-auto rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+              <X className="w-6 h-6" />
+            </div>
+            <h2 className="text-base font-bold text-slate-900">Something went wrong</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Your bill was saved if it was settled. Reload the billing screen to continue.
+            </p>
+            <Button
+              onClick={() => this.setState({ error: null })}
+              className="mt-4 w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold cursor-pointer"
+            >
+              Reload billing
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+ * Overlay — plain layer (NOT a Radix Dialog), so nothing is ever stacked
+ * modal-inside-modal. Only one overlay is open at a time (see openPicker etc).
+ *   variant="sheet": bottom sheet on phones (hidden from md up)
+ *   variant="modal": full screen on phones, centered card on tablet/desktop
+ * -------------------------------------------------------------------------- */
+
+const Overlay = ({ open, onClose, variant = "modal", children }) => {
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        // If an input, textarea, or select is active, dismissing the mobile keyboard fires Escape on Android.
+        // In that case, simply blur the input rather than closing the entire modal!
+        if (tag === "input" || tag === "select" || tag === "textarea") {
+          document.activeElement.blur();
+          return;
+        }
+        onCloseRef.current?.();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleBackdropClick = (e) => {
+    e.stopPropagation();
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    // If an input, textarea, or select is active, dismissing or interacting with the mobile keyboard fires a synthetic click.
+    // In that case, simply blur the input rather than closing the entire checkout modal!
+    if (tag === "input" || tag === "select" || tag === "textarea") {
+      document.activeElement?.blur();
+      return;
+    }
+    onCloseRef.current?.();
+  };
 
   return (
-    <div className="p-3.5 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 font-sans bg-[#f8fafc] min-h-full">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Billing & Invoices
-          </h1>
-          <p className="text-slate-600">
-            Manage your salon billing and payment tracking
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Export Button with Dropdown */}
-          <div className="export-dropdown-container relative">
-            <Button
-              variant="outline"
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              className="border-slate-200 text-slate-600 hover:bg-slate-50"
-              title={
-                dateFilter.isActive ? "Export filtered data" : "Export all data"
-              }
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export {dateFilter.isActive ? "Filtered" : "All"}
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-
-            {/* Export Dropdown Menu */}
-            {showExportMenu && (
-              <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      handleExportToExcel();
-                      setShowExportMenu(false);
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                  >
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Export as Excel
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleExportToPDF();
-                      setShowExportMenu(false);
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Export as PDF
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <Button
-            variant={activeSubPage === "overview" ? "default" : "outline"}
-            onClick={() => {
-              setActiveSubPage("overview");
-              setBillData(null);
-            }}
-            className={
-              activeSubPage === "overview"
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }
-          >
-            Overview
-          </Button>
-          <Button
-            variant={activeSubPage === "create-invoice" ? "default" : "outline"}
-            onClick={() => {
-              setActiveSubPage("create-invoice");
-              handleAddBilling();
-            }}
-            className={
-              activeSubPage === "create-invoice"
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Invoice
-          </Button>
-
-          {/* Date Filter */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-auto justify-start text-left font-normal",
-                  !dateFilter.from && !dateFilter.to && "text-muted-foreground",
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFilter.from ? (
-                  dateFilter.to ? (
-                    <>
-                      {format(dateFilter.from, "LLL dd, y")} -{" "}
-                      {format(dateFilter.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateFilter.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarComponent
-                initialFocus
-                mode="range"
-                defaultMonth={dateFilter.from}
-                selected={{ from: dateFilter.from, to: dateFilter.to }}
-                onSelect={(range) => {
-                  setDateFilter({
-                    from: range?.from,
-                    to: range?.to,
-                    isActive: !!(range?.from || range?.to),
-                  });
-                }}
-                numberOfMonths={2}
-              />
-              {(dateFilter.from || dateFilter.to) && (
-                <div className="border-t p-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDateFilter({
-                        from: undefined,
-                        to: undefined,
-                        isActive: false,
-                      });
-                    }}
-                    className="w-full"
-                  >
-                    Clear Filter
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {/* Conditional Content Based on Active Sub Page */}
-      {activeSubPage === "overview" && (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <Card className="border-slate-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-600">
-                      {dateFilter.isActive
-                        ? "Filtered Revenue"
-                        : "Total Revenue"}
-                    </p>
-                    <p className="text-lg font-bold text-green-600">
-                      {formatCurrency(displayRevenue)}
-                    </p>
-                    {dateFilter.isActive && (
-                      <p className="text-xs text-slate-500">
-                        All time: {formatCurrency(totalRevenue)}
-                      </p>
-                    )}
-                  </div>
-                  <FaDollarSign className="h-5 w-5 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-600">
-                      {dateFilter.isActive ? "Filtered Cash" : "Cash Payments"}
-                    </p>
-                    <p className="text-lg font-bold text-blue-600">
-                      {formatCurrency(
-                        (dateFilter.isActive ? filteredBills : bills)
-                          .filter(
-                            (b) => b.paymentMethod?.toLowerCase() === "cash",
-                          )
-                          .reduce((sum, bill) => sum + bill.total, 0),
-                      )}
-                    </p>
-                    {dateFilter.isActive && (
-                      <p className="text-xs text-slate-500">
-                        All time:{" "}
-                        {formatCurrency(
-                          bills
-                            .filter(
-                              (b) => b.paymentMethod?.toLowerCase() === "cash",
-                            )
-                            .reduce((sum, bill) => sum + bill.total, 0),
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <FaMoneyBillWave className="h-5 w-5 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-600">
-                      {dateFilter.isActive
-                        ? "Filtered Online"
-                        : "Online Payments"}
-                    </p>
-                    <p className="text-lg font-bold text-purple-600">
-                      {formatCurrency(
-                        (dateFilter.isActive ? filteredBills : bills)
-                          .filter(
-                            (b) => b.paymentMethod?.toLowerCase() !== "cash",
-                          )
-                          .reduce((sum, bill) => sum + bill.total, 0),
-                      )}
-                    </p>
-                    {dateFilter.isActive && (
-                      <p className="text-xs text-slate-500">
-                        All time:{" "}
-                        {formatCurrency(
-                          bills
-                            .filter(
-                              (b) => b.paymentMethod?.toLowerCase() !== "cash",
-                            )
-                            .reduce((sum, bill) => sum + bill.total, 0),
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <FaCreditCard className="h-5 w-5 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-600">
-                      {dateFilter.isActive
-                        ? "Filtered Invoices"
-                        : "Total Invoices"}
-                    </p>
-                    <p className="text-lg font-bold text-slate-600">
-                      {filteredBills.length}
-                    </p>
-                    {dateFilter.isActive && (
-                      <p className="text-xs text-slate-500">
-                        All time: {bills.length}
-                      </p>
-                    )}
-                  </div>
-                  <FaBook className="h-5 w-5 text-slate-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Search, Stats, and View Toggle */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400" />
-              <Input
-                placeholder="Search invoices by client name or invoice ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-slate-200 pl-10"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge
-                variant="secondary"
-                className="bg-green-100 text-green-800"
-              >
-                Completed:{" "}
-                {
-                  filteredBills.filter(
-                    (b) =>
-                      b.status === "completed" ||
-                      b.status === "paid" ||
-                      b.status === "settled",
-                  ).length
-                }
-              </Badge>
-              <Badge
-                variant="secondary"
-                className="bg-yellow-100 text-yellow-800"
-              >
-                Pending:{" "}
-                {
-                  filteredBills.filter(
-                    (b) =>
-                      b.status === "scheduled" ||
-                      b.status === "confirmed" ||
-                      b.status === "pending" ||
-                      b.status === "in_progress",
-                  ).length
-                }
-              </Badge>
-              <Badge variant="secondary" className="bg-red-100 text-red-800">
-                Cancelled:{" "}
-                {
-                  filteredBills.filter(
-                    (b) => b.status === "cancelled" || b.status === "overdue",
-                  ).length
-                }
-              </Badge>
-              {dateFilter.isActive && (
-                <Badge
-                  variant="secondary"
-                  className="bg-blue-100 text-blue-800"
-                >
-                  Filtered: {filteredBills.length} / {bills.length}
-                </Badge>
-              )}
-            </div>
-            <div className="flex gap-1 rounded-lg border border-slate-200 p-1">
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-                className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "table" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-              >
-                <Table className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                className={`h-8 w-8 p-0 rounded-lg cursor-pointer ${viewMode === "grid" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Dynamic View Based on Selection */}
-          {viewMode === "table" && (
-            <Card className="border-slate-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-slate-900">
-                  Invoices & Bills - Table View
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <TableComponent>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-24 text-slate-600">
-                          ID
-                        </TableHead>
-                        <TableHead className="min-w-32 text-slate-600">
-                          Client
-                        </TableHead>
-                        <TableHead className="w-24 text-slate-600">
-                          Date
-                        </TableHead>
-                        <TableHead className="min-w-40 text-slate-600">
-                          Services
-                        </TableHead>
-                        <TableHead className="w-20 text-slate-600">
-                          Staff
-                        </TableHead>
-                        <TableHead className="w-20 text-slate-600">
-                          Payment
-                        </TableHead>
-                        <TableHead className="w-20 text-slate-600">
-                          Subtotal
-                        </TableHead>
-                        <TableHead className="w-16 text-slate-600">
-                          Tax
-                        </TableHead>
-                        <TableHead className="w-20 text-slate-600">
-                          Total
-                        </TableHead>
-                        <TableHead className="w-24 text-slate-600">
-                          Status
-                        </TableHead>
-                        <TableHead className="w-32 text-slate-600">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredBills.map((bill) => (
-                        <TableRow key={bill.id} className="hover:bg-slate-50">
-                          <TableCell className="truncate text-xs font-medium text-slate-900">
-                            {bill.id}
-                          </TableCell>
-                          <TableCell className="truncate text-sm text-slate-900">
-                            {bill.clientName}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3 text-slate-500" />
-                              <span className="text-xs text-slate-900">
-                                {bill.date}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {bill.services
-                                .slice(0, 1)
-                                .map((service, index) => (
-                                  <Badge
-                                    key={index}
-                                    variant="outline"
-                                    className="border-slate-200 px-1 py-0 text-xs text-slate-600"
-                                  >
-                                    {service}
-                                  </Badge>
-                                ))}
-                              {bill.services.length > 1 && (
-                                <Badge
-                                  variant="outline"
-                                  className="border-slate-200 px-1 py-0 text-xs text-slate-600"
-                                >
-                                  +{bill.services.length - 1}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="truncate text-xs text-slate-900">
-                              {bill.staff}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="truncate text-xs text-slate-900">
-                              {bill.paymentMethod}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-900">
-                            {formatCurrency(bill.subtotal)}
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-900">
-                            {formatCurrency(bill.tax)}
-                          </TableCell>
-                          <TableCell className="text-xs font-medium text-slate-900">
-                            {formatCurrency(bill.total)}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(bill.status)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-slate-100"
-                                title="View invoice"
-                                onClick={() => {
-                                  setBillData(bill);
-                                  setActiveSubPage("create-invoice");
-                                }}
-                              >
-                                <Eye className="h-3 w-3 text-slate-600" />
-                              </Button>
-                              {bill.status === "in_progress" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0 hover:bg-green-100"
-                                  onClick={() => handleSettle(bill.id)}
-                                  title="Settle"
-                                >
-                                  <CheckCircle className="h-3 w-3 text-green-600" />
-                                </Button>
-                              )}
-                              {bill.status === "settled" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0 hover:bg-blue-100"
-                                  onClick={() => handleReprint(bill)}
-                                  title="Reprint"
-                                >
-                                  <Download className="h-3 w-3 text-blue-600" />
-                                </Button>
-                              )}
-                              {(bill.status === "scheduled" ||
-                                bill.status === "confirmed" ||
-                                bill.status === "pending") && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0 hover:bg-green-100"
-                                  onClick={() =>
-                                    handleStatusUpdate(bill.id, "completed")
-                                  }
-                                  title="Mark as completed"
-                                >
-                                  <CheckCircle className="h-3 w-3 text-green-600" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-slate-100"
-                                onClick={() => handleEditBilling(bill)}
-                                title="Edit invoice"
-                              >
-                                <Edit className="h-3 w-3 text-slate-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </TableComponent>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {viewMode === "grid" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-              {filteredBills.map((bill) => {
-                const clientInitials = (bill.clientName || "CL").slice(0, 2).toUpperCase();
-                return (
-                  <div
-                    key={bill.id}
-                    className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between gap-3 group relative overflow-hidden"
-                  >
-                    {/* Header: Client & Status */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
-                          {clientInitials}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-sm text-slate-900 truncate">
-                            {bill.clientName || "Walk-in Client"}
-                          </h3>
-                          <span className="text-[11px] font-mono font-medium text-slate-400">
-                            #{bill.id}
-                          </span>
-                        </div>
-                      </div>
-                      {getStatusBadge(bill.status)}
-                    </div>
-
-                    {/* Details Box */}
-                    <div className="bg-slate-50/80 rounded-xl p-3 space-y-2 border border-slate-100 text-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-slate-700 font-medium">
-                          <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span>{bill.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
-                          <CreditCard className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span className="capitalize">{bill.paymentMethod || "Cash"}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-slate-600 text-[11px] pt-1 border-t border-slate-200/60">
-                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Stylist: <strong className="text-slate-800 font-semibold">{bill.staff || "Any"}</strong></span>
-                      </div>
-
-                      {/* Services Pills */}
-                      {bill.services && bill.services.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {bill.services.slice(0, 3).map((service, index) => (
-                            <span
-                              key={index}
-                              className="text-[10px] font-medium bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 truncate max-w-[140px]"
-                            >
-                              {service}
-                            </span>
-                          ))}
-                          {bill.services.length > 3 && (
-                            <span className="text-[10px] font-bold bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-600">
-                              +{bill.services.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Bottom Row: Financials & Action Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
-                      <div>
-                        <div className="text-[10px] uppercase font-bold text-slate-400 leading-tight">
-                          Sub: {formatCurrency(bill.subtotal)}
-                        </div>
-                        <div className="text-sm sm:text-base font-black text-slate-900 leading-tight">
-                          {formatCurrency(bill.total)}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"
-                          title="View invoice"
-                          onClick={() => {
-                            setBillData(bill);
-                            setActiveSubPage("create-invoice");
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-
-                        {bill.status === "completed" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-blue-600 cursor-pointer"
-                            onClick={() => handleReprint(bill)}
-                            title="Reprint Receipt"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"
-                          onClick={() => handleEditBilling(bill)}
-                          title="Edit invoice"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {filteredBills.length === 0 && (
-            <div className="py-12 text-center">
-              <CreditCard className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-              <h3 className="mb-2 text-lg font-medium text-slate-600">
-                No invoices found
-              </h3>
-              <p className="text-slate-500">
-                Try adjusting your search criteria
-              </p>
-            </div>
-          )}
-        </>
-      )}
-
-      {activeSubPage === "create-invoice" && (
-        <CreateInvoicePage
-          handleCreateInvoice={handleCreateInvoice}
-          billData={billData}
-          bills={bills}
-          onExit={() => {
-            setBillData(null);
-            setActiveSubPage("overview");
-          }}
-        />
-      )}
-
-      {/* Bill Print Modal */}
-      <BillPrintModal
-        isOpen={showBillPrint}
-        onClose={() => {
-          setShowBillPrint(false);
-          setBillToPrint(null);
-        }}
-        bill={billToPrint}
-        onConfirmSettle={handleConfirmSettle}
-        isReprint={billToPrint?.status === "settled"}
-        isSettling={isSettlingBill}
+    <div className={cn("fixed inset-0 z-40", variant === "sheet" && "md:hidden")}>
+      <div
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-150"
+        onClick={handleBackdropClick}
       />
+      {variant === "sheet" ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="absolute inset-x-0 bottom-0 h-[92dvh] max-h-[96dvh] bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden z-10 transition-transform duration-200 ease-out"
+        >
+          {children}
+        </div>
+      ) : (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className={cn(
+            "absolute inset-0 bg-white flex flex-col overflow-hidden z-10 transition-all duration-150",
+            "md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2",
+            "md:w-[42rem] md:max-w-[95vw] md:max-h-[88vh] md:rounded-2xl md:shadow-2xl md:border md:border-slate-200"
+          )}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 };
 
-const generateClientId = () => {
-  const currentEpoch = Math.floor(Date.now() / 1000);
-  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `CLT${currentEpoch.toString().slice(-6)}${randomSuffix}`;
+/* ----------------------------------------------------------------------------
+ * Styling helpers
+ * -------------------------------------------------------------------------- */
+
+const getCategoryColor = (cat = "") => {
+  const c = cat.toLowerCase();
+  if (c.includes("hair")) return "bg-sky-50 text-sky-700 border-sky-200";
+  if (c.includes("facial") || c.includes("skin")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (c.includes("beard") || c.includes("shave")) return "bg-amber-50 text-amber-800 border-amber-200";
+  if (c.includes("color") || c.includes("dye")) return "bg-purple-50 text-purple-700 border-purple-200";
+  if (c.includes("nail") || c.includes("pedi")) return "bg-pink-50 text-pink-700 border-pink-200";
+  if (c.includes("massage") || c.includes("spa")) return "bg-teal-50 text-teal-700 border-teal-200";
+  return "bg-slate-100 text-slate-700 border-slate-200";
 };
 
-// Create Invoice Page Component
-const CreateInvoicePage = ({
-  handleCreateInvoice,
-  billData,
-  onExit,
-  bills,
-}) => {
-  const { institutionData, userData } = useContext(Context);
-  const { clients, services, products, barbers, updateAppointmentBilling } =
-    useContext(Context);
-  const primaryColor = institutionData?.PrimaryColor || "#6366f1";
-  const [selectedCategory, setSelectedCategory] = useState("best-seller");
-  const [showProducts, setShowProducts] = useState(false); // Toggle: false = services, true = products
+const formatDuration = (dur) => {
+  if (!dur) return "";
+  const s = String(dur).trim();
+  if (s.includes(":")) {
+    const parts = s.split(":");
+    const hours = parseInt(parts[0], 10) || 0;
+    const mins = parseInt(parts[1], 10) || 0;
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+    if (hours > 0) return `${hours} hr`;
+    return `${mins} min`;
+  }
+  return `${s} min`;
+};
+
+const getServiceBadgeStyle = (service) => {
+  const s = String(service || "").toLowerCase();
+  if (s.includes("hair") || s.includes("cut") || s.includes("style")) return "bg-sky-50 text-sky-700 border-sky-200/80";
+  if (s.includes("color") || s.includes("highlight")) return "bg-purple-50 text-purple-700 border-purple-200/80";
+  if (s.includes("facial") || s.includes("skin") || s.includes("spa")) return "bg-emerald-50 text-emerald-700 border-emerald-200/80";
+  if (s.includes("nail") || s.includes("pedicure") || s.includes("manicure")) return "bg-pink-50 text-pink-700 border-pink-200/80";
+  if (s.includes("beard") || s.includes("shave")) return "bg-amber-50 text-amber-800 border-amber-200/80";
+  return "bg-slate-100 text-slate-700 border-slate-200/80";
+};
+
+const normalizeStatus = (raw) => {
+  if (!raw) return "scheduled";
+  const s = String(raw).toLowerCase().trim().replace(/[-\s]/g, "_");
+  if (s.includes("progress") || s.includes("service") || s.includes("chair")) return "in_progress";
+  if (s.includes("confirm")) return "scheduled";
+  if (s.includes("complete") || s.includes("done") || s.includes("settled") || s.includes("paid")) return "completed";
+  if (s.includes("cancel")) return "cancelled";
+  if (s.includes("sched") || s.includes("pend")) return "scheduled";
+  return s;
+};
+
+const STATUS_CONFIG = {
+  scheduled: {
+    label: "Scheduled",
+    badgeClass: "bg-amber-50 text-amber-800 border-amber-200/90",
+    dotClass: "bg-amber-500",
+    ping: false,
+    borderLeft: "border-l-amber-500",
+    avatarRing: "ring-amber-300/40",
+  },
+  in_progress: {
+    label: "In Service",
+    badgeClass: "bg-blue-50 text-blue-700 border-blue-200/90",
+    dotClass: "bg-blue-500",
+    ping: true,
+    borderLeft: "border-l-blue-500",
+    avatarRing: "ring-blue-400/40",
+  },
+  completed: {
+    label: "Completed",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200/90",
+    dotClass: "bg-emerald-500",
+    ping: false,
+    borderLeft: "border-l-emerald-500",
+    avatarRing: "ring-emerald-300/40",
+  },
+  cancelled: {
+    label: "Cancelled",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-200/90",
+    dotClass: "bg-rose-500",
+    ping: false,
+    borderLeft: "border-l-rose-400",
+    avatarRing: "ring-rose-300/40",
+  },
+};
+
+const getStatusConfig = (status = "") =>
+  STATUS_CONFIG[normalizeStatus(status)] || STATUS_CONFIG.scheduled;
+
+const StatusPill = ({ status }) => {
+  const config = getStatusConfig(status);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 font-bold rounded-full border shrink-0 text-[10px] px-2 py-0.5",
+        config.badgeClass
+      )}
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {config.ping && (
+          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", config.dotClass)} />
+        )}
+        <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", config.dotClass)} />
+      </span>
+      <span>{config.label}</span>
+    </span>
+  );
+};
+
+const PAYMENT_MODES = [
+  { id: "cash", label: "Cash", icon: FaMoneyBillWave, activeCls: "bg-emerald-600 text-white border-emerald-600" },
+  { id: "upi", label: "UPI", icon: FaQrcode, activeCls: "bg-blue-600 text-white border-blue-600" },
+  { id: "card", label: "Card", icon: FaCreditCard, activeCls: "bg-indigo-600 text-white border-indigo-600" },
+];
+
+/* ----------------------------------------------------------------------------
+ * Page
+ * -------------------------------------------------------------------------- */
+
+const BillingPage = () => {
+  const {
+    appointments,
+    clients,
+    services,
+    products,
+    barbers,
+    institutionData,
+    createClient,
+    createAppointment,
+    updateAppointmentBilling,
+    updateAppointment,
+    fetchAppointments,
+    fetchClients,
+  } = useContext(Context);
+
+  const { toast } = useToast();
+  const location = useLocation();
+
+  // Overlays (only ONE is ever open at a time)
+  const [showMobileCart, setShowMobileCart] = useState(false);
+  const [showAppointmentPicker, setShowAppointmentPicker] = useState(false);
+  const [showBillPrint, setShowBillPrint] = useState(false);
+
+  // Catalogue
+  const [showProducts, setShowProducts] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [catalogSearch, setCatalogSearch] = useState("");
+
+  // Cart + client
   const [cart, setCart] = useState([]);
   const [client, setClient] = useState({ clientName: "", phoneNumber: "" });
+  const [selectedExistingClient, setSelectedExistingClient] = useState(null);
+  const [clientSuggestions, setClientSuggestions] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState("");
-  const [includeGST, setIncludeGST] = useState(true);
-  const [finalBillAmount, setFinalBillAmount] = useState("");
+
+  // Ensure fresh clients list
+  useEffect(() => {
+    if (fetchClients && (!clients || clients.length === 0)) {
+      fetchClients();
+    }
+  }, [fetchClients, clients]);
+
+  // Combined client directory (registered clients + clients from appointments)
+  const allKnownClients = useMemo(() => {
+    const map = new Map();
+
+    (clients || []).forEach((c) => {
+      const name = (c.userName || c.clientName || c.name || "").trim();
+      const phone = (c.phoneNumber || c.phone || c.PhoneNumber || "").trim();
+      const id = c.clientId || c.cognitoId || c.id || name;
+      if (name) {
+        const key = phone ? `${name.toLowerCase()}___${phone}` : name.toLowerCase();
+        map.set(key, {
+          id,
+          clientName: name,
+          phoneNumber: phone,
+          email: c.emailId || c.email || "",
+          gender: c.gender || "",
+          isExisting: true,
+        });
+      }
+    });
+
+    (appointments || []).forEach((apt) => {
+      const name = (
+        apt.client?.clientName ||
+        apt.clientName ||
+        apt.ClientName ||
+        apt.client_name ||
+        ""
+      ).trim();
+      const phone = (
+        apt.client?.phoneNumber ||
+        apt.phoneNumber ||
+        apt.PhoneNumber ||
+        apt.phone_number ||
+        ""
+      ).trim();
+      if (name && name.toLowerCase() !== "walk-in client") {
+        const key = phone ? `${name.toLowerCase()}___${phone}` : name.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            id: apt.clientId || `apt_${name}`,
+            clientName: name,
+            phoneNumber: phone,
+            email: apt.email || apt.emailId || "",
+            gender: "",
+            isExisting: true,
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [clients, appointments]);
+
+  // Filtered client suggestions when typing client name or phone
+  const clientSuggestionsList = useMemo(() => {
+    const q = (client.clientName || "").trim().toLowerCase();
+    if (!q || q.length < 1) return [];
+    return allKnownClients
+      .filter((c) => {
+        const nameMatches = c.clientName.toLowerCase().includes(q);
+        const phoneMatches = c.phoneNumber && c.phoneNumber.includes(q);
+        return nameMatches || phoneMatches;
+      })
+      .slice(0, 6);
+  }, [allKnownClients, client.clientName]);
+
+  const handleSelectExistingClient = (c) => {
+    setClient({
+      clientName: c.clientName,
+      phoneNumber: c.phoneNumber || "",
+    });
+    setSelectedExistingClient(c);
+    setClientSuggestions(false);
+  };
+
+  const handleClearClient = () => {
+    setClient({ clientName: "", phoneNumber: "" });
+    setSelectedExistingClient(null);
+    setClientSuggestions(false);
+  };
+
+  // GST
+  const initialGst = useMemo(() => {
+    const conf = getStoredGstSettings(institutionData);
+    return conf.defaultGstRate != null ? conf.defaultGstRate : 18;
+  }, [institutionData]);
+  const [selectedGst, setSelectedGst] = useState(initialGst);
+
+  useEffect(() => {
+    const conf = getStoredGstSettings(institutionData);
+    if (conf.defaultGstRate != null) setSelectedGst(conf.defaultGstRate);
+  }, [institutionData]);
+
+  // Discount
   const [discountType, setDiscountType] = useState("amount");
   const [discountValue, setDiscountValue] = useState("");
-  const [selectedGst, setSelectedGst] = useState(0);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [paymentMode, setPaymentMode] = useState("");
-  const [paymentPlatform, setPaymentPlatform] = useState("");
-  const [open, setOpen] = useState(false);
-  const [isSettling, setIsSettling] = useState(false);
 
-  // Payment platform options based on mode
-  const platformOptions = {
-    upi: [
-      "PhonePe",
-      "Paytm",
-      "Google Pay",
-      "BHIM",
-      "Amazon Pay",
-      "Mobikwik",
-      "Freecharge",
-      "CRED",
-      "WhatsApp Pay",
-      "Other",
-    ],
-    debitCard: ["Visa", "Mastercard", "RuPay"],
-    creditCard: ["Visa", "Mastercard", "Amex"],
-    cash: ["Cash Payment"],
-  };
+  // Payment
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("cash");
+  const [splitAmounts, setSplitAmounts] = useState({ cash: "", upi: "", card: "" });
+  const [isSettlingPOS, setIsSettlingPOS] = useState(false);
 
-  // Icons for categories
-  const categoryIcons = {
-    "Best Seller": Star,
-    Facial: Sparkles,
-    "Hair Styling": Scissors,
-    "Hair Treatment": Heart,
-    "Tattoo & Piercing": Zap,
-    "Basic Service": Shield,
-    "Beard & Shave Service": Scissors,
-    Bleach: Droplets,
-    "Nail Services": Palette,
-    Pedicure: Heart,
-    "Waxing Services": Sparkles,
-  };
+  // Appointments picker
+  const [linkedAppointment, setLinkedAppointment] = useState(null);
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [appointmentFilterTab, setAppointmentFilterTab] = useState("all");
 
-  // Normalize category string to a stable id (e.g., "Best Seller" -> "best-seller")
-  const normalizeCategoryId = (name) =>
-    (name || "").toString().trim().toLowerCase().replace(/\s+/g, "-");
+  // Receipt
+  const [billToPrint, setBillToPrint] = useState(null);
+  const [isDraftPrint, setIsDraftPrint] = useState(false);
 
-  // Extract categories for services or products
-  const extractCategoriesWithIcons = (items) => {
-    if (!Array.isArray(items)) return [];
-    const uniqueCategories = [
-      ...new Set(
-        items
-          .map((item) => item?.category)
-          .filter((cat) => typeof cat === "string" && cat.trim() !== ""),
-      ),
-    ];
-    const categories = uniqueCategories.map((category) => ({
-      id: normalizeCategoryId(category),
-      name: category,
-      icon: categoryIcons[category] || Scissors,
-    }));
+  useEffect(() => {
+    const handleClick = () => setClientSuggestions(false);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
 
-    // Sort categories to put "Best Seller" at the top for services
-    if (!showProducts) {
-      return categories.sort((a, b) => {
-        if (a.name.toLowerCase() === "best seller") return -1;
-        if (b.name.toLowerCase() === "best seller") return 1;
-        return a.name.localeCompare(b.name);
-      });
+  useEffect(() => {
+    if (location.state?.selectedAppointment) {
+      handleSelectAppointment(location.state.selectedAppointment);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
-    return categories;
-  };
-
-  // console.log("products:", products);
-
-  const activeList = showProducts ? products : services;
-  // console.log("Active List:", activeList);
-
-  const categories = extractCategoriesWithIcons(activeList);
-
-  // Get category name from id for filtering
-  const getCategoryName = (id) => {
-    const cat = categories.find((c) => c.id === id);
-    return cat?.name || "";
-  };
-  // Convert duration in seconds to HH:MM or MM:SS
-  function formatDuration(durationStr) {
-    if (!durationStr) return null;
-
-    // Split API string into hours and minutes
-    const [hours, minutes] = durationStr?.split(":").map(Number);
-
-    // Convert total to minutes (or seconds if needed)
-    const totalMinutes = hours * 60 + minutes;
-
-    // Convert back to HH:MM format for display
-    const displayHours = Math.floor(totalMinutes / 60);
-    const displayMinutes = totalMinutes % 60;
-
-    return `${String(displayHours).padStart(2, "0")}:${String(displayMinutes).padStart(2, "0")}`;
-  }
-
-  const filteredItems = activeList
-    .filter((item) => {
-      const itemCategoryId = normalizeCategoryId(item?.category);
-      return itemCategoryId === selectedCategory;
-    })
-    .sort((a, b) => Number(a?.amount || 0) - Number(b?.amount || 0));
-
-  // Add to cart with quantity support for products
-  const addToCart = (item) => {
-    if (showProducts) {
-      const existingProduct = cart.find(
-        (it) => it.productId === item.productId,
-      );
-
-      if (existingProduct) {
-        // Increment quantity if product exists
-        setCart((prev) =>
-          prev.map((it) =>
-            it.productId === item.productId
-              ? { ...it, quantity: (it.quantity || 1) + 1 }
-              : it,
-          ),
-        );
-      } else {
-        // Add new product with quantity = 1
-        setCart((prev) => [...prev, { ...item, quantity: 1 }]);
-      }
-    } else {
-      // Services: only allow one, no quantity
-      const exists = cart.find((it) => it.serviceId === item.serviceId);
-      if (!exists) setCart((prev) => [...prev, item]);
-    }
-  };
-
-  // Remove product/service from cart (or decrement quantity)
-  const removeFromCart = (itemId) => {
-    if (showProducts) {
-      setCart((prev) =>
-        prev
-          .map((it) =>
-            it.productId === itemId
-              ? { ...it, quantity: (it.quantity || 1) - 1 }
-              : it,
-          )
-          // Only remove products whose quantity hits 0; keep services as-is
-          .filter((it) => (it.productId ? (it.quantity || 0) > 0 : true)),
-      );
-    } else {
-      setCart((prev) => prev.filter((it) => it.serviceId !== itemId));
-    }
-  };
-  // Update quantity of a product in cart
-  const updateProductQuantity = (productId, newQuantity) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.productId === productId
-            ? { ...item, quantity: newQuantity }
-            : item,
-        )
-        // Only remove products with qty <= 0; keep services untouched
-        .filter((item) => (item.productId ? (item.quantity || 0) > 0 : true)),
+  const getStaffName = (staffId) => {
+    if (!staffId) return "Assigned";
+    const found = (barbers || []).find(
+      (b) => b.id === staffId || b.staffId === staffId || b.name === staffId
     );
+    return found ? found.name : staffId;
   };
 
-  // Format currency
-  const formatCurrency = (amount, currency = "INR") => {
-    const locale = currency === "INR" ? "en-IN" : "en-US";
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
+  /* Opening helpers: close whatever is open first, so overlays never stack */
+  const openPicker = () => {
+    setShowMobileCart(false);
+    setShowAppointmentPicker(true);
   };
 
-  // Get total of cart items
-  // Get total of cart items
-  const getTotal = () => {
-    return cart?.reduce((sum, item) => {
-      const quantity = showProducts ? item.quantity || 1 : 1;
-      return sum + (item.amount || 0) * quantity;
-    }, 0);
-  };
+  /* ------------------------------ Appointments ----------------------------- */
 
-  // GST Amount calculation
-  const getGSTAmount = () => {
-    return includeGST ? (getTotal() * selectedGst) / 100 : 0;
-  };
+  const activeAppointments = useMemo(() => {
+    return (appointments || []).filter((apt) => {
+      const st = (apt.status || apt.Status || apt.appointment_status || "").toLowerCase();
+      return st !== "cancelled" && st !== "completed" && st !== "settled";
+    });
+  }, [appointments]);
 
-  // Final total including GST
-  const getFinalTotal = () => {
-    return getTotal() + getGSTAmount();
-  };
-
-  // Discount calculation
-  const getCalculatedDiscount = () => {
-    if (!discountValue) return 0;
-    const parsedDiscountValue = parseFloat(discountValue);
-
-    // Check for invalid discount values
-    if (!isFinite(parsedDiscountValue) || parsedDiscountValue < 0) return 0;
-
-    if (discountType === "percentage") {
-      const total = getFinalTotal();
-      if (!isFinite(total) || total <= 0) return 0;
-
-      const calculatedDiscount = (total * parsedDiscountValue) / 100;
-      return isFinite(calculatedDiscount) ? Math.max(0, calculatedDiscount) : 0;
-    } else {
-      return parsedDiscountValue;
-    }
-  };
-
-  // Discounted total after applying discount
-  const getDiscountedTotal = () => {
-    return Math.max(0, getFinalTotal() - getCalculatedDiscount());
-  };
-
-  // Display discount value based on final bill amount input
-  const getDisplayedDiscount = () => {
-    if (!finalBillAmount) return discountValue || 0;
-    const total = getFinalTotal();
-    const final = parseFloat(finalBillAmount);
-
-    // Handle edge cases to prevent crashes
-    if (total <= 0 || !isFinite(total) || !isFinite(final)) {
-      return 0;
-    }
-
-    if (discountType === "percentage") {
-      const percentage = ((total - final) / total) * 100;
-      // Ensure the result is a valid number
-      return isFinite(percentage) ? Math.max(0, percentage) : 0;
-    } else {
-      const amount = total - final;
-      return isFinite(amount) ? Math.max(0, amount) : 0;
-    }
-  };
-
-  // Handle discount input and validation
-  const handleFinalBillAmountChange = (value) => {
-    const total = getFinalTotal();
-    const entered = parseFloat(value) || 0;
-
-    // Check for invalid total to prevent crashes
-    if (!isFinite(total) || total <= 0) {
-      setErrorMessage("Invalid total amount");
-      return;
-    }
-
-    if (entered > total) {
-      setErrorMessage(`Amount cannot exceed ₹${total.toFixed(2)}`);
-      return;
-    } else {
-      setErrorMessage("");
-      setFinalBillAmount(value);
-      if (discountType === "percentage") {
-        if (entered < total && entered > 0) {
-          const percentage = ((total - entered) / total) * 100;
-          if (isFinite(percentage) && percentage >= 0) {
-            setDiscountValue(percentage.toFixed(2));
-          } else {
-            setDiscountValue("");
-          }
-        } else {
-          setDiscountValue("");
-        }
-      } else {
-        if (entered < total && entered > 0) {
-          const amount = total - entered;
-          if (isFinite(amount) && amount >= 0) {
-            setDiscountValue(amount.toString());
-          } else {
-            setDiscountValue("");
-          }
-        } else {
-          setDiscountValue("");
-        }
-      }
-    }
-  };
-
-  // When discount value changes, recompute the final bill amount accordingly
-  const handleDiscountChange = (value) => {
-    setDiscountValue(value);
-    const total = getFinalTotal();
-    if (value === "" || !isFinite(total) || total <= 0) {
-      setFinalBillAmount("");
-      return;
-    }
-    const parsed = parseFloat(value);
-    if (!isFinite(parsed) || parsed < 0) {
-      setFinalBillAmount("");
-      return;
-    }
-    let discountAmt = 0;
-    if (discountType === "percentage") {
-      const pct = Math.min(Math.max(parsed, 0), 100);
-      discountAmt = (total * pct) / 100;
-    } else {
-      discountAmt = parsed;
-    }
-    const final = Math.max(0, total - discountAmt);
-    setFinalBillAmount(final.toFixed(2));
-  };
-
-  // When discount type changes, recompute final using the current discount value
-  const handleDiscountTypeChange = (type) => {
-    setDiscountType(type);
-    const total = getFinalTotal();
-    if (!discountValue || !isFinite(total) || total <= 0) {
-      setFinalBillAmount("");
-      return;
-    }
-    const parsed = parseFloat(discountValue);
-    if (!isFinite(parsed) || parsed < 0) {
-      setFinalBillAmount("");
-      return;
-    }
-    let discountAmt = 0;
-    if (type === "percentage") {
-      const pct = Math.min(Math.max(parsed, 0), 100);
-      // Normalize the input if it was out-of-range
-      if (pct !== parsed) {
-        setDiscountValue(String(pct));
-      }
-      discountAmt = (total * pct) / 100;
-    } else {
-      discountAmt = parsed;
-    }
-    const final = Math.max(0, total - discountAmt);
-    setFinalBillAmount(final.toFixed(2));
-  };
-
-  // Filter clients for suggestions
-  const filteredClients = clients.filter((c) =>
-    c.clientName?.toLowerCase().includes(client.clientName.toLowerCase()),
+  const inServiceCount = useMemo(
+    () =>
+      activeAppointments.filter(
+        (a) => normalizeStatus(a.status || a.appointment_status) === "in_progress"
+      ).length,
+    [activeAppointments]
   );
 
-  // Select client from suggestions
-  const handleSelect = (selectedClient) => {
-    console.log("Selected client:", selectedClient);
+  const scheduledCount = useMemo(
+    () =>
+      activeAppointments.filter(
+        (a) => normalizeStatus(a.status || a.appointment_status) === "scheduled"
+      ).length,
+    [activeAppointments]
+  );
 
-    setClient({
-      clientName: selectedClient.clientName,
-      phoneNumber: selectedClient.phoneNumber,
+  const filteredWaitingAppointments = useMemo(() => {
+    const q = appointmentSearch.toLowerCase().trim();
+    return activeAppointments.filter((apt) => {
+      const name = (apt.client?.clientName || apt.clientName || "").toLowerCase();
+      const phone = String(apt.client?.phoneNumber || apt.phoneNumber || "").toLowerCase();
+      const srv = (
+        Array.isArray(apt.services)
+          ? apt.services.map((s) => (typeof s === "string" ? s : s?.serviceName || "")).join(" ")
+          : typeof apt.service === "string"
+          ? apt.service
+          : ""
+      ).toLowerCase();
+      const staff = String(apt.staff || apt.staffId || "").toLowerCase();
+
+      const matchesQuery = !q || name.includes(q) || phone.includes(q) || srv.includes(q) || staff.includes(q);
+      const normSt = normalizeStatus(apt.status || apt.appointment_status);
+      if (appointmentFilterTab === "in_service") return matchesQuery && normSt === "in_progress";
+      if (appointmentFilterTab === "scheduled") return matchesQuery && normSt === "scheduled";
+      return matchesQuery;
     });
-    setShowSuggestions(false);
+  }, [activeAppointments, appointmentSearch, appointmentFilterTab]);
+
+  // Crash-proof: invalid dates are skipped instead of throwing
+  const todayStats = useMemo(() => {
+    const todayStr = safeFormat(new Date(), "yyyy-MM-dd", "");
+    let count = 0;
+    let revenue = 0;
+    (appointments || []).forEach((apt) => {
+      const st = String(apt.status || apt.Status || apt.appointment_status || "").toLowerCase();
+      if (!(st === "completed" || st === "settled" || st === "paid")) return;
+      const d = tryParseDate(apt.dateTime) || tryParseDate(apt.createdAt);
+      if (!d || safeFormat(d, "yyyy-MM-dd", "") !== todayStr) return;
+      count += 1;
+      revenue += Number(apt.total || apt.amount || 0) || 0;
+    });
+    return { count, revenue };
+  }, [appointments]);
+
+  /* ------------------------------- Catalogue ------------------------------- */
+
+  const catalogCategories = useMemo(() => {
+    const list = showProducts ? products || [] : services || [];
+    const unique = [
+      ...new Set(list.map((it) => it?.category).filter((c) => typeof c === "string" && c.trim())),
+    ];
+    return ["all", ...unique];
+  }, [showProducts, services, products]);
+
+  const filteredCatalogItems = useMemo(() => {
+    const list = showProducts ? products || [] : services || [];
+    const q = catalogSearch.toLowerCase().trim();
+    return list.filter((item) => {
+      const name = (showProducts ? item.productName : item.serviceName) || "";
+      const matchesSearch =
+        !q || name.toLowerCase().includes(q) || (item.category || "").toLowerCase().includes(q);
+      const matchesCat =
+        selectedCategory === "all" ||
+        (item.category || "").toLowerCase() === selectedCategory.toLowerCase();
+      return matchesSearch && matchesCat;
+    });
+  }, [showProducts, services, products, catalogSearch, selectedCategory]);
+
+  const getItemCartQty = (item, isProduct) => {
+    const itemId = isProduct ? item.productId : item.serviceId;
+    const found = cart.find((i) => (isProduct ? i.productId === itemId : i.serviceId === itemId));
+    return found ? found.quantity || 1 : 0;
   };
 
-  // Set Invoice from billData on load and reset on unmount
-  const handleSetInvoiceFromBillData = (billData) => {
-    console.log("[GST-DEBUG] handleSetInvoiceFromBillData: incoming billData", {
-      gstPercent: billData?.gstPercent,
-      tax: billData?.tax,
-      subtotal: billData?.subtotal,
-      total: billData?.total,
-      services: billData?.services,
-      staff: billData?.staff,
-      id: billData?.id,
-    });
-    const clientMatch = clients.find(
-      (c) => c.clientName === billData.clientName,
-    );
-    const phoneNumber = clientMatch ? clientMatch.phoneNumber : "";
-    setClient({
-      clientName: billData.clientName || "",
-      phoneNumber: phoneNumber,
-    });
-    setSelectedStaff(billData.staff.split("-")[0] || "");
-    const updatedCart = billData.services
-      .map((serviceName) => services.find((s) => s.serviceName === serviceName))
-      .filter(Boolean);
-    setCart(updatedCart);
+  /* --------------------------------- Cart ---------------------------------- */
 
-    // Preselect GST based strictly on tax and subtotal (percent is not stored)
-    const supportedGstOptions = [0, 2.5, 9, 20, 24];
-    const snapNearest = (val) =>
-      supportedGstOptions.reduce(
-        (a, b) => (Math.abs(b - val) < Math.abs(a - val) ? b : a),
-        supportedGstOptions[0],
-      );
-    const taxAmt = Number(billData.tax) || 0;
-    const subAmt = Number(billData.subtotal) || 0;
-    const totalAmt = Number(billData.total) || 0;
-    console.log("[GST-DEBUG] parsed values (ignoring stored gstPercent)", {
-      taxAmt,
-      subAmt,
-      supportedGstOptions,
-    });
-    // Infer from subtotal and tax amount (subtotal is pre-discount)
-    if (subAmt > 0) {
-      const inferred = (taxAmt / subAmt) * 100;
-      const snapped = snapNearest(inferred);
-      console.log("[GST-DEBUG] inferred from tax/subtotal:", {
-        taxAmt,
-        subAmt,
-        inferredPercent: inferred,
-        snapped,
-      });
-      setSelectedGst(snapped);
-    } else {
-      console.log(
-        "[GST-DEBUG] cannot infer GST — subtotal is 0 or invalid, defaulting to 0%",
-        { subAmt, taxAmt },
-      );
-      setSelectedGst(0);
-    }
+  const addToCart = (item, isProductOverride) => {
+    const isProd = isProductOverride !== undefined ? isProductOverride : showProducts || !!item.productId;
+    const itemId = isProd ? item.productId : item.serviceId;
 
-    // Prefill discount (amount) and final amount from stored values
-    let storedDiscountAmt = Number(
-      billData.discountAmount ?? billData.discount ?? 0,
-    );
-    if (!isFinite(storedDiscountAmt) || storedDiscountAmt < 0) {
-      storedDiscountAmt = 0;
-    }
-    // If stored discount is 0/missing but total is provided, derive the discount from subtotal + tax - total
-    let derivedDiscountAmt = storedDiscountAmt;
-    if (
-      (storedDiscountAmt === 0 || !isFinite(storedDiscountAmt)) &&
-      isFinite(subAmt) &&
-      isFinite(taxAmt) &&
-      isFinite(totalAmt)
-    ) {
-      const diff = subAmt + taxAmt - totalAmt;
-      if (isFinite(diff) && diff > 0) {
-        derivedDiscountAmt = diff;
+    setCart((prev) => {
+      const idx = prev.findIndex((i) => (isProd ? i.productId === itemId : i.serviceId === itemId));
+      if (idx > -1) {
+        return prev.map((i, n) => (n === idx ? { ...i, quantity: (i.quantity || 1) + 1 } : i));
       }
-    }
-    console.log("[DISCOUNT-DEBUG] prefill values", {
-      rawDiscountAmount: billData.discountAmount,
-      rawDiscount: billData.discount,
-      parsedStoredDiscountAmt: storedDiscountAmt,
-      subAmt,
-      taxAmt,
-      totalAmt,
-      derivedDiscountAmt,
+      return [
+        ...prev,
+        { ...item, isProduct: isProd, quantity: 1, amount: Number(item.amount || item.price || 0) },
+      ];
     });
-    // Always use amount mode for stored/derived discounts and prefill value (even 0)
-    setDiscountType("amount");
-    setDiscountValue(String(derivedDiscountAmt));
-    // Prefer stored total for final to avoid recomputation mismatches
-    if (billData.total != null && !Number.isNaN(Number(billData.total))) {
-      setFinalBillAmount(String(Number(billData.total)));
-    } else {
-      // As a fallback, compute final from current fields
-      const final = Math.max(0, subAmt + taxAmt - (storedDiscountAmt || 0));
-      setFinalBillAmount(final.toFixed(2));
-    }
   };
 
-  useEffect(() => {
-    if (billData && billData.id) {
-      handleSetInvoiceFromBillData(billData);
+  const decrementFromCart = (itemId, isProduct = false) => {
+    setCart((prev) =>
+      prev
+        .map((i) => {
+          const match = isProduct ? i.productId === itemId : i.serviceId === itemId;
+          return match ? { ...i, quantity: (i.quantity || 1) - 1 } : i;
+        })
+        .filter((i) => (i.quantity || 0) > 0)
+    );
+  };
+
+  const removeFromCart = (itemId, isProduct = false) => {
+    setCart((prev) =>
+      prev.filter((i) => (isProduct ? i.productId !== itemId : i.serviceId !== itemId))
+    );
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setLinkedAppointment(null);
+    setDiscountValue("");
+    setClient({ clientName: "", phoneNumber: "" });
+    setSelectedExistingClient(null);
+    setSelectedStaff("");
+    setIsSplitPayment(false);
+    setPaymentMode("cash");
+    setSplitAmounts({ cash: "", upi: "", card: "" });
+  };
+
+  /* ------------------------------ Calculations ----------------------------- */
+
+  const cartSubtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + (Number(item.amount) || 0) * (item.quantity || 1), 0),
+    [cart]
+  );
+
+  const cartTotalItemsCount = useMemo(
+    () => cart.reduce((sum, item) => sum + (item.quantity || 1), 0),
+    [cart]
+  );
+
+  const cartTax = useMemo(
+    () => Math.round((cartSubtotal * (Number(selectedGst) || 0)) / 100),
+    [cartSubtotal, selectedGst]
+  );
+
+  const cartDiscount = useMemo(() => {
+    if (!discountValue || isNaN(discountValue)) return 0;
+    const val = parseFloat(discountValue);
+    if (val <= 0 || isNaN(val)) return 0;
+    const gross = (cartSubtotal || 0) + (cartTax || 0);
+    if (discountType === "percentage") {
+      return Math.round((gross * Math.min(val, 100)) / 100);
     }
-    return () => {
-      setClient({ clientName: "", phoneNumber: "" });
-      setSelectedStaff("");
-      setCart([]);
-      setFinalBillAmount("");
-      setDiscountValue("");
-      setDiscountType("amount");
+    return Math.min(val, gross);
+  }, [cartSubtotal, cartTax, discountValue, discountType]);
+
+  const cartFinalTotal = useMemo(
+    () => Math.max(0, (cartSubtotal || 0) + (cartTax || 0) - (cartDiscount || 0)),
+    [cartSubtotal, cartTax, cartDiscount]
+  );
+
+  const totalSplitAllocated = useMemo(
+    () =>
+      (Number(splitAmounts.cash) || 0) +
+      (Number(splitAmounts.upi) || 0) +
+      (Number(splitAmounts.card) || 0),
+    [splitAmounts]
+  );
+
+  const splitRemaining = cartFinalTotal - totalSplitAllocated;
+
+  const isSplitValid = useMemo(() => {
+    if (!isSplitPayment) return true;
+    return totalSplitAllocated === cartFinalTotal && cartFinalTotal > 0;
+  }, [isSplitPayment, totalSplitAllocated, cartFinalTotal]);
+
+  /* --------------------------------- Actions ------------------------------- */
+
+  const handlePrintDraftBill = () => {
+    if (cart.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Cart is empty",
+        description: "Add at least one service or product to preview the bill.",
+      });
+      return;
+    }
+
+    const serviceItems = cart.filter((i) => !i.isProduct);
+    const productItems = cart.filter((i) => i.isProduct);
+
+    const draftBill = {
+      id:
+        linkedAppointment?.appointmentId ||
+        linkedAppointment?.id ||
+        `EST-${Math.floor(Date.now() / 1000).toString().slice(-6)}`,
+      clientName: client.clientName.trim() || "Walk-in Client",
+      phoneNumber: client.phoneNumber.trim() || "",
+      date: new Date(),
+      items: [
+        ...serviceItems.map((s) => ({ ...s, name: s.serviceName, isProduct: false })),
+        ...productItems.map((p) => ({ ...p, name: p.productName, isProduct: true })),
+      ],
+      services: serviceItems,
+      products: productItems,
+      subtotal: cartSubtotal,
+      tax: cartTax,
+      gstPercent: selectedGst,
+      discount: cartDiscount,
+      total: cartFinalTotal,
+      status: "Draft Estimate",
+      paymentMethod: isSplitPayment ? "split" : paymentMode,
+      paymentSplit: isSplitPayment
+        ? {
+            cash: Number(splitAmounts.cash) || 0,
+            upi: Number(splitAmounts.upi) || 0,
+            card: Number(splitAmounts.card) || 0,
+          }
+        : null,
+      staff: getStaffName(selectedStaff),
     };
-  }, [billData]);
 
-  // Auto-select category only when not set or invalid for current list
-  useEffect(() => {
-    if (categories.length === 0) return;
+    // Close the checkout sheet first so the receipt is the only layer on screen
+    setShowMobileCart(false);
+    setBillToPrint(draftBill);
+    setIsDraftPrint(true);
+    setShowBillPrint(true);
+  };
 
-    const categoryIds = categories.map((c) => c.id);
-    const hasValidSelection =
-      selectedCategory && categoryIds.includes(selectedCategory);
-    if (hasValidSelection) return;
+  const handleSelectAppointment = (apt) => {
+    if (!apt) return;
+    const clientName =
+      apt.client?.clientName || apt.clientName || apt.ClientName || apt.client_name || "Walk-in Client";
+    const phoneNumber =
+      apt.client?.phoneNumber || apt.phoneNumber || apt.phone || apt.clientPhone || "";
 
-    if (!showProducts) {
-      const bestSellerCategory = categories.find(
-        (cat) => cat.name?.toLowerCase() === "best seller",
-      );
-      setSelectedCategory(
-        bestSellerCategory ? bestSellerCategory.id : categories[0].id,
-      );
-    } else {
-      setSelectedCategory(categories[0].id);
+    setClient({ clientName, phoneNumber });
+    setSelectedExistingClient({ clientName, phoneNumber, isExisting: true });
+    setSelectedStaff(apt.staffId || apt.staff || "");
+
+    const itemsToAdd = [];
+    const findService = (name) =>
+      (services || []).find((cat) => cat.serviceName?.toLowerCase() === name.toLowerCase());
+
+    if (Array.isArray(apt.services) && apt.services.length > 0) {
+      apt.services.forEach((s) => {
+        const sName = typeof s === "string" ? s : s?.serviceName || "Service";
+        const matched = findService(sName);
+        const qty = typeof s === "object" && s.quantity ? Number(s.quantity) : 1;
+        if (matched) {
+          itemsToAdd.push({ ...matched, isProduct: false, quantity: qty, amount: Number(matched.amount || matched.price || 0) });
+        } else {
+          itemsToAdd.push({
+            serviceId: `apt-srv-${Math.random().toString(36).substring(2, 7)}`,
+            serviceName: sName,
+            amount: Number(s?.amount || apt.amount || 250),
+            isProduct: false,
+            quantity: qty,
+          });
+        }
+      });
+    } else if (typeof apt.service === "string" && apt.service.trim()) {
+      apt.service
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((sName) => {
+          const matched = findService(sName);
+          if (matched) {
+            itemsToAdd.push({ ...matched, isProduct: false, quantity: 1, amount: Number(matched.amount || matched.price || 0) });
+          } else {
+            itemsToAdd.push({
+              serviceId: `apt-srv-${Math.random().toString(36).substring(2, 7)}`,
+              serviceName: sName,
+              amount: 250,
+              isProduct: false,
+              quantity: 1,
+            });
+          }
+        });
     }
-  }, [showProducts, categories, selectedCategory]);
 
-  // Payment settlement handler
-  const handleSettlePayment = async () => {
-    setIsSettling(true);
+    if (Array.isArray(apt.products) && apt.products.length > 0) {
+      apt.products.forEach((p) => {
+        const pName = typeof p === "string" ? p : p?.productName || p?.name || "Product";
+        const matched = (products || []).find(
+          (prod) => prod.productName?.toLowerCase() === pName.toLowerCase()
+        );
+        const qty = typeof p === "object" && p.quantity ? Number(p.quantity) : 1;
+        if (matched) {
+          itemsToAdd.push({ ...matched, isProduct: true, quantity: qty, amount: Number(matched.amount || matched.price || 0) });
+        } else {
+          itemsToAdd.push({
+            productId: `apt-prd-${Math.random().toString(36).substring(2, 7)}`,
+            productName: pName,
+            amount: Number(p?.amount || p?.price || 150),
+            isProduct: true,
+            quantity: qty,
+          });
+        }
+      });
+    }
 
+    if (itemsToAdd.length > 0) setCart(itemsToAdd);
+
+    setLinkedAppointment(apt);
+    setShowAppointmentPicker(false);
+
+    // Phones: go straight to checkout (picker is already closed, so no stacking)
+    if (typeof window !== "undefined" && window.innerWidth < 768 && itemsToAdd.length > 0) {
+      setShowMobileCart(true);
+    }
+
+    toast({
+      title: "Appointment loaded",
+      description: `${clientName} • ${itemsToAdd.length} item(s) added to the bill.`,
+    });
+  };
+
+  const handleSettlePOS = async () => {
+    if (isSettlingPOS) return;
+
+    if (cart.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Cart is empty",
+        description: "Add at least one service or product to bill.",
+      });
+      return;
+    }
+
+    if (isSplitPayment && totalSplitAllocated !== cartFinalTotal) {
+      toast({
+        variant: "destructive",
+        title: "Split payment mismatch",
+        description: `Allocated ₹${totalSplitAllocated} must equal total ₹${cartFinalTotal}.`,
+      });
+      return;
+    }
+
+    setIsSettlingPOS(true);
     try {
-      // Prepare invoice data for API call
-      const invoiceData = {
-        appointmentId: billData?.id || `${bills.length + 1}`,
-        services: cart
-          .filter((item) => item.serviceId)
-          .map((service) => ({
-            serviceName: service.serviceName,
-            amount: service.amount,
-            duration: service.duration || 0,
-          })),
-        products: cart
-          .filter((item) => item.productId)
-          .map((product) => ({
-            productId: product.productId,
-            productName: product.productName,
-            amount: product.amount,
-            quantity: product.quantity,
-          })),
-        discountAmount: getCalculatedDiscount(),
-        clientId:
-          clients.find((c) => c.clientName === client.clientName)?.clientId ||
-          generateClientId(),
-        dateTime: Math.floor(Date.now() / 1000),
-        service: cart
-          .filter((item) => item.serviceId)
-          .map((service) => service.serviceName)
-          .join(", "),
-        duration:
-          cart.filter((item) => item.serviceId && item.duration).length * 30 ||
-          0,
-        clientName: client.clientName,
-        phoneNumber: client.phoneNumber,
-        amount: getTotal(),
-        emailId: "",
-        staffId: barbers.find((b) => b.name === selectedStaff)?.staffId || "",
-        subtotal: getTotal(),
+      const epochNow = Math.floor(Date.now() / 1000);
+      const clientName = client.clientName.trim() || "Walk-in Client";
+      const phoneNumber = client.phoneNumber.trim() || "";
+
+      let clientId =
+        selectedExistingClient?.id ||
+        (clients || []).find(
+          (c) =>
+            ((c.userName || c.clientName || c.name) &&
+              (c.userName || c.clientName || c.name).toLowerCase() === clientName.toLowerCase()) ||
+            (phoneNumber && (c.phoneNumber === phoneNumber || c.phone === phoneNumber || c.PhoneNumber === phoneNumber))
+        )?.clientId || "";
+
+      if (!clientId && clientName && clientName.toLowerCase() !== "walk-in client") {
+        try {
+          const newC = await createClient({
+            userName: clientName,
+            clientName,
+            phoneNumber,
+            emailId: "",
+            createdAt: epochNow,
+          });
+          clientId = newC?.client?.clientId || newC?.clientId || newC?.id || "";
+          if (fetchClients) fetchClients();
+        } catch (e) {
+          console.warn("Client auto-create warning:", e);
+        }
+      }
+
+      const serviceItems = cart.filter((i) => !i.isProduct);
+      const productItems = cart.filter((i) => i.isProduct);
+
+      const servicesMapped = serviceItems.map((s) => ({
+        serviceName: s.serviceName,
+        amount: Number(s.amount || 0),
+        duration: Number(s.duration || 30),
+        quantity: Number(s.quantity || 1),
+      }));
+
+      const productsMapped = productItems.map((p) => ({
+        productId: p.productId,
+        productName: p.productName,
+        amount: Number(p.amount || 0),
+        quantity: Number(p.quantity || 1),
+      }));
+
+      const allBillItems = [
+        ...servicesMapped.map((s) => ({ ...s, name: s.serviceName, isProduct: false })),
+        ...productsMapped.map((p) => ({ ...p, name: p.productName, isProduct: true })),
+      ];
+
+      const serviceCSV = servicesMapped
+        .map((s) => `${s.serviceName}${s.quantity > 1 ? ` (×${s.quantity})` : ""}`)
+        .join(", ");
+
+      const targetAppointmentId = linkedAppointment?.appointmentId || linkedAppointment?.id;
+
+      const totalServiceDuration = servicesMapped.reduce(
+        (sum, s) => sum + (s.duration || 30) * (s.quantity || 1),
+        0
+      );
+
+      const paymentSplitData = isSplitPayment
+        ? {
+            cash: Number(splitAmounts.cash) || 0,
+            upi: Number(splitAmounts.upi) || 0,
+            card: Number(splitAmounts.card) || 0,
+          }
+        : null;
+
+      const paymentSummaryText = isSplitPayment
+        ? `Cash: ₹${splitAmounts.cash || 0}, UPI: ₹${splitAmounts.upi || 0}${
+            Number(splitAmounts.card) > 0 ? `, Card: ₹${splitAmounts.card}` : ""
+          }`
+        : paymentMode.toUpperCase();
+
+      const billPayload = {
+        appointmentId: targetAppointmentId || `INV-${epochNow}`,
+        clientId: clientId || `CLT-${epochNow.toString().slice(-6)}`,
+        clientName,
+        phoneNumber,
+        services: servicesMapped,
+        products: productsMapped,
+        service: serviceCSV || "Salon Service",
+        duration: totalServiceDuration || 30,
+        dateTime: epochNow,
+        subtotal: cartSubtotal,
+        tax: cartTax,
         gstPercent: selectedGst,
-        tax: getGSTAmount(),
-        total: getDiscountedTotal(),
-        paymentMode: paymentMode,
-        paymentPlatform: paymentPlatform,
+        discount: cartDiscount,
+        discountAmount: cartDiscount,
+        total: cartFinalTotal,
+        amount: cartSubtotal,
+        staffId: selectedStaff || "",
+        staff: getStaffName(selectedStaff),
+        paymentMode: isSplitPayment ? "split" : paymentMode,
+        paymentSplit: paymentSplitData,
+        paymentSummary: paymentSummaryText,
         status: "completed",
-        createdAt: Math.floor(Date.now() / 1000),
+        updatedAt: epochNow,
       };
 
-      // Call updateAppointment API
-      await updateAppointmentBilling(invoiceData.appointmentId, invoiceData);
-      console.log("Invoice updated successfully");
+      if (targetAppointmentId) {
+        if (updateAppointmentBilling) await updateAppointmentBilling(targetAppointmentId, billPayload);
+        if (updateAppointment) {
+          await updateAppointment(targetAppointmentId, {
+            status: "completed",
+            paymentMode: isSplitPayment ? "split" : paymentMode,
+            paymentSplit: paymentSplitData,
+            paymentSummary: paymentSummaryText,
+            total: cartFinalTotal,
+            subtotal: cartSubtotal,
+            tax: cartTax,
+            discount: cartDiscount,
+            discountAmount: cartDiscount,
+          });
+        }
+      } else {
+        await createAppointment({ ...billPayload, createdAt: epochNow });
+      }
 
-      // Close modal and go back to overview
-      setOpen(false);
-      setPaymentMode("");
-      setPaymentPlatform("");
-      // Signal parent to exit invoice view
-      onExit?.();
-      // Optionally refresh appointments to reflect status change
-      try {
-        await fetchAppointments();
-      } catch {}
-    } catch (error) {
-      console.error("Error updating appointment:", error);
+      const completedBill = {
+        id: billPayload.appointmentId,
+        clientName,
+        phoneNumber,
+        date: new Date(),
+        items: allBillItems,
+        services: servicesMapped,
+        products: productsMapped,
+        subtotal: cartSubtotal,
+        tax: cartTax,
+        gstPercent: selectedGst,
+        discount: cartDiscount,
+        total: cartFinalTotal,
+        status: "completed",
+        paymentMethod: isSplitPayment ? "split" : paymentMode,
+        paymentSplit: paymentSplitData,
+        paymentSummary: paymentSummaryText,
+        staff: getStaffName(selectedStaff),
+      };
+
+      // 1) close the checkout sheet, 2) show the receipt, 3) reset the cart
+      setShowMobileCart(false);
+      setBillToPrint(completedBill);
+      setIsDraftPrint(false);
+      setShowBillPrint(true);
+      clearCart();
+
+      toast({
+        title: "Bill settled",
+        description: targetAppointmentId
+          ? `Invoice #${completedBill.id} settled and appointment completed.`
+          : `Invoice #${completedBill.id} created.`,
+      });
+
+      // Refresh in the background AFTER the receipt is on screen, never blocking it
+      setTimeout(() => {
+        Promise.resolve(fetchAppointments?.()).catch((e) =>
+          console.warn("Fetch refresh warning:", e)
+        );
+      }, 400);
+    } catch (err) {
+      console.error("Billing settlement error:", err);
+      toast({
+        variant: "destructive",
+        title: "Settlement error",
+        description: "Could not settle the bill. Please try again.",
+      });
     } finally {
-      setIsSettling(false);
+      setIsSettlingPOS(false);
     }
   };
 
-  return (
-    <div className="relative h-full w-full p-0">
-      {/* Toggle buttons */}
-      <div className="mb-4 flex gap-2">
-        <button
-          className={`rounded px-4 py-2 ${
-            !showProducts
-              ? "bg-blue-600 text-white"
-              : "bg-slate-100 text-slate-900"
-          }`}
-          onClick={() => setShowProducts(false)}
-        >
-          Services
-        </button>
-        <button
-          className={`rounded px-4 py-2 ${
-            showProducts
-              ? "bg-blue-600 text-white"
-              : "bg-slate-100 text-slate-900"
-          }`}
-          onClick={() => setShowProducts(true)}
-        >
-          Products
-        </button>
-      </div>
+  /* ----------------------------------------------------------------------------
+   * Checkout panel — a plain render function (NOT a nested component) so inputs
+   * keep focus while typing.
+   * -------------------------------------------------------------------------- */
+  const renderCartPanel = (isSheet = false) => {
+    const clientLabel = client.clientName.trim() || "Walk-in client";
+    const staffLabel = selectedStaff ? getStaffName(selectedStaff) : "";
 
-      <div className="flex h-full w-3/5 gap-3">
-        {/* Categories Sidebar */}
-        <div className="w-48 rounded-lg bg-slate-50 px-4">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
-            {showProducts ? "Product" : "Service"} Categories
-          </h3>
-          <div className="space-y-2">
-            {categories.map((category) => {
-              const IconComponent = category.icon;
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
-                    selectedCategory === category.id
-                      ? "bg-blue-600 text-white"
-                      : "bg-white text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {IconComponent && <IconComponent className="h-5 w-5" />}
-                  <span className="text-sm font-medium">{category.name}</span>
-                </button>
-              );
-            })}
+    return (
+      <div className="flex flex-col h-full min-h-0 bg-white md:rounded-xl md:border md:border-slate-200/90 overflow-hidden">
+        {/* Header */}
+        <div className="shrink-0 flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+              <ShoppingCart className="w-4 h-4" />
+            </div>
+            <div className="leading-tight">
+              <h3 className="font-bold text-sm text-slate-900">Checkout</h3>
+              <span className="text-[11px] text-slate-500 font-medium">
+                {cartTotalItemsCount} unit{cartTotalItemsCount !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {cart.length > 0 && (
+              <button
+                onClick={clearCart}
+                className="text-xs font-semibold text-rose-600 hover:bg-rose-50 px-2 py-1.5 rounded flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Clear
+              </button>
+            )}
+            {isSheet && (
+              <button
+                onClick={() => setShowMobileCart(false)}
+                className="p-2 rounded-md text-slate-500 hover:bg-slate-100 cursor-pointer"
+                aria-label="Close checkout"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1">
-          <div className="mb-6 flex items-center justify-start gap-2">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                {categories.find((cat) => cat.id === selectedCategory)?.name}{" "}
-                {showProducts ? "Products" : "Services"}
-              </h2>
-              <p className="text-sm text-slate-600">
-                Select {showProducts ? "products" : "services"} to add to your
-                invoice
-              </p>
+        {/* Scrollable body */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+          {/* Client & Staff Direct Inputs (No Edit Click Needed) */}
+          <div className="rounded-lg border border-slate-200/80 bg-slate-50 p-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-slate-500" />
+                Client & Stylist
+              </span>
+
+              <button
+                type="button"
+                onClick={openPicker}
+                className="h-7 px-2 rounded-md bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 hover:bg-blue-100 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Load a waiting appointment"
+              >
+                <Calendar className="w-3 h-3" />
+                <span>Appointments ({activeAppointments.length})</span>
+              </button>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
-                <ShoppingCart className="h-5 w-5 text-slate-600" />
-                <span className="text-sm font-medium text-slate-900">
-                  {cart?.length} {showProducts ? "products" : "services"} -{" "}
-                  {formatCurrency(getTotal())}
+
+            {linkedAppointment && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1 flex items-center justify-between gap-2 text-xs">
+                <span className="text-emerald-900 font-semibold truncate flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  Appointment #{linkedAppointment.appointmentId || linkedAppointment.id} linked
                 </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Items Grid */}
-          <div className="flex flex-wrap gap-4">
-            {filteredItems.map((item) => {
-              const id = showProducts ? item.productId : item.serviceId;
-              const imageUrl = item.imageUrl || "";
-              const name = showProducts ? item.productName : item.serviceName;
-              const amount = item.amount || 0;
-              return (
-                <Card
-                  key={id}
-                  className="w-40 border-slate-200 transition-shadow hover:shadow-md"
+                <button
+                  type="button"
+                  onClick={() => setLinkedAppointment(null)}
+                  className="text-emerald-700 hover:text-rose-600 cursor-pointer shrink-0"
+                  aria-label="Unlink appointment"
                 >
-                  <div className="relative">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={name}
-                        className="h-28 w-full rounded-t-lg object-cover transition-transform duration-300 hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-28 w-full items-center justify-center rounded-t-lg bg-stone-300">
-                        {(() => {
-                          const Icon = categoryIcons[item.category] || Scissors;
-                          return (
-                            <Icon size={40} className="text-white opacity-70" />
-                          );
-                        })()}
-                      </div>
-                    )}
-                    <div className="absolute right-2 top-2">
-                      <Badge className="bg-blue-600 px-1.5 py-0.5 text-[10px]">
-                        {item.currency} {amount}
-                      </Badge>
-                    </div>
-                  </div>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
-                  <CardContent className="p-2">
-                    <h3 className="mb-1 truncate text-xs font-semibold text-slate-900">
-                      {name}
-                    </h3>
+            {selectedExistingClient && (
+              <div className="bg-emerald-50 border border-emerald-200/90 rounded-md px-2 py-1 flex items-center justify-between gap-1.5 text-xs text-emerald-900">
+                <span className="flex items-center gap-1 font-semibold truncate">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  Existing Client: <strong>{selectedExistingClient.clientName}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearClient}
+                  className="text-emerald-700 hover:text-rose-600 cursor-pointer text-xs font-bold px-1"
+                  title="Clear selected client"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
-                    {/* Service description only if services are being shown */}
-                    {item.serviceDescription && !showProducts && (
-                      <p className="mb-1 line-clamp-2 text-[10px] text-slate-600">
-                        {item.serviceDescription}
-                      </p>
-                    )}
-
-                    {/* Duration + Add Button for Services */}
-                    {!showProducts && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-slate-500">
-                          ⏱ {formatDuration(item.duration)}
-                        </span>
-
-                        {/* Same add button logic for services */}
-                        <Button
-                          onClick={() => addToCart(item)}
-                          className="h-6 w-6 bg-blue-600 p-0 text-white hover:bg-blue-700"
-                          size="icon"
-                          disabled={cart?.some((c) => c.serviceId === id)}
-                        >
-                          {cart?.some((c) => c.serviceId === id) ? (
-                            <CheckCircle className="h-3 w-3" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Products with quantity control */}
-                    {showProducts && (
-                      <div className="flex items-center justify-end">
-                        <Button
-                          onClick={() => addToCart(item)}
-                          className="h-6 w-6 bg-blue-600 p-0 text-white hover:bg-blue-700"
-                          size="icon"
-                        >
-                          {cart?.some((c) => c.productId === id) ? (
-                            <CheckCircle className="h-3 w-3" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Cart / Invoice Sidebar */}
-      <div className="absolute right-0 top-4 z-30 -mx-7 w-[460px] rounded-lg border border-slate-200 bg-white p-4">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">
-          Invoice Details
-        </h3>
-        {/* Customer Info */}
-        <div className="mb-3 grid grid-cols-2 gap-3">
-          <div className="relative col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-700">
-              Name
-            </label>
-            <Input
-              type="text"
-              value={client.clientName}
-              onChange={(e) => {
-                setClient({ ...client, clientName: e.target.value });
-                setShowSuggestions(true);
-              }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              onFocus={() => setShowSuggestions(true)}
-              className="w-full rounded-lg border border-slate-200 p-1 text-sm"
-              placeholder="Enter name"
-            />
-            {showSuggestions &&
-              client.clientName &&
-              filteredClients.length > 0 && (
-                <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-md">
-                  {filteredClients.map((c, i) => (
-                    <li
-                      key={i}
-                      onMouseDown={() => handleSelect(c)}
-                      className="cursor-pointer px-3 py-2 text-sm hover:bg-slate-100"
-                    >
-                      {c.clientName} – {c.phoneNumber}
-                    </li>
-                  ))}
-                </ul>
-              )}
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">
-              Phone
-            </label>
-            <Input
-              type="tel"
-              value={client.phoneNumber}
-              onChange={(e) =>
-                setClient({ ...client, phoneNumber: e.target.value })
-              }
-              className="w-full rounded-lg border border-slate-200 p-1 text-sm"
-              placeholder="Phone number"
-            />
-          </div>
-        </div>
-
-        {/* Staff Select */}
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-slate-700">
-            Staff
-          </label>
-          <select
-            value={selectedStaff}
-            onChange={(e) => setSelectedStaff(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 p-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Select</option>
-            {barbers.map((staff) => (
-              <option key={staff.id} value={staff.id}>
-                {staff.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Selected Items (services or products) */}
-        <div className="my-3">
-          <h4 className="mb-2 text-sm font-medium text-slate-700">
-            Selected {showProducts ? "Products" : "Services"}
-          </h4>
-          <div className="grid max-h-32 grid-cols-2 gap-2 overflow-y-auto">
-            {cart.length > 0 ? (
-              cart.map((item) => {
-                const isProduct = !!item.productId; // Check if it's a product
-                return (
+            {/* Direct Client Name & Phone Number */}
+            <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <div className="relative">
+                <Input
+                  placeholder="Client name"
+                  value={client.clientName}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    const newName = e.target.value;
+                    setClient((prev) => ({ ...prev, clientName: newName }));
+                    setSelectedExistingClient(null);
+                    setClientSuggestions(true);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (client.clientName.trim()) setClientSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (client.clientName.trim()) setClientSuggestions(true);
+                  }}
+                  className="h-8 text-base md:text-xs rounded-md border-slate-200 bg-white"
+                />
+                {clientSuggestions && client.clientName.trim() && (
                   <div
-                    key={isProduct ? item.productId : item.serviceId}
-                    className="flex items-center justify-between rounded border border-slate-200 bg-white p-2"
+                    className="absolute left-0 top-full mt-1 w-[205%] max-w-[320px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-900">
-                        {isProduct ? item.productName : item.serviceName}
-                      </h4>
-                      <p className="text-xs text-slate-600">
-                        {formatCurrency(item.amount)}
-                      </p>
+                    <div className="px-2.5 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <span>Existing Clients</span>
+                      <span>{clientSuggestionsList.length} found</span>
+                    </div>
 
-                      {/* Show quantity only for products */}
-                      {isProduct && (
-                        <div className="mt-1 flex items-center gap-2">
-                          <button
-                            className="rounded bg-slate-200 px-2 text-sm font-bold"
-                            onClick={() => removeFromCart(item.productId)}
+                    <div className="max-h-48 overflow-y-auto divide-y divide-slate-100">
+                      {clientSuggestionsList.length > 0 ? (
+                        clientSuggestionsList.map((c, i) => (
+                          <div
+                            key={c.id || i}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleSelectExistingClient(c);
+                            }}
+                            className="px-2.5 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between gap-2 transition-colors"
                           >
-                            −
-                          </button>
-                          <span className="text-sm">{item.quantity}</span>
-                          <button
-                            className="rounded bg-slate-200 px-2 text-sm font-bold"
-                            onClick={() => addToCart(item)}
-                          >
-                            +
-                          </button>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate flex items-center gap-1">
+                                <User className="w-3 h-3 text-blue-600 shrink-0" />
+                                {c.clientName}
+                              </p>
+                              {c.phoneNumber && (
+                                <p className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                  <Phone className="w-2.5 h-2.5 text-slate-400" />
+                                  {c.phoneNumber}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded shrink-0">
+                              Choose
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2.5 text-center text-[11px] text-slate-500">
+                          <p className="font-semibold text-slate-700">No existing client matches "{client.clientName}"</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Will be saved as new client automatically</p>
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+              </div>
 
-                    {/* Remove button for services */}
-                    {!isProduct && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFromCart(item.serviceId)}
-                        className="h-5 w-5 p-0 text-red-600 hover:bg-red-100"
+              <Input
+                placeholder="Phone number"
+                inputMode="tel"
+                value={client.phoneNumber}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setClient((prev) => ({ ...prev, phoneNumber: e.target.value }));
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="h-8 text-base md:text-xs rounded-md border-slate-200 bg-white"
+              />
+            </div>
+
+            {/* Direct Stylist Assignment Dropdown */}
+            <select
+              value={selectedStaff}
+              onChange={(e) => {
+                e.stopPropagation();
+                setSelectedStaff(e.target.value);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full h-8 text-base md:text-xs rounded-md border border-slate-200 px-2 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="">Assign Stylist / Barber (Optional)</option>
+              {(barbers || []).map((b) => (
+                <option key={b.id || b.staffId} value={b.id || b.staffId}>
+                  {b.name} ({b.role || "Stylist"})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Items */}
+          <div className={cn("space-y-1.5", isSheet && "max-h-36 sm:max-h-48 overflow-y-auto pr-0.5")}>
+            {cart.length > 0 ? (
+              cart.map((item) => {
+                const id = item.isProduct ? item.productId : item.serviceId;
+                const name = item.isProduct ? item.productName : item.serviceName;
+                const price = Number(item.amount) || 0;
+                const qty = item.quantity || 1;
+
+                return (
+                  <div
+                    key={`${item.isProduct ? "p" : "s"}-${id}`}
+                    className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 truncate text-sm">{name}</p>
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        {formatCurrency(price)} • {item.isProduct ? "Product" : "Service"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center border border-slate-200 rounded-md bg-slate-50 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => decrementFromCart(id, item.isProduct)}
+                        className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        aria-label="Decrease quantity"
                       >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-6 text-center text-xs font-black text-slate-900 font-mono">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => addToCart(item, item.isProduct)}
+                        className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        aria-label="Increase quantity"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <span className="font-black text-slate-900 w-16 text-right font-mono text-sm shrink-0">
+                      {formatCurrency(price * qty)}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(id, item.isProduct)}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer shrink-0"
+                      aria-label="Remove item"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 );
               })
             ) : (
-              <div className="col-span-2 py-4 text-center text-slate-500">
-                <ShoppingCart className="mx-auto mb-1 h-6 w-6 opacity-50" />
-                <p className="text-xs">No products or services selected</p>
+              <div className="min-h-[140px] flex flex-col items-center justify-center text-center bg-slate-50/60 rounded-lg border border-dashed border-slate-200 p-4">
+                <ShoppingCart className="w-8 h-8 mb-1.5 text-slate-300" />
+                <p className="text-sm font-bold text-slate-600">Nothing added yet</p>
+                <p className="text-xs text-slate-400 mt-0.5">Tap a service or product to add it</p>
               </div>
             )}
           </div>
+
+          {/* On mobile drawer, render GST + Discount + Payment in scrollable section so virtual keyboard never clips or hides them */}
+          {isSheet && (
+            <div className="rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5 space-y-2.5">
+              {/* GST rate row */}
+              <div className="flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">GST Rate</span>
+                <div className="grid grid-cols-4 gap-1 w-full max-w-[200px]">
+                  {[0, 5, 12, 18].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedGst(rate);
+                      }}
+                      className={cn(
+                        "h-7 rounded text-xs font-bold border cursor-pointer transition-colors text-center",
+                        selectedGst === rate
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {rate}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Discount row */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/80" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Discount</span>
+                  {cartDiscount > 0 && (
+                    <span className="text-[11px] font-bold text-emerald-600 font-mono">
+                      (-{formatCurrency(cartDiscount)})
+                    </span>
+                  )}
+                </div>
+
+                <div
+                  className="flex items-center gap-1.5 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                >
+                  <select
+                    value={discountType}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setDiscountType(e.target.value);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    className="h-8 text-xs font-semibold rounded border border-slate-200 px-1.5 bg-white text-slate-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    aria-label="Discount type"
+                  >
+                    <option value="amount">₹ (Flat)</option>
+                    <option value="percentage">% (Percent)</option>
+                  </select>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={discountValue}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setDiscountValue(e.target.value);
+                    }}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 120);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.target.blur();
+                      }
+                    }}
+                    className="h-8 w-24 text-base md:text-xs rounded border-slate-200 text-right bg-white px-2 font-mono font-bold focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Payment mode */}
+              <div className="grid grid-cols-4 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                {PAYMENT_MODES.map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = !isSplitPayment && paymentMode === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSplitPayment(false);
+                        setPaymentMode(mode.id);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center gap-1 h-10 rounded-lg border text-xs font-bold cursor-pointer transition-colors",
+                        isSelected ? mode.activeCls : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      <Icon className="w-3 h-3" />
+                      {mode.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSplitPayment(true);
+                  }}
+                  className={cn(
+                    "h-10 rounded-lg border text-xs font-bold cursor-pointer transition-colors",
+                    isSplitPayment
+                      ? "bg-purple-600 text-white border-purple-600"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                  )}
+                >
+                  Split
+                </button>
+              </div>
+
+              {isSplitPayment && (
+                <div
+                  className="bg-purple-50/60 p-2 rounded-lg border border-purple-200/90 space-y-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { key: "cash", label: "Cash" },
+                      { key: "upi", label: "UPI" },
+                      { key: "card", label: "Card" },
+                    ].map((f) => (
+                      <label key={f.key} className="space-y-0.5">
+                        <span className="text-[10px] text-slate-600 font-semibold block">{f.label}</span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={splitAmounts[f.key]}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setSplitAmounts((p) => ({ ...p, [f.key]: e.target.value }));
+                          }}
+                          onFocus={(e) => {
+                            e.stopPropagation();
+                            setTimeout(() => {
+                              e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }, 120);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onTouchEnd={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              e.target.blur();
+                            }
+                          }}
+                          className="h-9 text-base md:text-sm font-bold font-mono border-slate-300 bg-white px-1 text-center"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-purple-200">
+                    <span className="text-slate-600 font-medium">
+                      Allocated: <strong>₹{totalSplitAllocated}</strong>
+                    </span>
+                    {splitRemaining === 0 && cartFinalTotal > 0 ? (
+                      <span className="text-emerald-700 font-bold flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Balanced
+                      </span>
+                    ) : splitRemaining > 0 ? (
+                      <span className="text-amber-700 font-bold">₹{splitRemaining} remaining</span>
+                    ) : (
+                      <span className="text-rose-600 font-bold">₹{Math.abs(splitRemaining)} over</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* GST Options */}
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-slate-700">
-            GST
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {[0, 2.5, 6, 12, 18, 24].map((rate) => (
-              <label
-                key={rate}
-                className="flex cursor-pointer items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+        {/* Pinned bottom: payment + settle (always visible) */}
+        <div className="shrink-0 border-t border-slate-200 bg-white p-3 space-y-2 shadow-[0_-4px_12px_rgba(15,23,42,0.05)]">
+          {/* On desktop, keep GST + Discount + Payment in pinned bottom */}
+          {!isSheet && (
+            <>
+              {/* GST rate row */}
+              <div className="flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">GST Rate</span>
+                <div className="grid grid-cols-4 gap-1 w-full max-w-[200px]">
+                  {[0, 5, 12, 18].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedGst(rate);
+                      }}
+                      className={cn(
+                        "h-7 rounded text-xs font-bold border cursor-pointer transition-colors text-center",
+                        selectedGst === rate
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {rate}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Discount row */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/80" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Discount</span>
+                  {cartDiscount > 0 && (
+                    <span className="text-[11px] font-bold text-emerald-600 font-mono">
+                      (-{formatCurrency(cartDiscount)})
+                    </span>
+                  )}
+                </div>
+
+                <div
+                  className="flex items-center gap-1.5 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                >
+                  <select
+                    value={discountType}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setDiscountType(e.target.value);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    className="h-8 text-xs font-semibold rounded border border-slate-200 px-1.5 bg-white text-slate-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    aria-label="Discount type"
+                  >
+                    <option value="amount">₹ (Flat)</option>
+                    <option value="percentage">% (Percent)</option>
+                  </select>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={discountValue}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setDiscountValue(e.target.value);
+                    }}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 120);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.target.blur();
+                      }
+                    }}
+                    className="h-8 w-24 text-base md:text-xs rounded border-slate-200 text-right bg-white px-2 font-mono font-bold focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Payment mode */}
+              <div className="grid grid-cols-4 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                {PAYMENT_MODES.map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = !isSplitPayment && paymentMode === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSplitPayment(false);
+                        setPaymentMode(mode.id);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center gap-1 h-10 rounded-lg border text-xs font-bold cursor-pointer transition-colors",
+                        isSelected ? mode.activeCls : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      <Icon className="w-3 h-3" />
+                      {mode.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSplitPayment(true);
+                  }}
+                  className={cn(
+                    "h-10 rounded-lg border text-xs font-bold cursor-pointer transition-colors",
+                    isSplitPayment
+                      ? "bg-purple-600 text-white border-purple-600"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                  )}
+                >
+                  Split
+                </button>
+              </div>
+
+              {isSplitPayment && (
+                <div
+                  className="bg-purple-50/60 p-2 rounded-lg border border-purple-200/90 space-y-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { key: "cash", label: "Cash" },
+                      { key: "upi", label: "UPI" },
+                      { key: "card", label: "Card" },
+                    ].map((f) => (
+                      <label key={f.key} className="space-y-0.5">
+                        <span className="text-[10px] text-slate-600 font-semibold block">{f.label}</span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={splitAmounts[f.key]}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setSplitAmounts((p) => ({ ...p, [f.key]: e.target.value }));
+                          }}
+                          onFocus={(e) => {
+                            e.stopPropagation();
+                            setTimeout(() => {
+                              e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }, 120);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onTouchEnd={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              e.target.blur();
+                            }
+                          }}
+                          className="h-9 text-base md:text-sm font-bold font-mono border-slate-300 bg-white px-1 text-center"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-purple-200">
+                    <span className="text-slate-600 font-medium">
+                      Allocated: <strong>₹{totalSplitAllocated}</strong>
+                    </span>
+                    {splitRemaining === 0 && cartFinalTotal > 0 ? (
+                      <span className="text-emerald-700 font-bold flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Balanced
+                      </span>
+                    ) : splitRemaining > 0 ? (
+                      <span className="text-amber-700 font-bold">₹{splitRemaining} remaining</span>
+                    ) : (
+                      <span className="text-rose-600 font-bold">₹{Math.abs(splitRemaining)} over</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Totals */}
+          <div className="bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 text-xs space-y-0.5">
+            <div className="flex justify-between text-slate-600">
+              <span>Subtotal</span>
+              <span className="font-semibold text-slate-800 font-mono">{formatCurrency(cartSubtotal)}</span>
+            </div>
+            {cartTax > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>GST ({selectedGst}%)</span>
+                <span className="font-semibold text-slate-800 font-mono">+{formatCurrency(cartTax)}</span>
+              </div>
+            )}
+            {cartDiscount > 0 && (
+              <div className="flex justify-between text-emerald-600 font-semibold">
+                <span>Discount</span>
+                <span className="font-mono">-{formatCurrency(cartDiscount)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Actions Bar with Compact Settle Button */}
+          <div className="flex items-center justify-between gap-2 pt-1 pb-[env(safe-area-inset-bottom)]">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                Total Payable
+              </span>
+              <span className="text-base sm:text-lg font-black text-slate-900 font-mono">
+                {formatCurrency(cartFinalTotal)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={handlePrintDraftBill}
+                disabled={cart.length === 0 || isSettlingPOS}
+                className="h-9 px-2.5 border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer text-xs font-semibold flex items-center gap-1"
+                title="Preview bill before payment"
+                aria-label="Preview bill"
               >
-                <input
-                  type="radio"
-                  name="gstRate"
-                  value={rate}
-                  checked={selectedGst === rate}
-                  onChange={() => setSelectedGst(rate)}
-                  className="text-slate-600"
+                <Printer className="w-3.5 h-3.5 text-blue-600" />
+                <span className="hidden sm:inline">Print</span>
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleSettlePOS}
+                disabled={isSettlingPOS || cart.length === 0 || (isSplitPayment && !isSplitValid)}
+                className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isSettlingPOS ? (
+                  <ScissorsLoader text="Settling..." />
+                ) : (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Settle</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* --------------------------------- Render -------------------------------- */
+
+  return (
+    <div className="h-full flex flex-col gap-2 font-sans min-h-0 text-slate-800">
+      {/* Top bar */}
+      <div className="shrink-0 bg-white px-3 py-2 rounded-xl border border-slate-200/90 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <ShoppingCart className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight whitespace-nowrap">
+              POS & Billing
+            </h1>
+            <p className="text-[11px] text-slate-500 hidden lg:block">Tap items, pick payment, settle.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden lg:flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 text-xs">
+            <span className="font-bold text-slate-400">Today</span>
+            <strong className="text-slate-900">{todayStats.count} bills</strong>
+            <span className="text-emerald-600 font-bold font-mono">({formatCurrency(todayStats.revenue)})</span>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openPicker}
+            className="h-9 text-xs font-bold border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg px-3 cursor-pointer flex items-center gap-1.5"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Waiting</span>
+            <span className="bg-blue-600 text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] flex items-center justify-center">
+              {activeAppointments.length}
+            </span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Main grid */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-2.5 overflow-hidden">
+        {/* Catalogue */}
+        <div className="md:col-span-7 xl:col-span-8 h-full flex flex-col min-h-0 gap-2">
+          <div className="shrink-0 bg-white p-2 rounded-xl border border-slate-200/90 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 w-full sm:w-auto shrink-0">
+                <button
+                  onClick={() => {
+                    setShowProducts(false);
+                    setSelectedCategory("all");
+                  }}
+                  className={cn(
+                    "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 h-9 rounded-md text-xs font-bold cursor-pointer transition-colors",
+                    !showProducts ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  <Scissors className="w-3.5 h-3.5" />
+                  Services ({services?.length || 0})
+                </button>
+                <button
+                  onClick={() => {
+                    setShowProducts(true);
+                    setSelectedCategory("all");
+                  }}
+                  className={cn(
+                    "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 h-9 rounded-md text-xs font-bold cursor-pointer transition-colors",
+                    showProducts ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  Products ({products?.length || 0})
+                </button>
+              </div>
+
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder={`Search ${showProducts ? "products" : "services"}...`}
+                  value={catalogSearch}
+                  onChange={(e) => setCatalogSearch(e.target.value)}
+                  className="pl-9 pr-8 h-9 text-sm rounded-lg border-slate-200 bg-white w-full"
                 />
-                {rate}%
-              </label>
+                {catalogSearch && (
+                  <button
+                    onClick={() => setCatalogSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {catalogCategories.map((cat) => {
+                const isActive = selectedCategory.toLowerCase() === cat.toLowerCase();
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={cn(
+                      "px-3.5 h-8 rounded-full text-xs font-semibold whitespace-nowrap capitalize cursor-pointer shrink-0 transition-colors",
+                      isActive ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    )}
+                  >
+                    {cat === "all" ? "All" : cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Items grid — whole card is the tap target */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-0.5 pb-24 md:pb-1">
+            <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2">
+              {filteredCatalogItems.map((item) => {
+                const id = showProducts ? item.productId : item.serviceId;
+                const name = showProducts ? item.productName : item.serviceName;
+                const price = Number(item.amount || item.price || 0);
+                const qtyInCart = getItemCartQty(item, showProducts);
+                const isInCart = qtyInCart > 0;
+                const categoryTag = item.category || (showProducts ? "Product" : "Service");
+
+                return (
+                  <div
+                    key={id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => addToCart(item, showProducts)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        addToCart(item, showProducts);
+                      }
+                    }}
+                    className={cn(
+                      "bg-white rounded-xl border p-2.5 flex flex-col justify-between gap-2 transition-all cursor-pointer select-none active:scale-[0.98] hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
+                      isInCart
+                        ? "border-blue-500 bg-blue-50/30 ring-1 ring-blue-300"
+                        : "border-slate-200/90 hover:border-slate-300"
+                    )}
+                  >
+                    <div className="space-y-1.5">
+                      <span
+                        className={cn(
+                          "inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border truncate max-w-full",
+                          getCategoryColor(categoryTag)
+                        )}
+                      >
+                        {categoryTag}
+                      </span>
+                      <h4 className="font-bold text-[13px] sm:text-sm text-slate-900 line-clamp-2 leading-snug">
+                        {name}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-1 pt-2 border-t border-slate-100">
+                      <div className="min-w-0">
+                        <span className="text-sm font-black text-slate-900 font-mono block">
+                          {formatCurrency(price)}
+                        </span>
+                        {!showProducts && item.duration && (
+                          <span className="text-[11px] text-slate-400 flex items-center gap-0.5">
+                            <Clock className="w-3 h-3" />
+                            {formatDuration(item.duration)}
+                          </span>
+                        )}
+                      </div>
+
+                      {isInCart ? (
+                        <div
+                          className="flex items-center border border-blue-300 rounded-md bg-white overflow-hidden shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => decrementFromCart(id, showProducts)}
+                            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            aria-label="Decrease"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-6 text-center text-xs font-black text-blue-700 font-mono">
+                            {qtyInCart}
+                          </span>
+                          <button
+                            onClick={() => addToCart(item, showProducts)}
+                            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            aria-label="Increase"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="w-8 h-8 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                          <Plus className="w-4 h-4" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredCatalogItems.length === 0 && (
+                <div className="col-span-full py-12 text-center bg-white rounded-xl border border-slate-200">
+                  <Scissors className="w-7 h-7 text-slate-300 mx-auto mb-1.5" />
+                  <p className="text-sm font-bold text-slate-600">Nothing matches</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Try another category or search</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Checkout sidebar (tablet + desktop) */}
+        <div className="hidden md:block md:col-span-5 xl:col-span-4 h-full min-h-0">
+          {renderCartPanel(false)}
+        </div>
+      </div>
+
+      {/* Mobile floating cart bar */}
+      {cart.length > 0 && !showMobileCart && !showAppointmentPicker && !showBillPrint && (
+        <div className="md:hidden fixed bottom-3 left-3 right-3 z-30">
+          <Button
+            onClick={() => setShowMobileCart(true)}
+            className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xl flex items-center justify-between px-4 cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="relative w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4" />
+                <span className="absolute -top-1.5 -right-1.5 bg-white text-blue-700 text-[10px] font-black rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                  {cartTotalItemsCount}
+                </span>
+              </div>
+              <span className="text-base font-black font-mono">{formatCurrency(cartFinalTotal)}</span>
+            </div>
+            <span className="text-xs bg-white text-blue-700 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+              Checkout <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </Button>
+        </div>
+      )}
+
+      {/* Mobile checkout sheet (plain overlay, no dialog) */}
+      <Overlay open={showMobileCart} onClose={() => setShowMobileCart(false)} variant="sheet">
+        {renderCartPanel(true)}
+      </Overlay>
+
+      {/* Waiting appointments (plain overlay, no dialog) */}
+      <Overlay open={showAppointmentPicker} onClose={() => setShowAppointmentPicker(false)} variant="modal">
+        <div className="shrink-0 px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                Waiting appointments
+              </h2>
+              <p className="text-xs text-slate-500">Tap one to load it into the bill</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge className="bg-blue-50 text-blue-700 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+              {activeAppointments.length}
+            </Badge>
+            <button
+              onClick={() => setShowAppointmentPicker(false)}
+              className="p-2 rounded-md text-slate-500 hover:bg-slate-100 cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3 border-b border-slate-100 bg-white space-y-2 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              placeholder="Search name, phone, service or stylist..."
+              value={appointmentSearch}
+              onChange={(e) => setAppointmentSearch(e.target.value)}
+              className="pl-9 pr-8 h-10 text-sm rounded-lg bg-slate-50 border-slate-200 focus:bg-white"
+            />
+            {appointmentSearch && (
+              <button
+                onClick={() => setAppointmentSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-semibold [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[
+              { id: "all", label: `All (${activeAppointments.length})`, on: "bg-slate-900 text-white", off: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
+              { id: "in_service", label: `In service (${inServiceCount})`, on: "bg-blue-600 text-white", off: "bg-blue-50 text-blue-700 hover:bg-blue-100" },
+              { id: "scheduled", label: `Scheduled (${scheduledCount})`, on: "bg-amber-600 text-white", off: "bg-amber-50 text-amber-800 hover:bg-amber-100" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setAppointmentFilterTab(t.id)}
+                className={cn(
+                  "px-3.5 h-8 rounded-full whitespace-nowrap cursor-pointer shrink-0 transition-colors",
+                  appointmentFilterTab === t.id ? t.on : t.off
+                )}
+              >
+                {t.label}
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="space-y-2 border-t border-slate-200 pt-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Subtotal:</span>
-            <span className="font-medium">
-              {formatCurrency(getTotal(), "INR")}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">GST:</span>
-            <span className="font-medium">
-              {formatCurrency(getGSTAmount())}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Total:</span>
-            <span className="font-medium">
-              {formatCurrency(getFinalTotal())}
-            </span>
-          </div>
-          {/* Discount Display */}
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm text-yellow-800">Discount:</span>
-            <span className="text-sm font-medium text-yellow-800">
-              {(() => {
-                const discount = getDisplayedDiscount();
-                const numericDiscount = Number(discount);
-                const safeDiscount = isFinite(numericDiscount)
-                  ? numericDiscount
-                  : 0;
-                return discountType === "percentage"
-                  ? `${safeDiscount.toFixed(2)} %`
-                  : formatCurrency(safeDiscount);
-              })()}
-            </span>
-          </div>
-          {/* Discount Input */}
-          <div className="mb-2 flex gap-2">
-            <select
-              value={discountType}
-              onChange={(e) => handleDiscountTypeChange(e.target.value)}
-              className="rounded p-1 text-xs"
-            >
-              <option value="amount">Amount (₹)</option>
-              <option value="percentage">Percentage (%)</option>
-            </select>
-            <Input
-              type="number"
-              value={discountValue}
-              onChange={(e) => handleDiscountChange(e.target.value)}
-              placeholder={discountType === "percentage" ? "00" : "00"}
-              className="h-6 w-full text-xs"
-            />
-          </div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
+          {filteredWaitingAppointments.map((apt) => {
+            const id = apt.appointmentId || apt.id;
+            const name = apt.client?.clientName || apt.clientName || "Walk-in Client";
+            const phone = apt.client?.phoneNumber || apt.phoneNumber || "";
+            const staffName = getStaffName(apt.staffId || apt.staff);
+            const srvList = Array.isArray(apt.services)
+              ? apt.services.map((s) => (typeof s === "string" ? s : s?.serviceName || "Service"))
+              : typeof apt.service === "string" && apt.service.trim()
+              ? apt.service.split(",").map((s) => s.trim())
+              : ["Salon Treatment"];
 
-          {/* Final Bill Amount */}
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Final Bill Amount
-            </label>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  value={finalBillAmount}
-                  onChange={(e) => handleFinalBillAmountChange(e.target.value)}
-                  placeholder={getFinalTotal().toString()}
-                  className="h-8 flex-1 text-sm"
-                />
-                <span className="text-xs text-slate-500">₹</span>
-              </div>
-              {errorMessage && (
-                <p className="text-xs text-red-600">{errorMessage}</p>
-              )}
-            </div>
-          </div>
+            const aptDate = parseAppointmentDateTime(
+              apt.dateTime,
+              apt.date || apt.appointment_date,
+              apt.time || apt.appointment_time,
+              apt.createdAt
+            );
+            const amount = Number(apt.total || apt.amount || 0);
+            const normStatus = normalizeStatus(apt.status || apt.appointment_status);
+            const statusConfig = getStatusConfig(normStatus);
+            const initials = name.slice(0, 2).toUpperCase() || "CL";
 
-          <div className="mt-2 flex gap-2">
-            <Button
-              className="flex-1 bg-stone-300 text-slate-900 hover:bg-slate-200"
-              disabled={cart.length === 0 || !selectedStaff}
-              onClick={() =>
-                handleCreateInvoice({
-                  client,
-                  services: cart,
-                  staff: selectedStaff,
-                  gstPercent: selectedGst,
-                  subtotal: getTotal(),
-                  tax: getGSTAmount(),
-                  total: getFinalTotal(),
-                  discount: getCalculatedDiscount(),
-                  finalAmount: finalBillAmount || getFinalTotal(),
-                })
-              }
-            >
-              Generate Bill
-            </Button>
-            <Button
-              className="flex-1 bg-stone-800 text-stone-100 hover:bg-blue-700"
-              disabled={
-                cart.length === 0 ||
-                !selectedStaff ||
-                (billData && billData.status === "completed")
-              }
-              onClick={() => setOpen(true)}
-            >
-              Settle
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Settlement Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Bill Settlement</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium">
-              Payment Mode
-            </label>
-            <select
-              value={paymentMode}
-              onChange={(e) => {
-                setPaymentMode(e.target.value);
-                setPaymentPlatform("");
-              }}
-              className="w-full rounded border border-slate-300 p-2 text-sm"
-            >
-              <option value="">Select Payment Mode</option>
-              <option value="upi">UPI</option>
-              <option value="debitCard">Debit Card</option>
-              <option value="creditCard">Credit Card</option>
-              <option value="cash">Cash</option>
-            </select>
-          </div>
-          {paymentMode === "upi" && (
-            <div className="mt-4">
-              <label className="mb-1 block text-sm font-medium">
-                Payment Platform
-              </label>
-              <select
-                value={paymentPlatform}
-                onChange={(e) => setPaymentPlatform(e.target.value)}
-                className="w-full rounded border p-2 text-sm"
+            return (
+              <div
+                key={id}
+                onClick={() => handleSelectAppointment(apt)}
+                className={cn(
+                  "p-3 rounded-xl border border-slate-200/90 hover:border-blue-500 hover:shadow-md active:scale-[0.99] transition-all cursor-pointer bg-white border-l-4",
+                  statusConfig.borderLeft
+                )}
               >
-                <option value="">Select UPI Platform</option>
-                {platformOptions[paymentMode].map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={cn(
+                        "w-9 h-9 rounded-full text-white font-bold text-xs flex items-center justify-center shrink-0 ring-2 bg-gradient-to-tr from-blue-600 to-indigo-600",
+                        statusConfig.avatarRing
+                      )}
+                    >
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-sm text-slate-900 truncate">{name}</h4>
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 rounded shrink-0">
+                          #{id}
+                        </span>
+                      </div>
+                      {phone ? (
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          {phone}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-slate-400">Walk-in client</p>
+                      )}
+                    </div>
+                  </div>
+                  <StatusPill status={normStatus} />
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {srvList.map((svc, idx) => (
+                    <span
+                      key={idx}
+                      className={cn(
+                        "text-[11px] font-bold py-0.5 px-2 rounded-md border inline-flex items-center gap-1",
+                        getServiceBadgeStyle(svc)
+                      )}
+                    >
+                      <Scissors className="w-2.5 h-2.5" />
+                      {svc}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                      {formatDateLabel(aptDate)}
+                    </span>
+                    <span className="flex items-center gap-1 font-bold text-slate-900">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      {safeFormat(aptDate, "hh:mm a")}
+                    </span>
+                    <span className="flex items-center gap-1 font-bold text-slate-900">
+                      <User className="w-3.5 h-3.5 text-indigo-500" />
+                      {staffName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-slate-900 font-mono">
+                      {amount > 0 ? formatCurrency(amount) : "₹—"}
+                    </span>
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-xs font-bold h-8 px-3 rounded-lg">
+                      Bill <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredWaitingAppointments.length === 0 && (
+            <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
+              <Calendar className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              <p className="text-sm font-bold text-slate-700">No appointments found</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {appointmentSearch ? "Try a different name or number" : "Nothing waiting in this group"}
+              </p>
             </div>
           )}
-          <DialogFooter className="mt-6">
-            {isSettling ? (
-              <div className="flex w-full items-center justify-center py-2">
-                <ScissorsLoader text="Settling payment..." />
-              </div>
-            ) : (
-              <Button
-                disabled={
-                  !paymentMode || (paymentMode === "upi" && !paymentPlatform)
-                }
-                onClick={handleSettlePayment}
-              >
-                Settle Payment
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </Overlay>
+
+      {/* Receipt — isolated in its own boundary: if it ever fails, the page stays alive */}
+      <ErrorBoundary inline>
+        <BillPrintModal
+          isOpen={showBillPrint}
+          onClose={() => {
+            setShowBillPrint(false);
+            setBillToPrint(null);
+          }}
+          bill={billToPrint}
+          isReprint={billToPrint?.status === "completed"}
+          isDraft={isDraftPrint}
+          onConfirmSettle={() => {
+            setShowBillPrint(false);
+            handleSettlePOS();
+          }}
+          isSettling={isSettlingPOS}
+        />
+      </ErrorBoundary>
     </div>
   );
 };
-export default BillingPage;
+
+const BillingPageWithBoundary = () => (
+  <ErrorBoundary>
+    <BillingPage />
+  </ErrorBoundary>
+);
+
+export default BillingPageWithBoundary;

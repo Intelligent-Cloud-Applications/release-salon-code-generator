@@ -14,11 +14,14 @@ import StaffsPage from "./development/dashboard/StaffsPage";
 import ClientsPage from "./development/dashboard/ClientsPage";
 import AppointmentsPage from "./development/dashboard/AppointmentsPage";
 import BillingPage from "./development/dashboard/BillingPage";
+import OrderHistoryPage from "./development/dashboard/OrderHistoryPage";
+import RevenuePage from "./development/dashboard/RevenuePage";
 import InventoryPage from "./development/dashboard/InventoryPage";
 import ReportsPage from "./development/dashboard/ReportsPage";
 import VendorManagementPage from "./development/dashboard/VendorManagementPage";
 import ExpenseManagementPage from "./development/dashboard/ExpenseManagementPage";
 import LoyaltyPointsPage from "./development/dashboard/LoyaltyPointsPage";
+import SettingsPage from "./development/dashboard/SettingsPage";
 import { Toaster } from "./development/components/toaster";
 import metaTagsData from "./operation/metatags.json";
 import LandingHome from "./development/components/landing/LandingHome";
@@ -158,6 +161,8 @@ const App = () => {
             element={<AppointmentsPage />}
           />
           <Route path="/dashboard/billing" element={<BillingPage />} />
+          <Route path="/dashboard/order-history" element={<OrderHistoryPage />} />
+          <Route path="/dashboard/revenue" element={<RevenuePage />} />
           <Route
             path="/dashboard/billing/preview/:id"
             element={<BillPreview />}
@@ -177,6 +182,7 @@ const App = () => {
             path="/dashboard/loyalty-points"
             element={<LoyaltyPointsPage />}
           />
+          <Route path="/dashboard/settings" element={<SettingsPage />} />
         </Route>
         <Route path="/redirect" element={<Redirect />} />
       </Routes>

@@ -316,7 +316,13 @@ export default function DashboardLayout() {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-2.5 sm:p-4 lg:p-6 overflow-x-hidden">
+        <main
+          className={`flex-1 bg-[#f8fafc] overflow-x-hidden ${
+            location.pathname === "/dashboard/billing"
+              ? "overflow-hidden p-2 sm:p-2.5 lg:p-3 h-[calc(100vh-4rem)] flex flex-col"
+              : "overflow-y-auto p-2.5 sm:p-4 lg:p-5"
+          }`}
+        >
           <Outlet />
         </main>
       </div>

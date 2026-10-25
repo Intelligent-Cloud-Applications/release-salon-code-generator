@@ -5,7 +5,7 @@ import {
   Search,
   Calendar,
   IndianRupee,
-  Tag,
+  ShoppingBag,
   Pencil,
   Trash2,
   TrendingDown,
@@ -236,7 +236,11 @@ const ExpenseManagementPage = () => {
         o.product ||
         o.description ||
         "Order",
-      category: "Inventory",
+      category:
+        o.category ||
+        o.product ||
+        (Array.isArray(o.items) && o.items[0]?.productName) ||
+        "",
       amount:
         Number(o.totalAmount ?? o.amount ?? o.price ?? 0) > 0
           ? Number(o.totalAmount ?? o.amount ?? o.price ?? 0)
@@ -275,6 +279,7 @@ const ExpenseManagementPage = () => {
       !searchTerm ||
       String(expense.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(expense.vendor || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(expense.paymentMethod || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(expense.category || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       statusFilter === "ALL" || String(expense.status || "").toLowerCase() === statusFilter.toLowerCase();
@@ -288,12 +293,6 @@ const ExpenseManagementPage = () => {
   const pendingExpenses = ordersAsExpenses
     .filter((e) => e.status === "pending")
     .reduce((sum, e) => sum + e.amount, 0);
-
-  const categoryTotals = ordersAsExpenses.reduce((acc, expense) => {
-    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-    return acc;
-  }, {});
-  const topCategory = Object.entries(categoryTotals).sort(([, a], [, b]) => b - a)[0];
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -955,13 +954,13 @@ const ExpenseManagementPage = () => {
 
         <div className="rounded-xl border border-blue-200/90 bg-gradient-to-br from-blue-50/90 via-white to-blue-50/30 p-2 sm:p-2.5 shadow-2xs">
           <div className="flex items-center justify-between gap-1 mb-1">
-            <p className="text-[10px] sm:text-xs font-semibold text-blue-700 truncate">Top Category</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-blue-700 truncate">Total Orders</p>
             <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-blue-600 text-white shadow-2xs shrink-0">
-              <Tag className="h-3 w-3" />
+              <ShoppingBag className="h-3 w-3" />
             </div>
           </div>
-          <p className="text-xs sm:text-sm font-black tracking-tight text-blue-950 truncate">
-            {topCategory?.[0] || "General"}
+          <p className="text-sm sm:text-base font-black tracking-tight text-blue-950 truncate">
+            {ordersAsExpenses.length}
           </p>
         </div>
       </div>
@@ -972,7 +971,7 @@ const ExpenseManagementPage = () => {
         <div className="relative flex-1 sm:max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Search expenses, vendor, category..."
+            placeholder="Search expenses, vendor, payment method..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-9 rounded-xl border-slate-200 bg-white pl-9 pr-8 text-xs sm:text-sm shadow-xs focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
@@ -1073,7 +1072,6 @@ const ExpenseManagementPage = () => {
             <TableHeader className="bg-slate-50/75">
               <TableRow className="border-b border-slate-200/80">
                 <TableHead className="text-xs font-semibold text-slate-600">Description</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Category</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Vendor</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Amount</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
@@ -1105,11 +1103,6 @@ const ExpenseManagementPage = () => {
                       {expense.itemSummary && (
                         <div className="text-[11px] text-slate-400 mt-0.5 font-normal">{expense.itemSummary}</div>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-block text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-full shadow-2xs">
-                        {expense.category || "General"}
-                      </span>
                     </TableCell>
                     <TableCell className="text-xs font-semibold text-slate-700">
                       <span className="bg-slate-100/90 text-slate-800 border border-slate-200/90 px-2 py-0.5 rounded-md">
@@ -1191,12 +1184,9 @@ const ExpenseManagementPage = () => {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-[150px]">
+                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate max-w-[200px]">
                       {expense.description}
                     </h4>
-                    <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-1.5 py-0.2 rounded shrink-0">
-                      {expense.category || "General"}
-                    </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
                     <span className="font-bold text-slate-800">{expense.vendor || "No Vendor"}</span>
@@ -1282,9 +1272,6 @@ const ExpenseManagementPage = () => {
                       >
                         {expense.description}
                       </h3>
-                      <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-1.5 py-0.2 rounded-md truncate shadow-2xs">
-                        {expense.category || "General"}
-                      </span>
                     </div>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">
                       {expense.vendor ? (
