@@ -8,7 +8,6 @@ import {
   Package,
   BarChart3,
   Truck,
-  Gift,
   Scissors,
   ChevronRight,
   ChevronLeft,
@@ -82,11 +81,6 @@ const sidebarMenuItems = [
     to: "/dashboard/reports",
     label: "Reports & Analytics",
     icon: BarChart3,
-  },
-  {
-    to: "/dashboard/loyalty-points",
-    label: "Loyalty Points",
-    icon: Gift,
   },
   {
     to: "/dashboard/settings",

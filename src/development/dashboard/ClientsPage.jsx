@@ -356,8 +356,12 @@ const ClientModal = ({
 
       const payload = {
         userName: cleanName,
+        clientName: cleanName,
+        name: cleanName,
         phoneNumber: cleanPhone || null,
+        phone: cleanPhone || null,
         emailId: cleanEmail || null,
+        email: cleanEmail || null,
         gender: formData.gender,
         status: formData.status,
         totalVisits: Number(formData.totalVisits) || 0,
@@ -415,7 +419,7 @@ const ClientModal = ({
                 {title}
               </DialogTitle>
               <DialogDescription className="text-[11px] text-slate-500 mt-0.5">
-                Manage client profile, contact details, loyalty & visit history
+                Manage client profile, contact details & visit history
               </DialogDescription>
             </div>
           </div>
@@ -588,47 +592,23 @@ const ClientModal = ({
             </div>
           </div>
 
-          {/* Row 4: Total Visits & Loyalty Points */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="space-y-1">
-              <Label htmlFor="totalVisits" className="text-[11px] font-bold text-slate-700">
-                Total Visits
-              </Label>
-              <Input
-                id="totalVisits"
-                name="totalVisits"
-                type="number"
-                min="0"
-                max="10000"
-                value={formData.totalVisits}
-                onChange={handleInputChange}
-                placeholder="0"
-                disabled={isLoading}
-                className="rounded-lg text-xs h-8.5 border-slate-200"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="loyaltyPoints" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-                <span>Loyalty Points</span>
-                <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
-                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                  Rewards
-                </span>
-              </Label>
-              <Input
-                id="loyaltyPoints"
-                name="loyaltyPoints"
-                type="number"
-                min="0"
-                max="100000"
-                value={formData.loyaltyPoints}
-                onChange={handleInputChange}
-                placeholder="0"
-                disabled={isLoading}
-                className="rounded-lg text-xs h-8.5 border-slate-200"
-              />
-            </div>
+          {/* Row 4: Total Visits */}
+          <div className="space-y-1">
+            <Label htmlFor="totalVisits" className="text-[11px] font-bold text-slate-700">
+              Total Visits
+            </Label>
+            <Input
+              id="totalVisits"
+              name="totalVisits"
+              type="number"
+              min="0"
+              max="10000"
+              value={formData.totalVisits}
+              onChange={handleInputChange}
+              placeholder="0"
+              disabled={isLoading}
+              className="rounded-lg text-xs h-8.5 border-slate-200"
+            />
           </div>
 
           {/* Row 5: Preferred Services */}
@@ -1203,7 +1183,7 @@ export default function ClientsPage() {
             No clients registered yet
           </h3>
           <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
-            Add your clients to track visits, contact info, and loyalty rewards.
+            Add your clients to track appointments, visits, and contact info.
           </p>
           <Button
             onClick={() => setShowAddModal(true)}
@@ -1259,7 +1239,7 @@ export default function ClientsPage() {
                           Last Visit
                         </TableHead>
                         <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
-                          Visits & Rewards
+                          Visits
                         </TableHead>
                         <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
                           Status
@@ -1272,16 +1252,24 @@ export default function ClientsPage() {
                     <TableBody className="[&_tr:last-child]:border-b-0">
                       {filteredClients.map((client, idx) => {
                         const displayName =
-                          client.clientName || client.name || "Client";
+                          client.clientName ||
+                          client.userName ||
+                          client.name ||
+                          client.fullName ||
+                          client.customerName ||
+                          "Client";
                         const displayPhone =
                           client.phoneNumber || client.phone || "";
                         const displayEmail =
                           client.emailId || client.email || "";
                         const clientId =
-                          client.clientId || client.ClientId || client.id || idx;
+                          client.clientId ||
+                          client.cognitoId ||
+                          client.ClientId ||
+                          client.id ||
+                          `CLT-${idx + 1}`;
                         const statusConfig = getStatusConfig(client.status);
                         const visits = Number(client.totalVisits) || 0;
-                        const points = Number(client.loyaltyPoints) || 0;
                         const servicesList = Array.isArray(
                           client.preferredServices
                         )
@@ -1389,17 +1377,11 @@ export default function ClientsPage() {
                               </div>
                             </TableCell>
 
-                            {/* Visits & Rewards */}
+                            {/* Visits */}
                             <TableCell className="py-2.5 px-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                                  {visits} {visits === 1 ? "visit" : "visits"}
-                                </span>
-                                <div className="flex items-center gap-1 font-bold text-amber-600 text-xs">
-                                  <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
-                                  <span>{points} pts</span>
-                                </div>
-                              </div>
+                              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md">
+                                {visits} {visits === 1 ? "visit" : "visits"}
+                              </span>
                             </TableCell>
 
                             {/* Status */}
@@ -1461,16 +1443,24 @@ export default function ClientsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {filteredClients.map((client, idx) => {
                 const displayName =
-                  client.clientName || client.name || "Client";
+                  client.clientName ||
+                  client.userName ||
+                  client.name ||
+                  client.fullName ||
+                  client.customerName ||
+                  "Client";
                 const displayPhone =
                   client.phoneNumber || client.phone || "";
                 const displayEmail =
                   client.emailId || client.email || "";
                 const clientId =
-                  client.clientId || client.ClientId || client.id || idx;
+                  client.clientId ||
+                  client.cognitoId ||
+                  client.ClientId ||
+                  client.id ||
+                  `CLT-${idx + 1}`;
                 const statusConfig = getStatusConfig(client.status);
                 const visits = Number(client.totalVisits) || 0;
-                const points = Number(client.loyaltyPoints) || 0;
                 const servicesList = Array.isArray(client.preferredServices)
                   ? client.preferredServices
                   : [];
@@ -1557,21 +1547,15 @@ export default function ClientsPage() {
                       )}
                     </div>
 
-                    {/* Bottom Row: Visits count, Loyalty points & Last visit */}
+                    {/* Bottom Row: Visits count & Last visit */}
                     <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80 gap-2">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                         <span>Last: {formatLastVisitDate(client.lastVisit)}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded">
-                          {visits} {visits === 1 ? "visit" : "visits"}
-                        </span>
-                        <span className="font-bold text-amber-600 flex items-center gap-0.5">
-                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                          {points} pts
-                        </span>
-                      </div>
+                      <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        {visits} {visits === 1 ? "visit" : "visits"}
+                      </span>
                     </div>
                   </div>
                 );
@@ -1606,7 +1590,10 @@ export default function ClientsPage() {
         onConfirm={handleConfirmDelete}
         clientName={
           clientToDelete
-            ? clientToDelete.clientName || clientToDelete.name || "this client"
+            ? clientToDelete.clientName ||
+              clientToDelete.userName ||
+              clientToDelete.name ||
+              "this client"
             : ""
         }
         isLoading={isDeleting}

@@ -821,8 +821,34 @@ const ContextProvider = (props) => {
       setLoader(true);
       const response = await apiRequest(get, `/new/${institutionId}/clients`);
 
-      if (response.clients) {
-        setClients(response.clients);
+      if (response && response.clients) {
+        const normalized = response.clients.map((c) => {
+          const rawName = (
+            c.userName ||
+            c.clientName ||
+            c.name ||
+            c.fullName ||
+            c.customerName ||
+            ""
+          ).trim();
+          const rawPhone = (c.phoneNumber || c.phone || "").trim();
+          const rawEmail = (c.emailId || c.email || "").trim();
+          const rawId = c.cognitoId || c.clientId || c.id || c._id || "";
+          return {
+            ...c,
+            clientName: rawName || "Client",
+            userName: rawName || "Client",
+            name: rawName || "Client",
+            phoneNumber: rawPhone,
+            phone: rawPhone,
+            emailId: rawEmail,
+            email: rawEmail,
+            clientId: rawId,
+            cognitoId: rawId,
+            id: rawId,
+          };
+        });
+        setClients(normalized);
       } else {
         setClients([]);
       }

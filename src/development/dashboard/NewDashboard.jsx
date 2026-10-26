@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import Context from "../Context/Context";
+import { getCollectionBreakdown } from "../lib/paymentUtils";
 
 /* ---------- helpers ---------- */
 
@@ -123,71 +124,109 @@ export default function NewDashboard() {
     let cashRevenue = 0;
     let upiRevenue = 0;
     let cardRevenue = 0;
+    let billsCount = 0;
 
-    billing.forEach((b) => {
-      const amt =
-        parseNumeric(b?.total || b?.amount || b?.finalAmount || b?.subtotal) || 0;
-      totalRevenue += amt;
-      const method = (
-        b?.paymentMethod ||
-        b?.mode ||
-        b?.payment_mode ||
-        ""
+    const seenBillIds = new Set();
+    const billedItems = [];
+
+    // First collect from billing array (if populated)
+    if (Array.isArray(billing) && billing.length > 0) {
+      billing.forEach((b, idx) => {
+        const id = String(b.id || b.billId || b.appointmentId || `bill-${idx}`);
+        seenBillIds.add(id);
+        billedItems.push(b);
+      });
+    }
+
+    // Next collect from appointments where status is completed or has settled billing data
+    appointments.forEach((appt, idx) => {
+      const status = String(
+        appt?.status || appt?.Status || appt?.appointment_status || ""
       ).toLowerCase();
-      if (method.includes("cash")) {
-        cashRevenue += amt;
-      } else if (
-        method.includes("upi") ||
-        method.includes("online") ||
-        method.includes("gpay") ||
-        method.includes("paytm")
-      ) {
-        upiRevenue += amt;
-      } else if (method.includes("card") || method.includes("pos")) {
-        cardRevenue += amt;
-      } else {
-        cashRevenue += amt;
+      const isCompleted =
+        status.includes("complete") ||
+        status.includes("done") ||
+        status.includes("settled") ||
+        status.includes("paid");
+
+      const apptId = String(
+        appt.appointmentId || appt.id || appt._id || `appt-${idx}`
+      );
+
+      // Only count as settled bill if completed/billed, and not already counted
+      if (isCompleted && !seenBillIds.has(apptId)) {
+        seenBillIds.add(apptId);
+        billedItems.push(appt);
       }
     });
 
-    // If billing array is empty, check completed appointments with pricing
-    if (totalRevenue === 0) {
+    // Compute totals and channel breakdown from all billed items using getCollectionBreakdown
+    billedItems.forEach((item) => {
+      const breakdown = getCollectionBreakdown(item);
+      if (
+        breakdown.total > 0 ||
+        breakdown.cash > 0 ||
+        breakdown.upi > 0 ||
+        breakdown.card > 0
+      ) {
+        billsCount++;
+        totalRevenue += breakdown.total;
+        cashRevenue += breakdown.cash;
+        upiRevenue += breakdown.upi;
+        cardRevenue += breakdown.card;
+      }
+    });
+
+    // If no completed appointments yet, check if any appointment has an amount
+    if (billsCount === 0 && appointments.length > 0) {
       appointments.forEach((appt) => {
-        const status = (appt?.status || "").toLowerCase();
-        if (status.includes("complete") || status.includes("done")) {
-          const amt =
-            parseNumeric(appt?.totalAmount || appt?.price || appt?.amount) || 0;
-          totalRevenue += amt;
-          cashRevenue += amt;
+        const amt =
+          parseNumeric(
+            appt?.total ||
+              appt?.totalAmount ||
+              appt?.amount ||
+              appt?.price ||
+              appt?.subtotal
+          ) || 0;
+        if (amt > 0) {
+          const breakdown = getCollectionBreakdown(appt);
+          billsCount++;
+          totalRevenue += breakdown.total || amt;
+          cashRevenue += breakdown.cash || amt;
+          upiRevenue += breakdown.upi;
+          cardRevenue += breakdown.card;
         }
       });
     }
 
-    const billsCount = billing.length;
-    const avgTicket =
-      billsCount > 0
-        ? Math.round(totalRevenue / billsCount)
-        : totalApptsCount > 0 && totalRevenue > 0
-        ? Math.round(totalRevenue / totalApptsCount)
-        : 0;
-
-    const cashPct =
-      totalRevenue > 0 ? Math.round((cashRevenue / totalRevenue) * 100) : 0;
-    const upiPct =
-      totalRevenue > 0 ? Math.round((upiRevenue / totalRevenue) * 100) : 0;
+    const channelTotal = cashRevenue + upiRevenue + cardRevenue;
+    const baseRev = channelTotal > 0 ? channelTotal : totalRevenue;
+    const cashPct = baseRev > 0 ? Math.round((cashRevenue / baseRev) * 100) : 0;
+    const upiPct = baseRev > 0 ? Math.round((upiRevenue / baseRev) * 100) : 0;
     const cardPct =
-      totalRevenue > 0 ? Math.max(100 - (cashPct + upiPct), 0) : 0;
+      baseRev > 0 ? Math.max(100 - (cashPct + upiPct), 0) : 0;
+
+    const avgTicket =
+      billsCount > 0 ? Math.round(totalRevenue / billsCount) : 0;
 
     // 3. Clients: Dynamic count from registered clients + appointments
     const uniqueClientsSet = new Set();
     clients.forEach((c) => {
-      const n = (c.clientName || c.name || c.fullName || "").trim();
+      const n = (
+        c.clientName ||
+        c.userName ||
+        c.name ||
+        c.fullName ||
+        c.customerName ||
+        ""
+      ).trim();
       if (n) uniqueClientsSet.add(n.toLowerCase());
     });
     appointments.forEach((a) => {
       const n = (
         a.client?.clientName ||
         a.clientName ||
+        a.userName ||
         a.client?.name ||
         a.customerName ||
         a.name ||
@@ -365,6 +404,7 @@ export default function NewDashboard() {
       const clientName =
         appt.client?.clientName ||
         appt.clientName ||
+        appt.userName ||
         appt.name ||
         appt.client?.name ||
         appt.customerName ||
@@ -497,11 +537,16 @@ export default function NewDashboard() {
             </div>
           </div>
 
-          <div className="mt-2.5 sm:mt-3 pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-600">
+          <div className="mt-2.5 sm:mt-3 pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-600 gap-1 flex-wrap">
             <span>Cash: {formatCurrency(dashboardData.cashRevenue)}</span>
-            <span className="text-emerald-700 font-semibold truncate ml-1">
+            <span className="text-blue-700 font-semibold truncate">
               UPI: {formatCurrency(dashboardData.upiRevenue)}
             </span>
+            {dashboardData.cardRevenue > 0 && (
+              <span className="text-purple-700 font-semibold truncate">
+                Card: {formatCurrency(dashboardData.cardRevenue)}
+              </span>
+            )}
           </div>
         </div>
 

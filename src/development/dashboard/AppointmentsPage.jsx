@@ -375,7 +375,12 @@ const AppointmentModal = ({
     if (searchTerm.trim().length > 1) {
       const q = searchTerm.toLowerCase();
       const matches = clients.filter((c) => {
-        const name = (c.clientName || c.name || "").toLowerCase();
+        const name = (
+          c.clientName ||
+          c.userName ||
+          c.name ||
+          ""
+        ).toLowerCase();
         const phone = (c.phoneNumber || c.phone || "").toLowerCase();
         return name.includes(q) || phone.includes(q);
       });
@@ -386,7 +391,7 @@ const AppointmentModal = ({
   }, [searchTerm, clients]);
 
   const handleSelectClient = (c) => {
-    const name = c.clientName || c.name || "";
+    const name = c.clientName || c.userName || c.name || "";
     const phone = c.phoneNumber || c.phone || "";
     const preferred = c.preferredServices || [];
     setFormData((prev) => ({
@@ -513,7 +518,7 @@ const AppointmentModal = ({
                     >
                       <div>
                         <div className="font-bold text-slate-900">
-                          {c.clientName || c.name}
+                          {c.clientName || c.userName || c.name}
                         </div>
                         <div className="text-[11px] text-slate-500">
                           {c.phoneNumber || c.phone}
@@ -826,6 +831,9 @@ const CalendarView = ({
         appt.client?.clientName ||
         appt.clientName ||
         appt.client_name ||
+        appt.userName ||
+        appt.name ||
+        appt.customerName ||
         "Client";
       const phone =
         appt.client?.phoneNumber ||
@@ -1769,6 +1777,8 @@ export default function AppointmentsPage() {
           appt.client?.clientName ||
           appt.clientName ||
           appt.client_name ||
+          appt.userName ||
+          appt.name ||
           ""
         ).toLowerCase();
         const phone = (
@@ -2210,6 +2220,8 @@ export default function AppointmentsPage() {
                           appt.client?.clientName ||
                           appt.clientName ||
                           appt.client_name ||
+                          appt.userName ||
+                          appt.name ||
                           "Walk-in Client";
 
                         const clientPhone =
@@ -2423,6 +2435,8 @@ export default function AppointmentsPage() {
                   appt.client?.clientName ||
                   appt.clientName ||
                   appt.client_name ||
+                  appt.userName ||
+                  appt.name ||
                   "Walk-in Client";
 
                 const clientPhone =
