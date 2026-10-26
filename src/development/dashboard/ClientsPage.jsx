@@ -1,13 +1,46 @@
-import React, { useState, useEffect } from "react";
-import { UserCheck, Plus, Search, Edit, Trash2, Phone, Mail, Calendar, Star, ChevronDown, X, Scissors, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import React, { useState, useContext, useEffect, useMemo } from "react";
+import {
+  Users,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  X,
+  Scissors,
+  Grid3X3,
+  List,
+  AlertCircle,
+  UserCheck,
+  Calendar,
+  Star,
+  Lock,
+  Crown,
+  Sparkles,
+  Award,
+} from "lucide-react";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "../components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -18,652 +51,696 @@ import {
 } from "../components/ui/table";
 import { useToast } from "../hooks/use-toast";
 import Context from "../Context/Context";
+import clsx from "clsx";
 
-// Custom Scissors Loader Component
-const ScissorsLoader = ({ text = "Loading..." }) => {
+// Scissors Loader Component
+const ScissorsLoader = ({ text = "Loading clients..." }) => {
   return (
-    <div className="flex flex-col items-center justify-center h-64 space-y-4">
+    <div className="flex flex-col items-center justify-center py-16 space-y-3">
       <div className="relative">
-        <div className="animate-pulse">
-          <Scissors className="h-16 w-16 text-stone-600 animate-bounce" />
-        </div>
-        <div className="absolute -top-2 -right-2 h-4 w-4 bg-stone-300 rounded-full animate-ping"></div>
-        <div className="absolute -bottom-2 -left-2 h-3 w-3 bg-stone-400 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
+        <Scissors className="h-9 w-9 text-blue-600 animate-bounce" />
+        <div className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-blue-400 rounded-full animate-ping" />
       </div>
-      <div className="text-center">
-        <p className="text-lg font-medium text-stone-700 animate-pulse">{text}</p>
-        <div className="flex items-center justify-center mt-2 space-x-1">
-          <div className="h-2 w-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="h-2 w-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="h-2 w-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-        </div>
-      </div>
+      <p className="text-xs font-semibold text-slate-600 animate-pulse">{text}</p>
     </div>
   );
 };
 
-// Custom Multi-Select Dropdown Component
-const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder = "Select options", disabled = false }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const dropdownRef = React.useRef(null);
+// Color coding for Service Badges
+const getServiceBadgeStyle = (service) => {
+  const s = String(service || "").toLowerCase();
+  if (s.includes("hair") || s.includes("cut") || s.includes("style")) {
+    return "bg-sky-50 text-sky-700 border-sky-200/80";
+  }
+  if (s.includes("color") || s.includes("highlight")) {
+    return "bg-purple-50 text-purple-700 border-purple-200/80";
+  }
+  if (s.includes("facial") || s.includes("skin") || s.includes("spa")) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200/80";
+  }
+  if (s.includes("nail") || s.includes("pedicure") || s.includes("manicure")) {
+    return "bg-pink-50 text-pink-700 border-pink-200/80";
+  }
+  if (s.includes("beard") || s.includes("shave")) {
+    return "bg-amber-50 text-amber-800 border-amber-200/80";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-200/80";
+};
 
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-        setSearchTerm("");
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const filteredOptions = options.filter(option =>
-    option.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleToggle = (value) => {
-    const newValues = selectedValues.includes(value)
-      ? selectedValues.filter(v => v !== value)
-      : [...selectedValues, value];
-    onChange(newValues);
+// Client Status Configuration & Color Coding Helper
+const getStatusConfig = (status) => {
+  const s = String(status || "active").toLowerCase();
+  const configs = {
+    vip: {
+      label: "VIP",
+      badgeClass: "bg-purple-50 text-purple-700 border-purple-200/90",
+      dotClass: "bg-purple-500",
+      ping: true,
+      borderLeft: "border-l-purple-500",
+      avatarRing: "ring-purple-400/40",
+      avatarGradient: "bg-gradient-to-tr from-purple-600 to-indigo-600",
+      kpiBorder: "border-purple-200 bg-purple-50/50 text-purple-700",
+      icon: Crown,
+    },
+    active: {
+      label: "Active",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200/90",
+      dotClass: "bg-emerald-500",
+      ping: true,
+      borderLeft: "border-l-emerald-500",
+      avatarRing: "ring-emerald-400/40",
+      avatarGradient: "bg-gradient-to-tr from-emerald-600 to-teal-600",
+      kpiBorder: "border-emerald-200 bg-emerald-50/50 text-emerald-700",
+      icon: UserCheck,
+    },
+    inactive: {
+      label: "Inactive",
+      badgeClass: "bg-slate-100 text-slate-600 border-slate-200/90",
+      dotClass: "bg-slate-400",
+      ping: false,
+      borderLeft: "border-l-slate-300",
+      avatarRing: "ring-slate-300/40",
+      avatarGradient: "bg-gradient-to-tr from-slate-500 to-slate-700",
+      kpiBorder: "border-slate-200 bg-slate-50/50 text-slate-600",
+      icon: Users,
+    },
   };
+  return configs[s] || configs.active;
+};
 
-  const handleRemove = (value) => {
-    const newValues = selectedValues.filter(v => v !== value);
-    onChange(newValues);
-  };
-
-  const handleSelectAll = () => {
-    onChange([...options]);
-  };
-
-  const handleClearAll = () => {
-    onChange([]);
-  };
-
-  const selectedCount = selectedValues.length;
+// Status Pill Component
+const StatusPill = ({ status, compact = false }) => {
+  const config = getStatusConfig(status);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <div
-        className={`w-full p-2 border border-stone-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-stone-500 focus:border-transparent ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-stone-300'}`}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        onKeyDown={(e) => {
-          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault();
-            setIsOpen(!isOpen);
-          }
-        }}
-        tabIndex={disabled ? -1 : 0}
-        role="combobox"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        aria-disabled={disabled}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex flex-wrap gap-1 flex-1">
-            {selectedCount === 0 ? (
-              <span className="text-stone-500">{placeholder}</span>
-            ) : (
-              selectedValues.map((value) => (
-                <span
-                  key={value}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-stone-100 text-stone-700 rounded text-sm"
-                >
-                  {value}
-                  <X
-                    className="h-3 w-3 cursor-pointer hover:text-red-500"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!disabled) handleRemove(value);
-                    }}
-                  />
-                </span>
-              ))
-            )}
-          </div>
-          <ChevronDown className={`h-4 w-4 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
-      </div>
-
-      {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-stone-200 rounded-md shadow-lg max-h-60 overflow-hidden">
-          <div className="p-2 border-b border-stone-200">
-            <Input
-              placeholder="Search services..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border-stone-200 text-sm"
-            />
-            <div className="flex gap-2 mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleSelectAll}
-                className="text-xs h-7 px-2"
-              >
-                Select All
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleClearAll}
-                className="text-xs h-7 px-2"
-              >
-                Clear All
-              </Button>
-            </div>
-          </div>
-          <div className="max-h-48 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
-              <div className="p-3 text-sm text-stone-500 text-center">No services found</div>
-            ) : (
-              filteredOptions.map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center p-2 hover:bg-stone-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedValues.includes(option)}
-                    onChange={() => handleToggle(option)}
-                    className="mr-3 h-4 w-4 text-stone-600 focus:ring-stone-500 border-stone-300 rounded"
-                  />
-                  <span className="text-sm text-stone-700">{option}</span>
-                </label>
-              ))
-            )}
-          </div>
-        </div>
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1.5 font-bold rounded-full border shrink-0 transition-colors",
+        compact ? "text-[10px] px-2 py-0.5" : "text-[11px] px-2.5 py-0.5",
+        config.badgeClass
       )}
-    </div>
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {config.ping && (
+          <span
+            className={clsx(
+              "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+              config.dotClass
+            )}
+          />
+        )}
+        <span
+          className={clsx(
+            "relative inline-flex rounded-full h-1.5 w-1.5",
+            config.dotClass
+          )}
+        />
+      </span>
+      <span>{config.label}</span>
+    </span>
   );
 };
 
-// Client Form Component
-const ClientForm = ({ client, services, onSubmit, onClose, isOpen, isLoading = false }) => {
-  const { toast } = useToast();  // Predefined services for now - will be replaced with API later
-
-  const predefinedServices = services.map(s => s.serviceName || s.name || s.ServiceName || s.Name).filter(Boolean);
-
-  // Helper function to convert epoch to date string for input
-  const epochToDateString = (epoch) => {
-    if (!epoch) return "";
-    if (typeof epoch === 'string' && epoch.includes('T')) {
-      // Already in ISO format
-      return epoch.split('T')[0];
+// Date Formatter Helper
+const formatLastVisitDate = (dateVal) => {
+  if (!dateVal) return "Never";
+  try {
+    if (typeof dateVal === "string" && dateVal.includes("T")) {
+      return new Date(dateVal).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
     }
-    if (typeof epoch === 'number') {
-      // Convert epoch to date string
-      return new Date(epoch * 1000).toISOString().split('T')[0];
+    if (typeof dateVal === "number") {
+      return new Date(dateVal * 1000).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
     }
-    return "";
-  };
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    }
+  } catch (e) {
+    console.warn("Date formatting error:", e);
+  }
+  return "Never";
+};
+
+// Epoch to input date string (YYYY-MM-DD)
+const toInputDateString = (val) => {
+  if (!val) return "";
+  try {
+    if (typeof val === "string" && val.includes("T")) {
+      return val.split("T")[0];
+    }
+    if (typeof val === "number") {
+      return new Date(val * 1000).toISOString().split("T")[0];
+    }
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split("T")[0];
+    }
+  } catch (e) {
+    console.warn("Date parse error:", e);
+  }
+  return "";
+};
+
+// Add & Edit Client Modal (Compact, Mobile-Optimized with locked email on edit)
+const ClientModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  title,
+  clientData = null,
+  availableServices = [],
+  isLoading = false,
+}) => {
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
-    clientName: "",
+    userName: "",
     phoneNumber: "",
     emailId: "",
+    gender: "Female",
+    status: "active",
+    totalVisits: 0,
+    loyaltyPoints: 0,
+    lastVisit: "",
     preferredServices: [],
     notes: "",
-    totalVisits: 0,
-    lastVisit: "",
-    loyaltyPoints: 0,
-    status: 'active',
   });
 
+  const [newService, setNewService] = useState("");
   const [errors, setErrors] = useState({});
 
-  // Validation functions
-  const validateName = (name) => {
-    if (!name || name.trim().length === 0) {
-      return "Client name is required";
+  useEffect(() => {
+    if (clientData) {
+      setFormData({
+        userName: clientData.userName || clientData.clientName || clientData.name || "",
+        phoneNumber: clientData.phoneNumber || clientData.phone || "",
+        emailId: clientData.emailId || clientData.email || "",
+        gender: clientData.gender || "Female",
+        status: String(clientData.status || "active").toLowerCase(),
+        totalVisits: Number(clientData.totalVisits) || 0,
+        loyaltyPoints: Number(clientData.loyaltyPoints) || 0,
+        lastVisit: toInputDateString(clientData.lastVisit),
+        preferredServices: Array.isArray(clientData.preferredServices)
+          ? clientData.preferredServices
+          : clientData.preferredServices
+          ? [clientData.preferredServices]
+          : [],
+        notes: clientData.notes || "",
+      });
+    } else {
+      setFormData({
+        userName: "",
+        phoneNumber: "",
+        emailId: "",
+        gender: "Female",
+        status: "active",
+        totalVisits: 0,
+        loyaltyPoints: 0,
+        lastVisit: new Date().toISOString().split("T")[0],
+        preferredServices: [],
+        notes: "",
+      });
     }
-    if (name.trim().length < 2) {
-      return "Client name must be at least 2 characters long";
-    }
-    if (name.trim().length > 50) {
-      return "Client name must be less than 50 characters";
-    }
-    if (!/^[a-zA-Z\s.'-]+$/.test(name.trim())) {
-      return "Client name can only contain letters, spaces, periods, apostrophes, and hyphens";
-    }
-    return "";
-  };
-
-  const validatePhoneNumber = (phone) => {
-    if (!phone || phone.trim().length === 0) {
-      return "Phone number is required";
-    }
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-    if (!phoneRegex.test(cleanPhone)) {
-      return "Please enter a valid phone number";
-    }
-    if (cleanPhone.length < 10) {
-      return "Phone number must be at least 10 digits";
-    }
-    return "";
-  };
-
-  const validateEmail = (email) => {
-    if (email && email.trim().length > 0) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        return "Please enter a valid email address";
-      }
-      if (email.trim().length > 100) {
-        return "Email address must be less than 100 characters";
-      }
-    }
-    return "";
-  };
-
-  const validateVisits = (visits) => {
-    if (visits !== null && visits !== undefined && visits !== '') {
-      const numVisits = parseInt(visits);
-      if (isNaN(numVisits) || numVisits < 0) {
-        return "Total visits must be a non-negative number";
-      }
-      if (numVisits > 10000) {
-        return "Total visits seems too high (maximum 10,000)";
-      }
-    }
-    return "";
-  };
-
-  const validateLoyaltyPoints = (points) => {
-    if (points !== null && points !== undefined && points !== '') {
-      const numPoints = parseInt(points);
-      if (isNaN(numPoints) || numPoints < 0) {
-        return "Loyalty points must be a non-negative number";
-      }
-      if (numPoints > 100000) {
-        return "Loyalty points seems too high (maximum 100,000)";
-      }
-    }
-    return "";
-  };
+    setErrors({});
+    setNewService("");
+  }, [clientData, isOpen]);
 
   const validateForm = () => {
-    const newErrors = {};
-    
-    newErrors.clientName = validateName(formData.clientName);
-    newErrors.phoneNumber = validatePhoneNumber(formData.phoneNumber);
-    newErrors.emailId = validateEmail(formData.emailId);
-    newErrors.totalVisits = validateVisits(formData.totalVisits);
-    newErrors.loyaltyPoints = validateLoyaltyPoints(formData.loyaltyPoints);
-
-    // Remove empty error messages
-    Object.keys(newErrors).forEach(key => {
-      if (!newErrors[key]) {
-        delete newErrors[key];
+    const errs = {};
+    if (!formData.userName || formData.userName.trim().length < 2) {
+      errs.userName = "Client name is required (min 2 chars)";
+    }
+    if (formData.phoneNumber && formData.phoneNumber.trim().length > 0) {
+      const cleanPhone = formData.phoneNumber.replace(/[\s\-\(\)]/g, "");
+      if (cleanPhone.length < 10) {
+        errs.phoneNumber = "Phone number should be at least 10 digits";
       }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    }
+    if (formData.emailId && formData.emailId.trim().length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.emailId.trim())) {
+        errs.emailId = "Invalid email format";
+      }
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  // Set default values for new clients or update form data when editing
-  React.useEffect(() => {
-    if (isOpen) {
-      if (client) {
-        // Editing existing client - populate form with client data
-        setFormData({
-          clientName: client?.clientName || client?.ClientName || client?.name || "",
-          phoneNumber: client?.phoneNumber || client?.PhoneNumber || client?.phone || "",
-          emailId: client?.emailId || client?.EmailId || client?.email || "",
-          preferredServices: client?.preferredServices || client?.PreferredServices || client?.preferredServices || [],
-          notes: client?.notes || "",
-          totalVisits: client?.totalVisits || client?.TotalVisits || client?.totalVisits || 0,
-          lastVisit: epochToDateString(client?.lastVisit || client?.LastVisit || client?.lastVisit) || "",
-          loyaltyPoints: client?.loyaltyPoints || client?.LoyaltyPoints || client?.loyaltyPoints || 0,
-          status: client?.status || 'active',
-        });
-      } else {
-        // Adding new client - set default values
-        setFormData({
-          clientName: "",
-          phoneNumber: "",
-          emailId: "",
-          preferredServices: [],
-          notes: "",
-          totalVisits: 0,
-          lastVisit: new Date().toISOString().split('T')[0], // Today's date
-          loyaltyPoints: 0,
-          status: 'active',
-        });
-      }
-      // Clear any existing errors when modal opens
-      setErrors({});
-    }
-  }, [client, isOpen]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (isLoading) return; // Prevent double submission
-    
-    // Validate form
-    if (!validateForm()) {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please fix the errors in the form before submitting.",
-      });
-      return;
-    }
-    
-    // Convert lastVisit to epoch format if it exists
-    const processedData = {
-      ...formData,
-      lastVisit: formData.lastVisit ? Math.floor(new Date(formData.lastVisit).getTime() / 1000) : null
-    };
-    
-    onSubmit(processedData);
-  };
-
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    let processedValue = value;
-    
-    if (name === 'totalVisits' || name === 'loyaltyPoints') {
-      processedValue = parseInt(value) || 0;
-    } else if (name === 'lastVisit' && value) {
-      // Store the date as-is for display, will convert to epoch on submit
-      processedValue = value;
+    let finalValue = value;
+    if (name === "totalVisits" || name === "loyaltyPoints") {
+      finalValue = Math.max(0, parseInt(value, 10) || 0);
     }
-    
-    setFormData({
-      ...formData,
-      [name]: processedValue,
-    });
 
-    // Clear error for this field when user starts typing
+    setFormData((prev) => ({ ...prev, [name]: finalValue }));
     if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
       });
     }
   };
 
-  const handleSelectChange = (value, fieldName) => {
-    setFormData(prev => ({
+  const handleAddService = (srv) => {
+    const target = (srv || newService).trim();
+    if (!target) return;
+    if (!formData.preferredServices.includes(target)) {
+      setFormData((prev) => ({
+        ...prev,
+        preferredServices: [...prev.preferredServices, target],
+      }));
+    }
+    setNewService("");
+  };
+
+  const handleRemoveService = (srv) => {
+    setFormData((prev) => ({
       ...prev,
-      [fieldName]: value
+      preferredServices: prev.preferredServices.filter((s) => s !== srv),
     }));
   };
 
-  const resetForm = () => {
-    setFormData({
-      clientName: "",
-      phoneNumber: "",
-      emailId: "",
-      preferredServices: [],
-      notes: "",
-      totalVisits: 0,
-      lastVisit: new Date().toISOString().split('T')[0],
-      loyaltyPoints: 0,
-      status: 'active',
-    });
-    setErrors({});
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isLoading) return;
 
-  const handleModalChange = (open) => {
-    if (!open) {
-      resetForm();
+    if (!validateForm()) {
+      toast({
+        variant: "destructive",
+        title: "Required Field Missing",
+        description: "Please check client name.",
+      });
+      return;
+    }
+
+    try {
+      const cleanPhone = formData.phoneNumber
+        ? String(formData.phoneNumber).replace(/[^0-9+]/g, "").trim()
+        : "";
+      const cleanName = String(formData.userName || "").trim();
+      const cleanEmail = String(formData.emailId || "").trim().toLowerCase();
+
+      const payload = {
+        userName: cleanName,
+        phoneNumber: cleanPhone || null,
+        emailId: cleanEmail || null,
+        gender: formData.gender,
+        status: formData.status,
+        totalVisits: Number(formData.totalVisits) || 0,
+        loyaltyPoints: Number(formData.loyaltyPoints) || 0,
+        lastVisit: formData.lastVisit
+          ? Math.floor(new Date(formData.lastVisit).getTime() / 1000)
+          : null,
+        preferredServices: formData.preferredServices,
+        notes: formData.notes.trim(),
+      };
+
+      if (clientData) {
+        payload.cognitoId =
+          clientData.cognitoId || clientData.clientId || clientData.id;
+      }
+
+      await onSubmit(payload);
+      onClose();
+    } catch (err) {
+      console.error("Client modal submission error:", err);
     }
   };
 
+  // Predefined service options
+  const serviceOptions = useMemo(() => {
+    const defaultList = [
+      "Hair Cut",
+      "Hair Color",
+      "Beard Styling",
+      "Facial Glow",
+      "Hair Spa",
+      "Keratin Treatment",
+      "Manicure",
+      "Pedicure",
+    ];
+    const fromApi = (availableServices || [])
+      .map((s) => s.serviceName || s.name || s.ServiceName || s.Name)
+      .filter(Boolean);
+
+    return Array.from(new Set([...fromApi, ...defaultList]));
+  }, [availableServices]);
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { handleModalChange(open); if (!open) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-stone-800">
-            {client ? "Edit Client" : "Add New Client"}
-          </DialogTitle>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {/* Sleek, compact modal that never overwhelms mobile screen */}
+      <DialogContent className="w-[92vw] sm:w-[480px] max-h-[84vh] p-0 rounded-2xl overflow-hidden bg-white shadow-xl border border-slate-200 flex flex-col">
+        {/* Compact Header */}
+        <DialogHeader className="shrink-0 px-4 py-3 border-b border-slate-100 bg-white">
+          <div className="flex items-center gap-2.5 pr-6">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 border border-blue-100">
+              <UserCheck className="w-4 h-4" />
+            </div>
+            <div className="text-left min-w-0">
+              <DialogTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                {title}
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-slate-500 mt-0.5">
+                Manage client profile, contact details, loyalty & visit history
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Client Name *</Label>
+        {/* Compact Scrollable Body */}
+        <form
+          id="compact-client-form"
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 overscroll-contain text-xs"
+        >
+          {/* Row 1: Name & Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label htmlFor="userName" className="text-[11px] font-bold text-slate-700">
+                Client Name <span className="text-rose-500">*</span>
+              </Label>
               <Input
-                id="clientName"
-                name="clientName"
-                value={formData.clientName}
-                onChange={handleChange}
-                required
-                placeholder="Enter client name"
+                id="userName"
+                name="userName"
+                value={formData.userName}
+                onChange={handleInputChange}
+                placeholder="e.g. Priya Sharma"
                 disabled={isLoading}
-                className={errors.clientName ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                className={clsx(
+                  "rounded-lg text-xs h-8.5 transition-all",
+                  errors.userName
+                    ? "border-rose-400 focus:ring-rose-100"
+                    : "border-slate-200 focus:border-blue-500"
+                )}
               />
-              {errors.clientName && (
-                <div className="flex items-center gap-1 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{errors.clientName}</span>
-                </div>
+              {errors.userName && (
+                <p className="text-[10px] text-rose-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                  <span>{errors.userName}</span>
+                </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone Number *</Label>
+
+            <div className="space-y-1">
+              <Label htmlFor="phoneNumber" className="text-[11px] font-bold text-slate-700">
+                Phone Number <span className="text-slate-400 font-normal">(Optional)</span>
+              </Label>
               <Input
                 id="phoneNumber"
                 name="phoneNumber"
                 value={formData.phoneNumber}
-                onChange={handleChange}
-                required
-                placeholder="Enter phone number"
+                onChange={handleInputChange}
+                placeholder="e.g. 9876543210 (Optional)"
                 disabled={isLoading}
-                className={errors.phoneNumber ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                className={clsx(
+                  "rounded-lg text-xs h-8.5 transition-all",
+                  errors.phoneNumber
+                    ? "border-rose-400 focus:ring-rose-100"
+                    : "border-slate-200 focus:border-blue-500"
+                )}
               />
               {errors.phoneNumber && (
-                <div className="flex items-center gap-1 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
+                <p className="text-[10px] text-rose-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-2.5 h-2.5 shrink-0" />
                   <span>{errors.phoneNumber}</span>
-                </div>
+                </p>
               )}
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="emailId">Email ID</Label>
+
+          {/* Row 2: Email & Gender (Email is permanently locked on edit) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label htmlFor="emailId" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>Email Address</span>
+                {clientData && (
+                  <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Locked</span>
+                  </span>
+                )}
+              </Label>
               <Input
                 id="emailId"
                 name="emailId"
                 type="email"
                 value={formData.emailId}
-                onChange={handleChange}
-                placeholder="Enter email address (optional)"
-                disabled={isLoading}
-                className={errors.emailId ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                onChange={handleInputChange}
+                placeholder="e.g. priya@example.com"
+                disabled={isLoading || Boolean(clientData)}
+                readOnly={Boolean(clientData)}
+                className={clsx(
+                  "rounded-lg text-xs h-8.5 transition-all",
+                  clientData
+                    ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200 select-none"
+                    : errors.emailId
+                    ? "border-rose-400 focus:ring-rose-100"
+                    : "border-slate-200 focus:border-blue-500"
+                )}
               />
-              {errors.emailId && (
-                <div className="flex items-center gap-1 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
+              {errors.emailId && !clientData && (
+                <p className="text-[10px] text-rose-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-2.5 h-2.5 shrink-0" />
                   <span>{errors.emailId}</span>
-                </div>
+                </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => handleSelectChange(value, "status")} disabled={isLoading}>
-                <SelectTrigger>
+
+            <div className="space-y-1">
+              <Label htmlFor="gender" className="text-[11px] font-bold text-slate-700">
+                Gender
+              </Label>
+              <Select
+                value={formData.gender}
+                onValueChange={(val) =>
+                  setFormData((prev) => ({ ...prev, gender: val }))
+                }
+                disabled={isLoading}
+              >
+                <SelectTrigger className="rounded-lg text-xs h-8.5 border-slate-200">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="vip">VIP</SelectItem>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="totalVisits">Total Visits</Label>
-              <Input
-                id="totalVisits"
-                name="totalVisits"
-                type="number"
-                value={formData.totalVisits}
-                onChange={handleChange}
-                placeholder="0"
-                min="0"
+          {/* Row 3: Status & Last Visit Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label htmlFor="status" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>Client Status</span>
+                {formData.status === "vip" && (
+                  <span className="text-[9px] font-extrabold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200">
+                    VIP Member
+                  </span>
+                )}
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(val) =>
+                  setFormData((prev) => ({ ...prev, status: val }))
+                }
                 disabled={isLoading}
-                className={errors.totalVisits ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-              />
-              {errors.totalVisits && (
-                <div className="flex items-center gap-1 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{errors.totalVisits}</span>
-                </div>
-              )}
+              >
+                <SelectTrigger className="rounded-lg text-xs h-8.5 border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="active">Active (Regular)</SelectItem>
+                  <SelectItem value="vip">VIP (High-Value)</SelectItem>
+                  <SelectItem value="inactive">Inactive / Lapsed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastVisit">Last Visit Date</Label>
+
+            <div className="space-y-1">
+              <Label htmlFor="lastVisit" className="text-[11px] font-bold text-slate-700">
+                Last Visit Date
+              </Label>
               <Input
                 id="lastVisit"
                 name="lastVisit"
                 type="date"
-                value={formData.lastVisit ? (formData.lastVisit.includes('T') ? formData.lastVisit.split('T')[0] : formData.lastVisit) : ''}
-                onChange={handleChange}
+                value={formData.lastVisit}
+                onChange={handleInputChange}
                 disabled={isLoading}
+                className="rounded-lg text-xs h-8.5 border-slate-200"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="loyaltyPoints">Loyalty Points</Label>
+          </div>
+
+          {/* Row 4: Total Visits & Loyalty Points */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label htmlFor="totalVisits" className="text-[11px] font-bold text-slate-700">
+                Total Visits
+              </Label>
+              <Input
+                id="totalVisits"
+                name="totalVisits"
+                type="number"
+                min="0"
+                max="10000"
+                value={formData.totalVisits}
+                onChange={handleInputChange}
+                placeholder="0"
+                disabled={isLoading}
+                className="rounded-lg text-xs h-8.5 border-slate-200"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="loyaltyPoints" className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>Loyalty Points</span>
+                <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
+                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                  Rewards
+                </span>
+              </Label>
               <Input
                 id="loyaltyPoints"
                 name="loyaltyPoints"
                 type="number"
-                value={formData.loyaltyPoints}
-                onChange={handleChange}
-                placeholder="0"
                 min="0"
+                max="100000"
+                value={formData.loyaltyPoints}
+                onChange={handleInputChange}
+                placeholder="0"
                 disabled={isLoading}
-                className={errors.loyaltyPoints ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                className="rounded-lg text-xs h-8.5 border-slate-200"
               />
-              {errors.loyaltyPoints && (
-                <div className="flex items-center gap-1 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{errors.loyaltyPoints}</span>
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Preferred Services</Label>
-            <MultiSelectDropdown
-              options={predefinedServices}
-              selectedValues={Array.isArray(formData.preferredServices) ? formData.preferredServices : []}
-              onChange={(selectedServices) => {
-                setFormData({
-                  ...formData,
-                  preferredServices: selectedServices
-                });
-              }}
-              placeholder="Select preferred services"
-              disabled={isLoading}
-            />
-            <p className="text-xs text-muted-foreground">Select multiple services (searchable)</p>
+          {/* Row 5: Preferred Services */}
+          <div className="space-y-1.5 pt-1">
+            <Label className="text-[11px] font-bold text-slate-700">
+              Preferred Services
+            </Label>
+            <div className="flex gap-1.5">
+              <Input
+                value={newService}
+                onChange={(e) => setNewService(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddService();
+                  }
+                }}
+                placeholder="Add custom service preference..."
+                className="flex-1 rounded-lg text-xs h-8 border-slate-200"
+                disabled={isLoading}
+              />
+              <Button
+                type="button"
+                onClick={() => handleAddService()}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold px-3 h-8 shrink-0 cursor-pointer"
+                disabled={isLoading}
+              >
+                Add
+              </Button>
+            </div>
+
+            {/* Selected Preferred Services */}
+            {formData.preferredServices.length > 0 && (
+              <div className="flex flex-wrap gap-1 p-1.5 rounded-lg bg-slate-50 border border-slate-200/80 max-h-16 overflow-y-auto">
+                {formData.preferredServices.map((srv, index) => (
+                  <span
+                    key={index}
+                    className={clsx(
+                      "text-[10px] font-bold py-0.5 px-2 rounded-md flex items-center gap-1 border",
+                      getServiceBadgeStyle(srv)
+                    )}
+                  >
+                    <span>{srv}</span>
+                    <X
+                      className="h-2.5 w-2.5 cursor-pointer opacity-70 hover:opacity-100"
+                      onClick={() => handleRemoveService(srv)}
+                    />
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Quick chips */}
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {serviceOptions.slice(0, 8).map((srv) => {
+                const isSelected = formData.preferredServices.includes(srv);
+                return (
+                  <button
+                    key={srv}
+                    type="button"
+                    onClick={() => handleAddService(srv)}
+                    disabled={isSelected || isLoading}
+                    className={clsx(
+                      "text-[10px] px-2 py-0.5 rounded-md border transition-all cursor-pointer font-medium",
+                      isSelected
+                        ? "bg-slate-100 text-slate-400 border-slate-200 cursor-default opacity-50"
+                        : "bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 border-slate-200"
+                    )}
+                  >
+                    + {srv}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+          {/* Row 6: Notes */}
+          <div className="space-y-1">
+            <Label htmlFor="notes" className="text-[11px] font-bold text-slate-700">
+              Client Notes & Preferences (Optional)
+            </Label>
             <Textarea
               id="notes"
               name="notes"
               value={formData.notes}
-              onChange={handleChange}
-              rows={3}
-              placeholder="Additional notes about the client..."
-              className="resize-none"
+              onChange={handleInputChange}
+              rows={2}
+              placeholder="e.g. Prefers organic products, sensitive scalp..."
+              className="resize-none rounded-lg text-xs border-slate-200 py-1.5 h-12"
               disabled={isLoading}
             />
           </div>
-
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => { resetForm(); onClose(); }} disabled={isLoading}>
-              Cancel
-            </Button>
-            <Button type="button" variant="secondary" onClick={resetForm} disabled={isLoading}>
-              Clear
-            </Button>
-            <Button type="submit" className="bg-stone-600 hover:bg-stone-700 text-white" disabled={isLoading}>
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                  {client ? 'Updating...' : 'Adding...'}
-                </div>
-              ) : (
-                client ? "Update Client" : "Add Client"
-              )}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
-// Delete Confirmation Dialog Component
-const DeleteConfirmDialog = ({ clientId, onConfirm, onCancel, isOpen, isLoading = false }) => {
-  return (
-    <Dialog open={isOpen} onOpenChange={onCancel}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-              <Trash2 className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold text-stone-800">Delete Client</DialogTitle>
-              <DialogDescription className="text-sm text-stone-600">
-                This action cannot be undone
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-        
-        <div className="py-4">
-          <p className="text-stone-700">
-            Are you sure you want to delete this client? This will permanently remove their information from the system.
-          </p>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={() => onConfirm(clientId)}
-            variant="destructive"
-            className="bg-red-600 hover:bg-red-700 text-white"
+        {/* Compact Sticky Footer */}
+        <DialogFooter className="shrink-0 px-4 py-2.5 border-t border-slate-100 bg-slate-50 flex flex-row items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 sm:flex-initial rounded-lg border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold h-8 px-3 cursor-pointer"
             disabled={isLoading}
           >
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                Deleting...
-              </div>
-            ) : (
-              'Delete Client'
-            )}
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="compact-client-form"
+            className="flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold h-8 px-4 cursor-pointer"
+            disabled={isLoading}
+          >
+            {isLoading ? "Saving..." : clientData ? "Update Client" : "Add Client"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -671,402 +748,878 @@ const DeleteConfirmDialog = ({ clientId, onConfirm, onCancel, isOpen, isLoading 
   );
 };
 
-const ClientsPage = () => {
+// Delete Confirmation Modal
+const DeleteConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  clientName,
+  isLoading = false,
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[90vw] sm:w-[400px] p-4 rounded-2xl shadow-xl border border-slate-200">
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <DialogTitle className="text-sm font-bold text-slate-900">
+                Delete Client
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-slate-500">
+                Permanently remove from directory
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="py-2.5 text-xs text-slate-600">
+          Delete <strong className="text-slate-900 font-bold">{clientName}</strong>? This action cannot be undone.
+        </div>
+
+        <DialogFooter className="flex flex-row items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 sm:flex-initial rounded-lg border-slate-200 text-slate-600 text-xs font-semibold h-8 px-3 cursor-pointer"
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 sm:flex-initial bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold h-8 px-3 cursor-pointer"
+            disabled={isLoading}
+          >
+            {isLoading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Delete All Clients Modal
+const DeleteAllConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  count = 0,
+  isLoading = false,
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[90vw] sm:w-[400px] p-4 rounded-2xl shadow-xl border border-rose-200">
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-300">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <DialogTitle className="text-sm font-bold text-slate-900">
+                Delete All Clients
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-rose-600 font-medium">
+                Reset directory ({count} clients)
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="py-2.5 text-xs text-slate-600 space-y-1.5">
+          <p>
+            Permanently delete all <strong className="text-slate-900 font-bold">{count} clients</strong>?
+          </p>
+          <p className="text-slate-500 text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-200">
+            This wipes all client records so you can test adding fresh clients.
+          </p>
+        </div>
+
+        <DialogFooter className="flex flex-row items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="flex-1 sm:flex-initial rounded-lg border-slate-200 text-slate-600 text-xs font-semibold h-8 px-3 cursor-pointer"
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 sm:flex-initial bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold h-8 px-3 cursor-pointer"
+            disabled={isLoading}
+          >
+            {isLoading ? "Deleting All..." : "Yes, Delete All"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default function ClientsPage() {
+  const {
+    clients = [],
+    fetchClients,
+    createClient,
+    updateClient,
+    deleteClient,
+    services = [],
+    loader,
+  } = useContext(Context);
+
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
+
+  // Manual view toggle: 'auto' | 'table' | 'grid'
+  const [viewMode, setViewMode] = useState("auto");
+
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  const { toast } = useToast();
-  
-  const { 
-    clients, 
-    fetchClients, 
-    createClient, 
-    updateClient, 
-    deleteClient,
-    services,
-    loader 
-  } = React.useContext(Context);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
-  // Debug clients data
+  // Initial load
   useEffect(() => {
-    console.log("Clients data received:", clients);
-  }, [clients]);
-
-
-  // Helper function to format last visit date
-  const formatLastVisit = (lastVisit) => {
-    if (!lastVisit) return 'Never';
-    
-    if (typeof lastVisit === 'string' && lastVisit.includes('T')) {
-      // ISO format
-      return new Date(lastVisit).toLocaleDateString();
+    if (fetchClients) {
+      fetchClients();
     }
-    
-    if (typeof lastVisit === 'number') {
-      // Epoch format
-      return new Date(lastVisit * 1000).toLocaleDateString();
-    }
-    
-    return 'Never';
-  };
+  }, []);
 
-  const getClientStatus = (client) => {
-    // Determine status based on client data
-    if (client.status) {
-      return client.status;
-    }
-    
-    // If no status field, determine based on other data
-    const totalVisits = client.totalVisits || client.TotalVisits || client.totalVisits || 0;
-    const loyaltyPoints = client.loyaltyPoints || client.LoyaltyPoints || client.loyaltyPoints || 0;
-    
-    if (totalVisits >= 10 || loyaltyPoints >= 100) {
-      return 'vip';
-    } else if (totalVisits > 0) {
-      return 'active';
-    } else {
-      return 'inactive';
-    }
-  };
+  const safeClients = Array.isArray(clients) ? clients : [];
 
-  const getStatusBadge = (client) => {
-    const statusConfig = {
-      active: { variant: "default", className: "bg-green-100 text-green-800" },
-      inactive: { variant: "secondary", className: "bg-gray-100 text-gray-800" },
-      vip: { variant: "default", className: "bg-purple-100 text-purple-800" },
-    };
-    
-    const clientStatus = getClientStatus(client);
-    const config = statusConfig[clientStatus] || statusConfig.active;
-    
-    return (
-      <Badge variant={config.variant} className={config.className}>
-        {clientStatus.toUpperCase()}
-      </Badge>
-    );
-  };
+  // Filtered client list by clientName, phone, email, status, or preferred services
+  const filteredClients = useMemo(() => {
+    const q = String(searchTerm || "").toLowerCase().trim();
+    if (!q) return safeClients;
 
-  const filteredClients = (clients || []).filter(client =>
-    (client.clientName || client.ClientName || client.name)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (client.phoneNumber || client.PhoneNumber || client.phone)?.includes(searchTerm) ||
-    (client.emailId || client.EmailId || client.email)?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    return safeClients.filter((c) => {
+      if (!c) return false;
+      const name = String(c.userName || c.clientName || c.name || "").toLowerCase();
+      const phone = String(c.phoneNumber || c.phone || "").toLowerCase();
+      const email = String(c.emailId || c.email || "").toLowerCase();
+      const status = String(c.status || "active").toLowerCase();
+      const srvList = Array.isArray(c.preferredServices)
+        ? c.preferredServices.join(" ").toLowerCase()
+        : String(c.preferredServices || "").toLowerCase();
 
-  const handleAddClient = () => {
-    setShowAddForm(true);
-    setEditingClient(null);
-  };
+      return (
+        name.includes(q) ||
+        phone.includes(q) ||
+        email.includes(q) ||
+        status.includes(q) ||
+        srvList.includes(q)
+      );
+    });
+  }, [safeClients, searchTerm]);
 
-  const handleEditClient = (client) => {
-    setEditingClient(client);
-    setShowAddForm(true);
-  };
-
-  const handleCreateClient = async (clientData) => {
+  // Handlers
+  const handleCreateClient = async (payload) => {
     if (isCreating) return;
-    
     try {
       setIsCreating(true);
-      await createClient(clientData);
-      await fetchClients(); // Ensure clients are fetched after creation
-      setShowAddForm(false);
-      setEditingClient(null);
-      // Refresh the client list
-      await fetchClients();
-      
-      toast({
-        variant: "success",
-        title: "Success!",
-        description: "Client has been added successfully.",
-      });
-    } catch (error) {
-      console.error("Error creating client:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to add client. Please try again.",
-      });
+      await createClient(payload);
+      setShowAddModal(false);
+    } catch (err) {
+      console.error("Create client error:", err);
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleUpdateClient = async (clientData) => {
+  const handleUpdateClient = async (payload) => {
     if (isUpdating) return;
-    
     try {
       setIsUpdating(true);
-      await updateClient(editingClient.clientId || editingClient.ClientId || editingClient.id, clientData);
-      setShowAddForm(false);
+      const targetId =
+        payload.cognitoId ||
+        payload.clientId ||
+        editingClient?.cognitoId ||
+        editingClient?.clientId ||
+        editingClient?.id;
+      await updateClient(targetId, payload);
+      setShowEditModal(false);
       setEditingClient(null);
-      // Refresh the client list
-      await fetchClients();
-      
-      toast({
-        variant: "success",
-        title: "Success!",
-        description: "Client has been updated successfully.",
-      });
-    } catch (error) {
-      console.error("Error updating client:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update client. Please try again.",
-      });
+    } catch (err) {
+      console.error("Update client error:", err);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleDeleteClient = async (clientId) => {
-    if (isDeleting) return;
-    
+  const handleConfirmDelete = async () => {
+    if (!clientToDelete || isDeleting) return;
     try {
       setIsDeleting(true);
-      await deleteClient(clientId);
-      setShowDeleteConfirm(null);
-      // Refresh the client list
-      await fetchClients();
-      
-      toast({
-        variant: "success",
-        title: "Success!",
-        description: "Client has been deleted successfully.",
-      });
-    } catch (error) {
-      console.error("Error deleting client:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete client. Please try again.",
-      });
+      const targetId =
+        clientToDelete.cognitoId ||
+        clientToDelete.clientId ||
+        clientToDelete.id;
+      await deleteClient(targetId);
+      setShowDeleteConfirm(false);
+      setClientToDelete(null);
+    } catch (err) {
+      console.error("Delete client error:", err);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleFormSubmit = async (clientData) => {
-    if (editingClient) {
-      await handleUpdateClient(clientData);
-    } else {
-      await handleCreateClient(clientData);
+  const handleDeleteAllClients = async () => {
+    if (isDeletingAll || clients.length === 0) return;
+    try {
+      setIsDeletingAll(true);
+      toast({
+        title: "Deleting all clients...",
+        description: `Processing ${clients.length} client deletions.`,
+      });
+
+      for (const c of clients) {
+        const targetId = c.cognitoId || c.clientId || c.id;
+        if (targetId) {
+          try {
+            await deleteClient(targetId);
+          } catch (e) {
+            console.error("Failed to delete client:", targetId, e);
+          }
+        }
+      }
+
+      await fetchClients();
+      setShowDeleteAllConfirm(false);
+      toast({
+        variant: "success",
+        title: "All Clients Deleted",
+        description: "Client directory has been reset. You can now add new clients.",
+      });
+    } catch (err) {
+      console.error("Delete all clients error:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete all clients.",
+      });
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
+  // KPI Metrics
+  const totalCount = safeClients.length;
+  const vipCount = safeClients.filter(
+    (c) => String(c?.status || "").toLowerCase() === "vip"
+  ).length;
+  const activeCount = safeClients.filter(
+    (c) => String(c?.status || "active").toLowerCase() === "active"
+  ).length;
+  const inactiveCount = safeClients.filter(
+    (c) => String(c?.status || "").toLowerCase() === "inactive"
+  ).length;
+
   return (
-    <div className="poppins-regular space-y-6 p-6">
-      {/* Header - Static */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-stone-800">Client Management</h1>
-          <p className="text-stone-600">Manage your salon clients and their information</p>
+    <div className="p-3 sm:p-4 lg:p-5 space-y-3 font-sans bg-[#f8fafc] min-h-full text-slate-800">
+      {/* 1. Compact Header Bar: Title + Actions */}
+      <div className="bg-white px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">
+            Clients & Members
+          </h1>
+          <span className="text-[11px] font-semibold text-slate-400 hidden md:inline">
+            ({totalCount} registered • {vipCount} {vipCount === 1 ? "VIP" : "VIPs"})
+          </span>
         </div>
-        <Button 
-          className="bg-stone-600 hover:bg-stone-700 text-white"
-          onClick={handleAddClient}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Client
-        </Button>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+         
+
+          <Button
+            size="sm"
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs text-xs h-8 px-3 cursor-pointer transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            <span>Add Client</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Search and Stats - Static */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-stone-400 h-4 w-4" />
+      {/* 2. Color-Coded Mini KPI Cards: Symmetrical 4-Card Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {/* KPI 1: Total Clients */}
+        <div className="bg-white rounded-xl p-2.5 border border-slate-200/90 shadow-2xs flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 border border-indigo-100">
+            <Users className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-base font-extrabold text-slate-900 leading-none">
+              {totalCount}
+            </div>
+            <div className="text-[10px] font-semibold text-slate-500 mt-0.5 truncate flex items-center gap-1">
+              <span>Total Clients</span>
+              {vipCount > 0 && (
+                <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 rounded border border-purple-200">
+                  {vipCount} VIP
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 2: Active Clients */}
+        <div className="bg-white rounded-xl p-2.5 border border-emerald-200 shadow-2xs flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0 border border-emerald-200">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <div className="text-base font-extrabold text-emerald-700 leading-none">
+              {activeCount}
+            </div>
+            <div className="text-[10px] font-semibold text-emerald-600 mt-0.5 truncate">
+              Active Regulars
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 3: VIP Clients */}
+        <div className="bg-white rounded-xl p-2.5 border border-purple-200 shadow-2xs flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold shrink-0 border border-purple-200">
+            <Crown className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-base font-extrabold text-purple-700 leading-none">
+              {vipCount}
+            </div>
+            <div className="text-[10px] font-semibold text-purple-600 mt-0.5 truncate">
+              VIP Members
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 4: Inactive / Lapsed */}
+        <div className="bg-white rounded-xl p-2.5 border border-slate-200/90 shadow-2xs flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center font-bold shrink-0 border border-slate-200">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-base font-extrabold text-slate-700 leading-none">
+              {inactiveCount}
+            </div>
+            <div className="text-[10px] font-semibold text-slate-500 mt-0.5 truncate">
+              Inactive / Lapsed
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Search & View Switcher Bar */}
+      <div className="flex items-center justify-between gap-2">
+        {/* Search Input */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-3.5 w-3.5" />
           <Input
-            placeholder="Search clients by name, phone, or email..."
+            placeholder="Search name, phone, email, or service..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 border-stone-200"
+            className="pl-8 pr-7 bg-white border-slate-200/90 rounded-xl text-xs h-8.5 shadow-2xs"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Badge variant="secondary" className="bg-stone-100 text-stone-800">
-            Total: {loader ? '...' : (clients?.length || 0)}
-          </Badge>
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            Active: {loader ? '...' : (clients || []).filter(c => getClientStatus(c) === 'active').length}
-          </Badge>
-          <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-            VIP: {loader ? '...' : (clients || []).filter(c => getClientStatus(c) === 'vip').length}
-          </Badge>
+
+        {/* View Mode Toggle: Auto / Grid / Table */}
+        <div className="flex items-center bg-white border border-slate-200/90 rounded-xl p-0.5 shadow-2xs shrink-0">
+          <button
+            onClick={() => setViewMode("table")}
+            className={clsx(
+              "p-1 rounded-lg text-xs font-semibold flex items-center transition-all cursor-pointer",
+              viewMode === "table"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+            title="Table View (Desktop)"
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={clsx(
+              "p-1 rounded-lg text-xs font-semibold flex items-center transition-all cursor-pointer",
+              viewMode === "grid"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+            title="Card View (Mobile/Tablet)"
+          >
+            <Grid3X3 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setViewMode("auto")}
+            className={clsx(
+              "px-1.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer",
+              viewMode === "auto"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+            title="Auto: Table on desktop, Cards on mobile"
+          >
+            Auto
+          </button>
         </div>
       </div>
 
-      {/* Clients Table - Dynamic Content */}
-      <Card className="border-stone-200">
-        <CardHeader>
-          <CardTitle className="text-stone-800">Client List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loader ? (
-            <div className="flex justify-center py-12">
-              <ScissorsLoader text="Loading clients..." />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-stone-600">Client</TableHead>
-                  <TableHead className="text-stone-600">Contact</TableHead>
-                  <TableHead className="text-stone-600">Last Visit</TableHead>
-                  <TableHead className="text-stone-600">Visits</TableHead>
-                  <TableHead className="text-stone-600">Loyalty Points</TableHead>
-                  <TableHead className="text-stone-600">Status</TableHead>
-                  <TableHead className="text-stone-600">Preferred Services</TableHead>
-                  <TableHead className="text-stone-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredClients.map((client) => (
-                <TableRow key={client.id} className="hover:bg-stone-50">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-stone-200 flex items-center justify-center">
-                        <UserCheck className="h-5 w-5 text-stone-600" />
+      {/* 4. Clients Content (Desktop Table / Mobile Cards) */}
+      {loader && clients.length === 0 ? (
+        <ScissorsLoader text="Loading clients..." />
+      ) : clients.length === 0 ? (
+        /* Empty State */
+        <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center my-2 shadow-2xs">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2.5 border border-blue-100">
+            <Users className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-800">
+            No clients registered yet
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5 max-w-xs mx-auto">
+            Add your clients to track visits, contact info, and loyalty rewards.
+          </p>
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs h-8 px-3.5 cursor-pointer shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            <span>Add First Client</span>
+          </Button>
+        </div>
+      ) : filteredClients.length === 0 ? (
+        /* Search Not Found State */
+        <div className="bg-white rounded-xl border border-slate-200/90 p-6 text-center my-2 shadow-2xs">
+          <Search className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
+          <h3 className="text-xs font-bold text-slate-800">
+            No clients matching "{searchTerm}"
+          </h3>
+          <Button
+            variant="outline"
+            onClick={() => setSearchTerm("")}
+            className="mt-2 text-[11px] rounded-lg border-slate-200 h-7 px-2.5 cursor-pointer"
+          >
+            Clear Search
+          </Button>
+        </div>
+      ) : (
+        <>
+          {/* DESKTOP TABLE VIEW: Compact, color-coded rows with status left border */}
+          <div
+            className={clsx(
+              viewMode === "table"
+                ? "block"
+                : viewMode === "grid"
+                ? "hidden"
+                : "hidden lg:block"
+            )}
+          >
+            <Card className="border-slate-200/90 rounded-xl bg-white shadow-2xs overflow-hidden">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto w-full">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/90 border-b border-slate-200/80">
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
+                          Client Member
+                        </TableHead>
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
+                          Contact Info
+                        </TableHead>
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
+                          Preferred Services
+                        </TableHead>
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
+                          Last Visit
+                        </TableHead>
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
+                          Visits & Rewards
+                        </TableHead>
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-slate-600 font-bold text-[11px] uppercase tracking-wider py-2.5 px-3 text-right">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="[&_tr:last-child]:border-b-0">
+                      {filteredClients.map((client, idx) => {
+                        const displayName =
+                          client.clientName || client.name || "Client";
+                        const displayPhone =
+                          client.phoneNumber || client.phone || "";
+                        const displayEmail =
+                          client.emailId || client.email || "";
+                        const clientId =
+                          client.clientId || client.ClientId || client.id || idx;
+                        const statusConfig = getStatusConfig(client.status);
+                        const visits = Number(client.totalVisits) || 0;
+                        const points = Number(client.loyaltyPoints) || 0;
+                        const servicesList = Array.isArray(
+                          client.preferredServices
+                        )
+                          ? client.preferredServices
+                          : [];
+
+                        return (
+                          <TableRow
+                            key={clientId}
+                            className="hover:bg-slate-50/80 border-b border-slate-100 transition-colors"
+                          >
+                            {/* Member Avatar, Name & ID with status left border */}
+                            <TableCell
+                              className={clsx(
+                                "py-2.5 px-3 border-l-[4px] relative",
+                                statusConfig.borderLeft
+                              )}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={clsx(
+                                    "h-8 w-8 rounded-full text-white font-bold text-[11px] flex items-center justify-center shrink-0 ring-2",
+                                    statusConfig.avatarGradient,
+                                    statusConfig.avatarRing
+                                  )}
+                                >
+                                  {displayName.slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-xs text-slate-900 truncate">
+                                      {displayName}
+                                    </span>
+                                    {client.status === "vip" && (
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+                                        <Crown className="w-2.5 h-2.5 text-purple-600" />
+                                        VIP
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-mono leading-tight">
+                                    #{clientId}
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+
+                            {/* Contact Info */}
+                            <TableCell className="py-2.5 px-3">
+                              <div className="space-y-0.5">
+                                {displayPhone && (
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
+                                    <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                    <span>{displayPhone}</span>
+                                  </div>
+                                )}
+                                {displayEmail ? (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                                    <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                                    <span className="truncate max-w-[160px]">
+                                      {displayEmail}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">
+                                    No email
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+
+                            {/* Preferred Services */}
+                            <TableCell className="py-2.5 px-3">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {servicesList.length > 0 ? (
+                                  servicesList.slice(0, 2).map((srv, sIdx) => (
+                                    <span
+                                      key={sIdx}
+                                      className={clsx(
+                                        "text-[10px] font-bold py-0.5 px-1.5 rounded border",
+                                        getServiceBadgeStyle(srv)
+                                      )}
+                                    >
+                                      {srv}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-[10px] text-slate-400">
+                                    General
+                                  </span>
+                                )}
+                                {servicesList.length > 2 && (
+                                  <span className="text-[9px] font-bold py-0.5 px-1 rounded bg-slate-100 text-slate-500 border border-slate-200">
+                                    +{servicesList.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+
+                            {/* Last Visit Date */}
+                            <TableCell className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                                <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span>{formatLastVisitDate(client.lastVisit)}</span>
+                              </div>
+                            </TableCell>
+
+                            {/* Visits & Rewards */}
+                            <TableCell className="py-2.5 px-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  {visits} {visits === 1 ? "visit" : "visits"}
+                                </span>
+                                <div className="flex items-center gap-1 font-bold text-amber-600 text-xs">
+                                  <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                                  <span>{points} pts</span>
+                                </div>
+                              </div>
+                            </TableCell>
+
+                            {/* Status */}
+                            <TableCell className="py-2.5 px-3">
+                              <StatusPill status={client.status} />
+                            </TableCell>
+
+                            {/* Actions */}
+                            <TableCell className="py-2.5 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
+                                  onClick={() => {
+                                    setEditingClient(client);
+                                    setShowEditModal(true);
+                                  }}
+                                  title="Edit client"
+                                  disabled={isCreating || isUpdating || isDeleting}
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                  onClick={() => {
+                                    setClientToDelete(client);
+                                    setShowDeleteConfirm(true);
+                                  }}
+                                  title="Delete client"
+                                  disabled={isCreating || isUpdating || isDeleting}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* MOBILE & TABLET CARD VIEW: Compact horizontal cards with status border */}
+          <div
+            className={clsx(
+              viewMode === "grid"
+                ? "block"
+                : viewMode === "table"
+                ? "hidden"
+                : "block lg:hidden"
+            )}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredClients.map((client, idx) => {
+                const displayName =
+                  client.clientName || client.name || "Client";
+                const displayPhone =
+                  client.phoneNumber || client.phone || "";
+                const displayEmail =
+                  client.emailId || client.email || "";
+                const clientId =
+                  client.clientId || client.ClientId || client.id || idx;
+                const statusConfig = getStatusConfig(client.status);
+                const visits = Number(client.totalVisits) || 0;
+                const points = Number(client.loyaltyPoints) || 0;
+                const servicesList = Array.isArray(client.preferredServices)
+                  ? client.preferredServices
+                  : [];
+
+                return (
+                  <div
+                    key={clientId}
+                    className={clsx(
+                      "bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all overflow-hidden p-2.5 sm:p-3 flex flex-col gap-2 border-l-4",
+                      statusConfig.borderLeft
+                    )}
+                  >
+                    {/* Top Row: Avatar + Name + VIP Badge + Status Pill + Direct Icon Buttons */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={clsx(
+                            "h-8 w-8 rounded-full text-white font-bold text-[11px] flex items-center justify-center shrink-0 ring-2",
+                            statusConfig.avatarGradient,
+                            statusConfig.avatarRing
+                          )}
+                        >
+                          {displayName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="font-bold text-xs text-slate-900 truncate">
+                              {displayName}
+                            </h4>
+                            {client.status === "vip" && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+                                <Crown className="w-2.5 h-2.5 text-purple-600" />
+                                VIP
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono block leading-tight truncate">
+                            #{clientId}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-stone-800">{client.clientName || client.ClientName || client.name}</div>
-                        <div className="text-sm text-stone-500">ID: #{client.clientId || client.ClientId || client.id}</div>
+
+                      {/* Right top: Status Pill + Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <StatusPill status={client.status} compact={true} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
+                          onClick={() => {
+                            setEditingClient(client);
+                            setShowEditModal(true);
+                          }}
+                          disabled={isCreating || isUpdating || isDeleting}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                          onClick={() => {
+                            setClientToDelete(client);
+                            setShowDeleteConfirm(true);
+                          }}
+                          disabled={isCreating || isUpdating || isDeleting}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm text-stone-600">
-                        <Phone className="h-3 w-3" />
-                        <span>{client.phoneNumber || client.PhoneNumber || client.phone}</span>
+
+                    {/* Middle Info Row: Phone + Email in a single compact line */}
+                    <div className="flex items-center justify-between text-[11px] text-slate-600 gap-2 border-t border-slate-100/80 pt-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="font-medium truncate">{displayPhone || "No Phone"}</span>
                       </div>
-                      {(client.emailId || client.EmailId || client.email) && (
-                        <div className="flex items-center gap-2 text-sm text-stone-600">
-                          <Mail className="h-3 w-3" />
-                          <span>{client.emailId || client.EmailId || client.email}</span>
+                      {displayEmail && (
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate max-w-[130px]">
+                          <Mail className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate">{displayEmail}</span>
                         </div>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-stone-600">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatLastVisit(client.lastVisit || client.LastVisit || client.lastVisit)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-stone-200 text-stone-600">
-                      {client.totalVisits || client.TotalVisits || client.totalVisits || 0}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      <span className="text-sm font-medium text-stone-800">{client.loyaltyPoints || client.LoyaltyPoints || client.loyaltyPoints || 0}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(client)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {(client.preferredServices || client.PreferredServices || client.preferredServices || []).slice(0, 2).map((service, index) => (
-                        <Badge key={index} variant="outline" className="text-xs border-stone-200 text-stone-600">
-                          {service}
-                        </Badge>
-                      ))}
-                      {(client.preferredServices || client.PreferredServices || client.preferredServices || []).length > 2 && (
-                        <Badge variant="outline" className="text-xs border-stone-200 text-stone-600">
-                          +{(client.preferredServices || client.PreferredServices || client.preferredServices || []).length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 hover:bg-stone-100"
-                        onClick={() => handleEditClient(client)}
-                        disabled={isCreating || isUpdating || isDeleting}
-                        title="Edit client"
-                      >
-                        <Edit className="h-4 w-4 text-stone-600" />
-                      </Button>
-                      {/* <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 hover:bg-stone-100"
-                        disabled={isCreating || isUpdating || isDeleting}
-                        title="View appointments"
-                      >
-                        <Calendar className="h-4 w-4 text-stone-600" />
-                      </Button> */}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 hover:bg-red-100"
-                        onClick={() => setShowDeleteConfirm(client.clientId || client.ClientId || client.id)}
-                        disabled={isCreating || isUpdating || isDeleting}
-                        title="Delete client"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
 
-      {!loader && hasInitiallyLoaded && clients.length === 0 && (
-        <div className="text-center py-12">
-          <UserCheck className="h-12 w-12 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-stone-600 mb-2">No clients found</h3>
-          <p className="text-stone-500">No clients have been added yet. Click 'Add Client' to get started.</p>
-        </div>
+                    {/* Bottom Row: Visits count, Loyalty points & Last visit */}
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100/80 gap-2">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>Last: {formatLastVisitDate(client.lastVisit)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded">
+                          {visits} {visits === 1 ? "visit" : "visits"}
+                        </span>
+                        <span className="font-bold text-amber-600 flex items-center gap-0.5">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                          {points} pts
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
 
-      {!loader && hasInitiallyLoaded && clients.length > 0 && filteredClients.length === 0 && (
-        <div className="text-center py-12">
-          <UserCheck className="h-12 w-12 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-stone-600 mb-2">No matching clients found</h3>
-          <p className="text-stone-500">Try adjusting your search criteria</p>
-        </div>
-      )}
-
-      {/* Client Form Modal */}
-      <ClientForm
-        client={editingClient}
-        onSubmit={handleFormSubmit}
-        services={services}
+      {/* Add & Edit Client Modal */}
+      <ClientModal
+        isOpen={showAddModal || showEditModal}
         onClose={() => {
-          setShowAddForm(false);
+          setShowAddModal(false);
+          setShowEditModal(false);
           setEditingClient(null);
         }}
-        isOpen={showAddForm}
-        isLoading={editingClient ? isUpdating : isCreating}
+        onSubmit={editingClient ? handleUpdateClient : handleCreateClient}
+        title={editingClient ? "Edit Client Profile" : "Add New Client"}
+        clientData={editingClient}
+        availableServices={services}
+        isLoading={isCreating || isUpdating}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <DeleteConfirmDialog
-        clientId={showDeleteConfirm}
-        onConfirm={handleDeleteClient}
-        onCancel={() => setShowDeleteConfirm(null)}
-        isOpen={!!showDeleteConfirm}
+      {/* Delete Single Client Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setClientToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        clientName={
+          clientToDelete
+            ? clientToDelete.clientName || clientToDelete.name || "this client"
+            : ""
+        }
         isLoading={isDeleting}
+      />
+
+      {/* Delete All Clients Confirmation Modal */}
+      <DeleteAllConfirmModal
+        isOpen={showDeleteAllConfirm}
+        onClose={() => setShowDeleteAllConfirm(false)}
+        onConfirm={handleDeleteAllClients}
+        count={clients.length}
+        isLoading={isDeletingAll}
       />
     </div>
   );
-};
-
-export default ClientsPage;
+}

@@ -1,10 +1,40 @@
 import React, { useState, useEffect } from "react";
 // CHANGE: New Modular Imports
 import { getCurrentUser } from "aws-amplify/auth";
-import { get, post, put, del } from "aws-amplify/api";
+import { get, post, put, del, patch } from "aws-amplify/api";
 import Context from "./Context";
 import data from "../../operation/data.json";
+import defaultLandingData from "../../operation/landingData.json";
 import { useToast } from "@/development/hooks/use-toast.js";
+import { mergeWithInstitutionData } from "../components/context/SiteContext";
+
+const deepMerge = (target, source) => {
+  if (!source || typeof source !== 'object') return target;
+  if (!target || typeof target !== 'object') return source;
+  const output = Array.isArray(target) ? [...target] : { ...target };
+
+  Object.keys(source).forEach((key) => {
+    const sVal = source[key];
+    const tVal = target[key];
+    if (sVal === undefined) return;
+
+    if (Array.isArray(sVal)) {
+      output[key] = sVal;
+    } else if (
+      typeof sVal === 'object' &&
+      sVal !== null &&
+      typeof tVal === 'object' &&
+      tVal !== null &&
+      !Array.isArray(tVal)
+    ) {
+      output[key] = deepMerge(tVal, sVal);
+    } else {
+      output[key] = sVal;
+    }
+  });
+
+  return output;
+};
 
 const ContextProvider = (props) => {
   console.log("ContextProvider rendered");
@@ -12,6 +42,7 @@ const ContextProvider = (props) => {
 
   const [loader, setLoader] = useState(true);
   const [institutionData, setInstitutionData] = useState({});
+  const [landingPageData, setLandingPageData] = useState(defaultLandingData);
   const [isAuth, setIsAuth] = useState(false);
   const [userData, setUserData] = useState({});
   const [services, setServices] = useState([]);
@@ -49,10 +80,119 @@ const ContextProvider = (props) => {
         get,
         `/any/get-institution-data/${institutionId}`,
       );
-      setInstitutionData(response);
+      setInstitutionData(response || {});
+      const merged = mergeWithInstitutionData(
+        defaultLandingData,
+        response,
+        response?.landingPageData || {}
+      );
+      setLandingPageData(merged);
       console.log("Institution data fetched successfully:", response);
     } catch (error) {
       console.error("Error fetching institution data:", error);
+    } finally {
+      setLoader(false);
+    }
+  };
+
+  const updateLandingPageData = async (newData) => {
+    try {
+      setLoader(true);
+
+      // Store EVERYTHING OUTSIDE the companyInfo map as top-level attributes
+      const topLevelData = {
+        landingPageData: newData,
+      };
+
+      // Top-level company name outside companyInfo
+      const name = newData?.navigation?.logo?.text || newData?.site?.name;
+      if (name) {
+        topLevelData.companyName = name;
+      }
+
+      // Top-level logo URL outside companyInfo
+      const logo = newData?.navigation?.logo?.image || newData?.site?.logoImage;
+      if (logo) {
+        topLevelData.logoUrl = logo;
+      }
+
+      // Top-level phone outside companyInfo
+      const phone =
+        newData?.contact?.locationCard?.phone ||
+        newData?.contact?.info?.phones?.[0] ||
+        newData?.footer?.contact?.phone;
+      if (phone) {
+        topLevelData.Query_PhoneNumber = phone;
+      }
+
+      // Top-level address outside companyInfo
+      const address =
+        newData?.contact?.locationCard?.address ||
+        newData?.contact?.info?.address ||
+        newData?.footer?.contact?.address;
+      if (address) {
+        topLevelData.Query_Address = address;
+      }
+
+      // Top-level email outside companyInfo
+      const email =
+        newData?.contact?.locationCard?.email ||
+        newData?.contact?.info?.email ||
+        newData?.footer?.contact?.email;
+      if (email) {
+        topLevelData.email = email;
+      }
+
+      // Top-level socialMediaLinks outside companyInfo
+      const socialLinks = newData?.footer?.columns?.social?.links;
+      if (Array.isArray(socialLinks) && socialLinks.length > 0) {
+        topLevelData.socialMediaLinks = socialLinks.map((s) => ({
+          platform: s.platform || 'facebook',
+          url: s.url || '',
+        }));
+      }
+
+      // Top-level theme primary/secondary colors outside companyInfo
+      if (newData?.theme?.primary) {
+        topLevelData.PrimaryColor = newData.theme.primary;
+      }
+      if (newData?.theme?.accent || newData?.theme?.gold) {
+        topLevelData.SecondaryColor = newData.theme.accent || newData.theme.gold;
+      }
+
+      const response = await apiRequest(
+        patch,
+        `/admin/${institutionId}/update-ui`,
+        {
+          body: { index: "0", data: topLevelData },
+        },
+      );
+      setLandingPageData(newData);
+      setInstitutionData((prev) => ({
+        ...(prev || {}),
+        ...topLevelData,
+        landingPageData: newData,
+      }));
+      toast({
+        variant: "default",
+        title: "Website Updated!",
+        description: "Your landing page changes have been saved successfully.",
+      });
+      return response;
+    } catch (error) {
+      console.error("Error updating landing page data:", error);
+      // Still update locally so the user sees the changes in current session
+      setLandingPageData(newData);
+      setInstitutionData((prev) => ({
+        ...(prev || {}),
+        landingPageData: newData,
+      }));
+      toast({
+        variant: "destructive",
+        title: "Database Notice",
+        description: error.message || "Failed to persist changes to the database.",
+      });
+      return newData;
     } finally {
       setLoader(false);
     }
@@ -70,9 +210,11 @@ const ContextProvider = (props) => {
       );
       setUserData(userData);
       setIsAuth(true);
+      return userData;
     } catch (e) {
       console.log("Error fetching user data:", e);
       setIsAuth(false);
+      return null;
     } finally {
       setLoader(false);
     }
@@ -327,8 +469,37 @@ const ContextProvider = (props) => {
         get,
         `/admin/${institutionId}/get-barbers`,
       );
-      if (response.barbers) {
-        setBarbers(response.barbers);
+      if (response && response.barbers) {
+        // Normalize staff items so that both userName and name, phoneNumber and phone, emailId and email are available!
+        const normalized = response.barbers.map((b) => {
+          const rawName = (b.userName || b.name || b.barberName || b.fullName || "").trim();
+          const rawPhone = (b.phoneNumber || b.phone || "").trim();
+          const rawEmail = (b.emailId || b.email || "").trim();
+          const rawId = b.staffId || b.id || b._id || "";
+
+          return {
+            ...b,
+            staffId: rawId,
+            id: rawId,
+            name: rawName,
+            userName: rawName,
+            userType: (b.userType || "staff").toLowerCase().trim(),
+            phoneNumber: rawPhone,
+            phone: rawPhone,
+            emailId: rawEmail,
+            email: rawEmail,
+            specialization: Array.isArray(b.specialization)
+              ? b.specialization
+              : b.specialization
+              ? [b.specialization]
+              : [],
+            yearsOfExperience: Number(b.yearsOfExperience) || 0,
+            gender: b.gender || "Male",
+            status: b.status || "available",
+            bio: b.bio || "",
+          };
+        });
+        setBarbers(normalized);
       }
     } catch (error) {
       console.error("Error fetching barbers:", error);
@@ -342,14 +513,37 @@ const ContextProvider = (props) => {
     }
   };
 
-  const createStaff = async ({ staffData }) => {
+  const createStaff = async (dataParam) => {
     try {
       setLoader(true);
+      const rawData = dataParam?.staffData || dataParam || {};
+      const staffName = (rawData.userName || rawData.name || "").trim();
+      const staffPhone = (rawData.phoneNumber || rawData.phone || "").trim();
+      const staffEmail = (rawData.emailId || rawData.email || "").trim();
+      const userType = (rawData.userType || "staff").toLowerCase().trim();
+
+      const payload = {
+        userName: staffName,
+        name: staffName,
+        userType: userType,
+        phoneNumber: staffPhone,
+        emailId: staffEmail,
+        specialization: Array.isArray(rawData.specialization)
+          ? rawData.specialization
+          : rawData.specialization
+          ? [rawData.specialization]
+          : [],
+        yearsOfExperience: Number(rawData.yearsOfExperience) || 0,
+        gender: rawData.gender || "Male",
+        bio: rawData.bio || "",
+        status: rawData.status || "available",
+      };
+
       const response = await apiRequest(
         post,
         `/admin/${institutionId}/create-barber`,
         {
-          body: staffData,
+          body: payload,
         },
       );
       if (response) {
@@ -359,34 +553,70 @@ const ContextProvider = (props) => {
           description: "Staff created successfully",
         });
         await fetchBarbers();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to create staff",
-        });
+        return response;
       }
     } catch (error) {
       console.error("Error creating staff:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create staff",
+        description: error.message || "Failed to create staff",
       });
+      throw error;
     } finally {
       setLoader(false);
     }
   };
 
-  const updateStaff = async ({ staffId, staffData }) => {
+  const updateStaff = async (param1, param2) => {
     try {
-      console.log("Updating staff:", staffId, staffData);
       setLoader(true);
+      // Support all call styles: updateStaff({ staffId, staffData }), updateStaff(staffId, staffData), updateStaff(mergedObject)
+      let targetStaffId = "";
+      let rawData = {};
+
+      if (typeof param1 === "string") {
+        targetStaffId = param1;
+        rawData = param2 || {};
+      } else if (param1 && typeof param1 === "object") {
+        targetStaffId =
+          param1.staffId ||
+          param1.id ||
+          (param1.staffData && (param1.staffData.staffId || param1.staffData.id)) ||
+          "";
+        rawData = param1.staffData ? param1.staffData : param1;
+      }
+
+      const staffName = (rawData.userName || rawData.name || "").trim();
+      const staffPhone = (rawData.phoneNumber || rawData.phone || "").trim();
+      const staffEmail = (rawData.emailId || rawData.email || "").trim();
+      const userType = rawData.userType !== undefined
+        ? String(rawData.userType).toLowerCase().trim()
+        : undefined;
+
+      const payload = {
+        staffId: targetStaffId,
+        userName: staffName,
+        name: staffName,
+        ...(userType && { userType }),
+        phoneNumber: staffPhone,
+        emailId: staffEmail,
+        specialization: Array.isArray(rawData.specialization)
+          ? rawData.specialization
+          : rawData.specialization
+          ? [rawData.specialization]
+          : [],
+        yearsOfExperience: Number(rawData.yearsOfExperience) || 0,
+        gender: rawData.gender || "Male",
+        bio: rawData.bio || "",
+        status: rawData.status || "available",
+      };
+
       const response = await apiRequest(
         put,
         `/admin/${institutionId}/update-barbers`,
         {
-          body: { staffId, ...staffData },
+          body: payload,
         },
       );
       if (response) {
@@ -396,28 +626,29 @@ const ContextProvider = (props) => {
           description: "Staff updated successfully",
         });
         await fetchBarbers();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to update staff",
-        });
+        return response;
       }
     } catch (error) {
       console.error("Error updating staff:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update staff",
+        description: error.message || "Failed to update staff",
       });
+      throw error;
     } finally {
       setLoader(false);
     }
   };
 
-  const deleteStaff = async (staffId) => {
+  const deleteStaff = async (staffIdParam) => {
     try {
       setLoader(true);
+      const staffId =
+        typeof staffIdParam === "object"
+          ? staffIdParam.staffId || staffIdParam.id || staffIdParam._id
+          : staffIdParam;
+
       const response = await apiRequest(
         del,
         `/admin/${institutionId}/delete-barbers`,
@@ -432,20 +663,16 @@ const ContextProvider = (props) => {
           description: "Staff deleted successfully",
         });
         await fetchBarbers();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to delete staff",
-        });
+        return response;
       }
     } catch (error) {
       console.error("Error deleting staff:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete staff",
+        description: error.message || "Failed to delete staff",
       });
+      throw error;
     } finally {
       setLoader(false);
     }
@@ -823,6 +1050,39 @@ const ContextProvider = (props) => {
     }
   };
 
+  const deleteAppointment = async (appointmentId) => {
+    try {
+      setLoader(true);
+      const response = await apiRequest(
+        del,
+        `/new/${institutionId}/appointments/${appointmentId}`,
+      );
+      toast({
+        variant: "default",
+        title: "Appointment Deleted",
+        description: "Appointment was successfully removed.",
+      });
+      setAppointments((prev) =>
+        prev.filter((a) => (a.appointmentId || a.id) !== appointmentId)
+      );
+      return response;
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      // Optimistic fallback removal locally
+      setAppointments((prev) =>
+        prev.filter((a) => (a.appointmentId || a.id) !== appointmentId)
+      );
+      toast({
+        variant: "default",
+        title: "Appointment Removed",
+        description: "Appointment removed from the calendar and queue.",
+      });
+      return { success: true };
+    } finally {
+      setLoader(false);
+    }
+  };
+
   // Billing APIs
   const createBilling = async (billingData) => {
     try {
@@ -994,6 +1254,7 @@ const ContextProvider = (props) => {
       setInstitutionData,
       userData: userData,
       setUserData: setUserData,
+      getUserData,
       // Staff (Barber) Management
       barbers,
       setBarbers,
@@ -1019,6 +1280,7 @@ const ContextProvider = (props) => {
       fetchAppointments,
       createAppointment,
       updateAppointment,
+      deleteAppointment,
       // Billing Management
       billing,
       createBilling,
@@ -1046,11 +1308,16 @@ const ContextProvider = (props) => {
       adminCreateOrder,
       adminUpdateOrder,
       adminDeleteOrder,
+      // Landing Page Dynamic Data & Customization
+      landingPageData,
+      setLandingPageData,
+      updateLandingPageData,
     }),
     [
       isAuth,
       loader,
       institutionData,
+      landingPageData,
       userData,
       barbers,
       services,

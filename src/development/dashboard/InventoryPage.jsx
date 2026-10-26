@@ -10,6 +10,7 @@ import {
   TrendingDown,
   TrendingUp,
   Table,
+  List,
   Grid3X3,
   X,
   LogIn,
@@ -52,7 +53,8 @@ import Context from "../Context/Context";
 
 const InventoryPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // "table", "grid"
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("auto"); // "auto", "table", "grid"
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const {
@@ -219,34 +221,49 @@ const InventoryPage = () => {
     }
   };
 
+  const getInventoryCategoryBadge = (cat) => {
+    const c = String(cat || "").toLowerCase();
+    if (c.includes("hair") || c.includes("shampoo") || c.includes("conditioner") || c.includes("oil")) {
+      return "bg-sky-100 text-sky-800 border-sky-300";
+    }
+    if (c.includes("color") || c.includes("dye") || c.includes("bleach")) {
+      return "bg-purple-100 text-purple-800 border-purple-300";
+    }
+    if (c.includes("skin") || c.includes("facial") || c.includes("cream") || c.includes("lotion") || c.includes("glow")) {
+      return "bg-emerald-100 text-emerald-800 border-emerald-300";
+    }
+    if (c.includes("nail") || c.includes("polish") || c.includes("manicure")) {
+      return "bg-pink-100 text-pink-800 border-pink-300";
+    }
+    if (c.includes("tool") || c.includes("scissor") || c.includes("clipper") || c.includes("blade")) {
+      return "bg-indigo-100 text-indigo-800 border-indigo-300";
+    }
+    return "bg-blue-100 text-blue-800 border-blue-300";
+  };
+
   const getStatusBadge = (status) => {
-    const statusConfig = {
-      in_stock: {
-        variant: "default",
-        className: "bg-green-100 text-green-800",
-        icon: CheckCircle,
-      },
-      low_stock: {
-        variant: "secondary",
-        className: "bg-yellow-100 text-yellow-800",
-        icon: AlertTriangle,
-      },
-      out_of_stock: {
-        variant: "destructive",
-        className: "bg-red-100 text-red-800",
-        icon: AlertTriangle,
-      },
-    };
-    const config = statusConfig[status] || statusConfig.in_stock;
-    const Icon = config.icon;
+    const s = String(status || "in_stock").toLowerCase();
+    if (s === "out_of_stock") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800 shadow-2xs whitespace-nowrap shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+          Out of Stock
+        </span>
+      );
+    }
+    if (s === "low_stock") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900 shadow-2xs whitespace-nowrap shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+          Low Stock
+        </span>
+      );
+    }
     return (
-      <Badge
-        variant={config.variant}
-        className={`${config.className} flex items-center gap-1`}
-      >
-        <Icon className="h-3 w-3" />
-        {status.replace("_", " ").toUpperCase()}
-      </Badge>
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 shadow-2xs whitespace-nowrap shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+        In Stock
+      </span>
     );
   };
 
@@ -276,14 +293,17 @@ const InventoryPage = () => {
   };
 
   const filteredInventory =
-    products?.filter(
-      (item) =>
-        item &&
-        (item?.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item?.category?.toLowerCase().includes(searchTerm.toLowerCase())),
-      // ||
-      // item.sku.toLowerCase().includes(searchTerm.toLowerCase()),
-    ) || [];
+    products?.filter((item) => {
+      if (!item) return false;
+      const matchesSearch =
+        !searchTerm ||
+        String(item?.productName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(item?.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(item?.supplier || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || String(item?.status || "").toLowerCase() === statusFilter.toLowerCase();
+      return matchesSearch && matchesStatus;
+    }) || [];
 
   const formatCurrency = (amount) => {
     if (amount == null || isNaN(amount)) {
@@ -317,37 +337,24 @@ const InventoryPage = () => {
     return (
       <div className="flex h-80 flex-col items-center justify-center space-y-6">
         <div className="relative">
-          {/* Bigger Icon + Bounce */}
           <div className="animate-pulse">
-            <Scissors className="h-24 w-24 animate-bounce text-stone-700" />
+            <Scissors className="h-16 w-16 animate-bounce text-blue-600" />
           </div>
-
-          {/* Bigger Ping Animations */}
-          <div className="absolute -right-3 -top-3 h-6 w-6 animate-ping rounded-full bg-stone-400"></div>
+          <div className="absolute -right-2 -top-2 h-4 w-4 animate-ping rounded-full bg-blue-300"></div>
           <div
-            className="absolute -bottom-3 -left-3 h-5 w-5 animate-ping rounded-full bg-stone-500"
+            className="absolute -bottom-2 -left-2 h-3.5 w-3.5 animate-ping rounded-full bg-blue-400"
             style={{ animationDelay: "0.5s" }}
           ></div>
         </div>
 
-        {/* Text + Dots */}
         <div className="text-center">
-          <p className="animate-pulse text-2xl font-semibold text-stone-800">
+          <p className="animate-pulse text-lg font-semibold text-slate-800">
             {text}
           </p>
-          <div className="mt-3 flex items-center justify-center space-x-2">
-            <div
-              className="h-3 w-3 animate-bounce rounded-full bg-stone-500"
-              style={{ animationDelay: "0ms" }}
-            ></div>
-            <div
-              className="h-3 w-3 animate-bounce rounded-full bg-stone-500"
-              style={{ animationDelay: "150ms" }}
-            ></div>
-            <div
-              className="h-3 w-3 animate-bounce rounded-full bg-stone-500"
-              style={{ animationDelay: "300ms" }}
-            ></div>
+          <div className="mt-3 flex items-center justify-center space-x-1.5">
+            <div className="h-2 w-2 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: "0ms" }}></div>
+            <div className="h-2 w-2 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: "150ms" }}></div>
+            <div className="h-2 w-2 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: "300ms" }}></div>
           </div>
         </div>
       </div>
@@ -355,424 +362,431 @@ const InventoryPage = () => {
   };
 
   return (
-    <div className="poppins-regular space-y-6 p-6">
+    <div className="poppins-regular space-y-4 sm:space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-stone-800">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
             Inventory Management
           </h1>
-          <p className="text-stone-600">
-            Track and manage your salon inventory
+          <p className="text-xs text-slate-500 sm:text-sm">
+            Track stock levels, thresholds, and valuation across all items
           </p>
         </div>
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-stone-600 text-white hover:bg-stone-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Item
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="h-9 gap-1.5 rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
-      {/* Inventory Summary - Compact */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">
-                  Total Items
-                </p>
-                <p className="text-lg font-bold text-stone-800">{totalItems}</p>
-              </div>
-              <Package className="h-5 w-5 text-stone-600" />
+      {/* Inventory Summary - Compact Tinted KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="rounded-xl border border-blue-200/90 bg-gradient-to-br from-blue-50/90 via-white to-blue-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-blue-700 truncate">Total Items</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-blue-600 text-white shadow-2xs shrink-0">
+              <Package className="h-3 w-3" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-sm sm:text-base font-black tracking-tight text-blue-950 truncate">{totalItems}</p>
+        </div>
 
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">Low Stock</p>
-                <p className="text-lg font-bold text-yellow-600">
-                  {lowStockItems}
-                </p>
-              </div>
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+        <div className="rounded-xl border border-amber-200/90 bg-gradient-to-br from-amber-50/90 via-white to-amber-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-amber-800 truncate">Low Stock</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-amber-500 text-white shadow-2xs shrink-0">
+              <AlertTriangle className="h-3 w-3" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-sm sm:text-base font-black tracking-tight text-amber-950 truncate">{lowStockItems}</p>
+        </div>
 
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">
-                  Out of Stock
-                </p>
-                <p className="text-lg font-bold text-red-600">
-                  {outOfStockItems}
-                </p>
-              </div>
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+        <div className="rounded-xl border border-rose-200/90 bg-gradient-to-br from-rose-50/90 via-white to-rose-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-rose-800 truncate">Out of Stock</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-rose-600 text-white shadow-2xs shrink-0">
+              <AlertTriangle className="h-3 w-3" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-sm sm:text-base font-black tracking-tight text-rose-950 truncate">{outOfStockItems}</p>
+        </div>
 
-        <Card className="border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-stone-600">
-                  Total Value
-                </p>
-                <p className="text-lg font-bold text-green-600">
-                  {formatCurrency(totalValue)}
-                </p>
-              </div>
-              <CheckCircle className="h-5 w-5 text-green-600" />
+        <div className="rounded-xl border border-emerald-200/90 bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/30 p-2 sm:p-2.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-emerald-800 truncate">Total Value</p>
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-emerald-600 text-white shadow-2xs shrink-0">
+              <CheckCircle className="h-3 w-3" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-xs sm:text-sm font-black tracking-tight text-emerald-950 truncate">{formatCurrency(totalValue)}</p>
+        </div>
       </div>
 
-      {/* Search, Stats, and View Toggle */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-stone-400" />
+      {/* Symmetrical Search & Controls Bar */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {/* Search Bar - Full Width on Mobile, max-w-md on Desktop */}
+        <div className="relative flex-1 sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Search inventory by name, category, or SKU..."
+            placeholder="Search items, category, supplier..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border-stone-200 pl-10"
+            className="h-9 rounded-xl border-slate-200 bg-white pl-9 pr-8 text-xs sm:text-sm shadow-xs focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            In Stock:{" "}
-            {products?.filter((i) => i && i.status === "in_stock").length || 0}
-          </Badge>
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-            Low Stock: {lowStockItems}
-          </Badge>
-          <Badge variant="secondary" className="bg-red-100 text-red-800">
-            Out of Stock: {outOfStockItems}
-          </Badge>
-        </div>
-        <div className="flex gap-1 rounded-lg border border-stone-200 p-1">
-          <Button
-            variant={viewMode === "table" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("table")}
-            className={`h-8 w-8 p-0 ${viewMode === "table" ? "bg-stone-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}
-          >
-            <Table className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className={`h-8 w-8 p-0 ${viewMode === "grid" ? "bg-stone-600 text-white" : "text-stone-600 hover:bg-stone-100"}`}
-          >
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
+
+        {/* Row 2 on mobile: Status Filter (50%) + View Toggle (50%) */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
+          {/* Status Filter */}
+          <div className="w-full sm:w-44">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 rounded-xl border-slate-200 bg-white text-xs shadow-xs w-full">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status ({products?.length || 0})</SelectItem>
+                <SelectItem value="in_stock">In Stock ({products?.filter((i) => i && i.status === "in_stock").length || 0})</SelectItem>
+                <SelectItem value="low_stock">Low Stock ({lowStockItems})</SelectItem>
+                <SelectItem value="out_of_stock">Out of Stock ({outOfStockItems})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* View Mode Toggle: Table (List) / Grid / Auto */}
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-0.5 shadow-xs h-9 w-full sm:w-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className={`h-7.5 flex-1 sm:w-8 sm:flex-initial rounded-lg p-0 transition-colors cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-blue-600 text-white shadow-xs hover:bg-blue-600 hover:text-white"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+              title="Table view (Desktop)"
+            >
+              <List className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className={`h-7.5 flex-1 sm:w-8 sm:flex-initial rounded-lg p-0 transition-colors cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-blue-600 text-white shadow-xs hover:bg-blue-600 hover:text-white"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+              title="Card view (Tablet & Mobile)"
+            >
+              <Grid3X3 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("auto")}
+              className={`h-7.5 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+                viewMode === "auto"
+                  ? "bg-blue-600 text-white shadow-xs hover:bg-blue-600 hover:text-white"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+              title="Auto: Table on Big Screen, Cards on Tablet & Mobile"
+            >
+              Auto
+            </Button>
+          </div>
         </div>
       </div>
 
-      {isLoading ? (
+            {isLoading ? (
         <div className="flex justify-center py-12">
-          <ScissorsLoader text="Loading Services..." />
+          <ScissorsLoader text="Loading Inventory..." />
         </div>
       ) : (
         <>
-          {/* Dynamic View Based on Selection */}
-          {viewMode === "table" && (
-            <Card className="border-stone-200">
-              <CardHeader>
-                <CardTitle className="text-stone-800">
-                  Inventory Items - Table View
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TableComponent>
-                  <TableHeader>
-                    <TableRow>
-                      {/* <TableHead className="text-stone-600">Item</TableHead> */}
-                      <TableHead className="text-stone-600">Name</TableHead>
-                      <TableHead className="text-stone-600">Category</TableHead>
-                      <TableHead className="text-stone-600">
-                        Current Stock
-                      </TableHead>
-                      <TableHead className="text-stone-600">Min/Max</TableHead>
-                      <TableHead className="text-stone-600">
-                        Unit Price
-                      </TableHead>
-                      <TableHead className="text-stone-600">Supplier</TableHead>
-                      {/* <TableHead className="text-stone-600">
-                    Last Restocked
-                  </TableHead> */}
-                      <TableHead className="text-stone-600">Status</TableHead>
-                      <TableHead className="text-stone-600">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInventory.map((item) => {
-                      const stockTrend = getStockTrend(
-                        item.currentStock,
-                        item.minStock,
-                      );
-                      const TrendIcon = stockTrend.icon;
+          {/* 1. TABLE VIEW (Desktop 8-Column Table + Native Mobile Table List) */}
+          <div
+            className={
+              viewMode === "table"
+                ? "block"
+                : viewMode === "grid"
+                ? "hidden"
+                : "hidden lg:block"
+            }
+          >
+            {/* DESKTOP TABLE (hidden sm:block): Full 8-Column Data Table */}
+            <div className="hidden sm:block rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+              <TableComponent>
+                <TableHeader className="bg-slate-50/75">
+                  <TableRow className="border-b border-slate-200/80">
+                    <TableHead className="text-xs font-semibold text-slate-600">Product Name</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600">Category</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600">Current Stock</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600">Min / Max</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600">Unit Price</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600">Supplier</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
+                    <TableHead className="text-right text-xs font-semibold text-slate-600">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInventory.map((item) => {
+                    const stockTrend = getStockTrend(item.currentStock, item.minStock);
+                    const TrendIcon = stockTrend.icon;
+                    const isOut = item.status === "out_of_stock";
+                    const isLow = item.status === "low_stock";
+                    const statusBorder = isOut
+                      ? "border-l-4 border-l-rose-500"
+                      : isLow
+                      ? "border-l-4 border-l-amber-500"
+                      : "border-l-4 border-l-emerald-500";
 
-                      return (
-                        <TableRow key={item.id} className="hover:bg-stone-50">
-                          {/* <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-200">
-                            <Package className="h-4 w-4 text-stone-600" />
+                    return (
+                      <TableRow key={item.id || item.productId} className={`hover:bg-slate-50/75 transition-colors border-b border-slate-100 ${statusBorder}`}>
+                        <TableCell className={`font-bold text-slate-900 text-xs sm:text-sm border-l-4 ${statusBorder}`}>
+                          {item.productName}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-2xs ${getInventoryCategoryBadge(item.category)}`}>
+                            {item.category || "General"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs sm:text-sm">
+                            <TrendIcon className={`h-3.5 w-3.5 ${stockTrend.color}`} />
+                            <span>{item.currentStock ?? 0}</span>
                           </div>
-                          <div>
-                            <div className="font-medium text-stone-800">
-                              {item.name}
-                            </div>
-                            <div className="text-sm text-stone-500">
-                              SKU: {item.sku}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell> */}
-                          <TableCell>{item.productName}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="border-stone-200 text-stone-600"
-                            >
-                              {item.category}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <TrendIcon
-                                className={`h-4 w-4 ${stockTrend.color}`}
-                              />
-                              <span className="font-medium text-stone-800">
-                                {item.currentStock}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-stone-600">
-                              <div>Min: {item.minStock}</div>
-                              <div>Max: {item.maxStock}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium text-stone-800">
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500 font-medium">
+                          <div>Min: {item.minStock ?? 0} • Max: {item.maxStock ?? "—"}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-extrabold text-blue-700 text-xs sm:text-sm bg-blue-50/90 border border-blue-200/90 px-2 py-0.5 rounded-lg shadow-2xs">
                             {formatCurrency(item.amount)}
-                          </TableCell>
-                          <TableCell className="text-stone-800">
-                            {item.supplier}
-                          </TableCell>
-                          {/* <TableCell className="text-stone-600">
-                        {item.lastRestocked}
-                      </TableCell> */}
-                          <TableCell>{getStatusBadge(item.status)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {/* Edit Button */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-stone-100"
-                                onClick={() => handleEditClick(item)}
-                              >
-                                <Edit className="h-3 w-3 text-stone-600" />
-                              </Button>
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600 font-medium">
+                          {item.supplier || "—"}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(item.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 rounded-lg p-0 text-slate-500 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                              onClick={() => handleEditClick(item)}
+                              title="Edit product"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 rounded-lg p-0 text-slate-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                              onClick={() => {
+                                setSelectedProduct(item);
+                                setOpen(true);
+                              }}
+                              title="Delete product"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </TableComponent>
+            </div>
 
-                              {/* Stock Button */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-green-100"
-                                onClick={() =>
-                                  console.log(
-                                    "Stock button clicked for:",
-                                    item.productName,
-                                  )
-                                }
-                              >
-                                <Package className="h-3 w-3 text-green-600" />
-                              </Button>
+            {/* MOBILE TABLE VIEW (sm:hidden): Native Compact Row List (No Sideways Scroll!) */}
+            <div className="sm:hidden bg-white rounded-2xl border border-slate-200/90 shadow-2xs divide-y divide-slate-100 overflow-hidden">
+              {filteredInventory.map((item) => {
+                const isOut = item.status === "out_of_stock";
+                const isLow = item.status === "low_stock";
+                const statusBorder = isOut
+                  ? "border-l-4 border-l-rose-500"
+                  : isLow
+                  ? "border-l-4 border-l-amber-500"
+                  : "border-l-4 border-l-emerald-500";
 
-                              {/* Delete Button */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-red-100"
-                                onClick={() => {
-                                  setSelectedProduct(item);
-                                  setOpen(true);
-                                }}
-                              >
-                                <Trash2 className="h-3 w-3 text-red-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </TableComponent>
-              </CardContent>
-            </Card>
-          )}
+                return (
+                  <div
+                    key={item.id || item.productId}
+                    className={`p-2 sm:p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 transition-colors ${statusBorder}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm capitalize truncate max-w-[160px]">
+                          {item.productName}
+                        </h4>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${getInventoryCategoryBadge(item.category)}`}>
+                          {item.category || "General"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
+                        <span className="font-bold text-slate-800">Stock: {item.currentStock ?? 0}</span>
+                        <span>•</span>
+                        <span className="font-extrabold text-blue-700 bg-blue-50/90 border border-blue-200/90 px-1.5 py-0.2 rounded text-[10px]">
+                          {formatCurrency(item.amount)}
+                        </span>
+                      </div>
+                    </div>
 
-          {viewMode === "grid" && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="flex items-center gap-1 shrink-0">
+                      {getStatusBadge(item.status)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 rounded-lg p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                        onClick={() => handleEditClick(item)}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 rounded-lg p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        onClick={() => {
+                          setSelectedProduct(item);
+                          setOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. RESPONSIVE CARD DESIGN: 1 Card per row on mobile (grid-cols-1) for compact, spacious design! */}
+          <div
+            className={
+              viewMode === "grid"
+                ? "block"
+                : viewMode === "table"
+                ? "hidden"
+                : "block lg:hidden"
+            }
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
               {filteredInventory.map((item) => {
                 const stockTrend = getStockTrend(
                   item.currentStock,
                   item.minStock,
                 );
                 const TrendIcon = stockTrend.icon;
+                const isOut = item.status === "out_of_stock";
+                const isLow = item.status === "low_stock";
+                const statusBorder = isOut
+                  ? "border-l-4 border-l-rose-500"
+                  : isLow
+                  ? "border-l-4 border-l-amber-500"
+                  : "border-l-4 border-l-emerald-500";
 
                 return (
                   <Card
-                    key={item.id}
-                    className="border-stone-200 transition-shadow hover:shadow-md"
+                    key={item.id || item.productId}
+                    className={`group relative rounded-xl border border-slate-200/90 bg-white p-2.5 sm:p-3 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all cursor-pointer border-l-4 ${statusBorder}`}
                   >
-                    <CardContent className="p-3">
-                      {/* Header */}
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold text-stone-800">
+                    {/* Top Row: Title + Category on left, Status Badge on right */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3
+                            className="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors capitalize"
+                            title={item.productName}
+                          >
                             {item.productName}
                           </h3>
-                          {/* <span className="text-xs text-stone-500">•</span>
-                      <span className="text-xs text-stone-600">{item.sku}</span> */}
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md border truncate shadow-2xs ${getInventoryCategoryBadge(item.category)}`}>
+                            {item.category || "General"}
+                          </span>
                         </div>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                          {item.supplier ? `by ${item.supplier}` : "General Inventory"}
+                        </p>
+                      </div>
+                      <div className="shrink-0">
                         {getStatusBadge(item.status)}
                       </div>
+                    </div>
 
-                      {/* Main Info Grid */}
-                      <div className="mb-2 grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex items-center gap-1">
-                          <Package className="h-3 w-3 text-stone-500" />
-                          <span className="text-stone-800">
-                            {item.currentStock} units
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <TrendIcon
-                            className={`h-3 w-3 ${stockTrend.color}`}
-                          />
-                          <span
-                            className={`text-stone-800 ${stockTrend.color}`}
-                          >
-                            {stockTrend.text}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-stone-500">Min:</span>
-                          <span className="text-stone-800">
-                            {item.minStock}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-stone-500">Max:</span>
-                          <span className="text-stone-800">
-                            {item.maxStock}
-                          </span>
-                        </div>
+                    {/* Bottom Row: Inline Stock info on left, Price & Actions on right */}
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/80 px-2 py-0.5 font-semibold text-slate-700">
+                          <span className="text-[10px] text-slate-400">Stock:</span>
+                          <span className="font-bold text-slate-900">{item.currentStock ?? 0}</span>
+                          <TrendIcon className={`h-3 w-3 ${stockTrend.color}`} />
+                        </span>
+                        <span className="text-[10px] text-slate-400 hidden xs:inline">
+                          Min: {item.minStock ?? 0}
+                        </span>
                       </div>
 
-                      {/* Category */}
-                      <div className="mb-2">
-                        <Badge
-                          variant="outline"
-                          className="h-5 border-stone-200 px-1 py-0 text-xs text-stone-600"
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-xs sm:text-sm font-black text-blue-700 tracking-tight bg-blue-50/90 border border-blue-200/90 px-2 py-0.5 rounded-lg shadow-2xs">
+                          {formatCurrency(item.amount)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg p-0 text-slate-400 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(item);
+                          }}
+                          title="Edit product"
                         >
-                          {item.category}
-                        </Badge>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProduct(item);
+                            setOpen(true);
+                          }}
+                          title="Delete product"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-
-                      {/* Financial Details */}
-                      <div className="mb-2 flex items-center justify-between text-xs">
-                        <div className="text-stone-600">
-                          Price: {formatCurrency(item.amount)}
-                        </div>
-                        <div className="font-semibold text-stone-800">
-                          Value:{" "}
-                          {formatCurrency(item.currentStock * item.amount)}
-                        </div>
-                      </div>
-
-                      {/* Supplier Info */}
-                      <div className="mb-2 text-xs text-stone-500">
-                        Supplier: {item.supplier}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between border-t border-stone-100 pt-1">
-                        <div className="text-xs text-stone-500">
-                          Last: {item.lastRestocked}
-                        </div>
-                        <div className="flex gap-1">
-                          {/* Edit Button */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-stone-100"
-                            onClick={() => handleEditClick(item)} // Pass current product
-                          >
-                            <Edit className="h-3 w-3 text-stone-600" />
-                          </Button>
-
-                          {/* Stock Button (Optional future feature) */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-green-100"
-                            onClick={() =>
-                              console.log(
-                                "Stock button clicked for:",
-                                item.productName,
-                              )
-                            }
-                          >
-                            <Package className="h-3 w-3 text-green-600" />
-                          </Button>
-
-                          {/* Delete Button */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-red-100"
-                            onClick={() => {
-                              setSelectedProduct(item);
-                              setOpen(true);
-                            }} // Pass current product
-                          >
-                            <Trash2 className="h-3 w-3 text-red-600" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
+                    </div>
                   </Card>
                 );
               })}
             </div>
-          )}
+          </div>
         </>
       )}
 
-      {filteredInventory.length === 0 && (
+            {filteredInventory.length === 0 && (
         <div className="py-12 text-center">
-          <Package className="mx-auto mb-4 h-12 w-12 text-stone-300" />
-          <h3 className="mb-2 text-lg font-medium text-stone-600">
+          <Package className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+          <h3 className="mb-1 text-sm font-medium text-slate-700">
             No inventory items found
           </h3>
-          <p className="text-stone-500">Try adjusting your search criteria</p>
+          <p className="text-xs text-slate-400">Try adjusting your search or status filter</p>
         </div>
       )}
       {/* Create Product Dialog */}
@@ -785,11 +799,11 @@ const InventoryPage = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">Add New Product</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreateSubmit} className="space-y-6">
+          <form onSubmit={handleCreateSubmit} className="space-y-4 pt-1">
             {/* Product Name + Category */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -931,7 +945,7 @@ const InventoryPage = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-stone-700 hover:bg-stone-800"
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? "Saving..." : "Add Product"}
@@ -951,11 +965,11 @@ const InventoryPage = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">Edit Product</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdateSubmit} className="space-y-6">
+          <form onSubmit={handleUpdateSubmit} className="space-y-4 pt-1">
             {/* Product Name + Category */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -1097,7 +1111,7 @@ const InventoryPage = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-stone-700 hover:bg-stone-800"
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? "Updating..." : "Update Product"}
@@ -1108,7 +1122,7 @@ const InventoryPage = () => {
       </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full max-w-sm p-4 sm:p-5 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
               <Trash2 className="h-5 w-5 text-red-500" />

@@ -62,7 +62,10 @@ const Contact = () => {
     visitUs: { locationMap = "", address = "" } = {},
   } = institutionData || {};
 
-  const email = institutionData?.companyInfo?.ownerInformation?.email || "";
+  const email =
+    institutionData?.ownerInformation?.email ||
+    institutionData?.email ||
+    "";
   const institutionId = institutionData?.institutionid || "";
   const isAdmin = userData?.userType === "admin";
 

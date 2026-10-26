@@ -1,0 +1,494 @@
+{
+  "institutionId": "SALON002",
+  "schemaVersion": "1.0.0",
+  "template": {
+    "id": "template-salon",
+    "name": "tekkzy-salon",
+    "version": "1.0.0"
+  },
+  "site": {
+    "name": "Tekkzy Salon",
+    "tagline": "Haute Coiffure & Bespoke Aesthetic Sanctuary",
+    "description": "Enhancing your natural beauty with expert care, organic alchemy, and bespoke luxury.",
+    "contactMail": "avishekmishra56@gmail.com",
+    "contact": {
+      "email": "concierge@tekkzy-salon.com",
+      "phone": "+1 (555) 019-2834",
+      "secondaryPhone": "+1 (555) 987-6543",
+      "address": "428 Luxury Lane, Couture Avenue, Suite 100, New York, NY 10021"
+    },
+    "api": {
+      "contactEndpoint": "https://tg2d8qq95k.execute-api.us-east-2.amazonaws.com/dev/tekkzy/contact"
+    },
+    "socialLinks": [
+      {
+        "platform": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com"
+      },
+      {
+        "platform": "facebook",
+        "label": "Facebook",
+        "url": "https://facebook.com"
+      },
+      {
+        "platform": "twitter",
+        "label": "Twitter",
+        "url": "https://twitter.com"
+      }
+    ]
+  },
+  "navigation": {
+    "logo": {
+      "text": "Tekkzy Salon",
+      "url": "/"
+    },
+    "links": [
+      {
+        "id": "nav-home",
+        "label": "HOME",
+        "url": "#home"
+      },
+      {
+        "id": "nav-services",
+        "label": "SERVICES",
+        "url": "#services"
+      },
+      {
+        "id": "nav-gallery",
+        "label": "GALLERY",
+        "url": "#gallery"
+      },
+      {
+        "id": "nav-testimonials",
+        "label": "REVIEWS",
+        "url": "#testimonials"
+      },
+      {
+        "id": "nav-faq",
+        "label": "FAQ",
+        "url": "#faq"
+      },
+      {
+        "id": "nav-contact",
+        "label": "CONTACT",
+        "url": "#contact"
+      }
+    ],
+    "action": {
+      "label": "BOOK NOW",
+      "url": "#contact"
+    }
+  },
+  "hero": {
+    "scriptLabel": "Welcome to Tekkzy",
+    "tagline": "ESTABLISHED 2014",
+    "titleLines": [
+      "TEKKZY",
+      "SALON."
+    ],
+    "subtitle": "Haute Coiffure & Bespoke Sanctuary",
+    "description": "Enhancing your natural beauty with expert care and organic alchemy. Experience the pinnacle of luxury, confidence, and bespoke personal transformation.",
+    "modelImage": "./assets/model.png",
+    "strokeImage": "./assets/burgundy_dress_stroke.png",
+    "organicStrokeImage": "./assets/organic_brush_stroke.png",
+    "primaryAction": {
+      "label": "BOOK APPOINTMENT"
+    },
+    "secondaryAction": {
+      "label": "DISCOVER SERVICES",
+      "url": "#services"
+    }
+  },
+  "services": {
+    "scriptLabel": "Bespoke Offerings",
+    "sectionTitle": "OUR LUXURY SERVICES",
+    "sectionDescription": "Explore our curated rituals engineered for radiant transformation, organic scalp nourishment, and couture aesthetic mastery.",
+    "items": [
+      {
+        "id": "service-hair-care",
+        "category": "HAIR ARTISTRY",
+        "title": "Architectural Cut & Balayage Melt",
+        "description": "Bespoke hand-painted balayage with golden honey tones and smooth, voluminous couture waves tailored to your unique beauty signature.",
+        "price": "$280+",
+        "image": "./assets/service_hair_care.png",
+        "features": [
+          "Facial shape diagnosis",
+          "Scalp detox wash",
+          "Silk gloss finish"
+        ]
+      },
+      {
+        "id": "service-skin-care",
+        "category": "SKIN THERAPY",
+        "title": "24K Gold Glow Radiance Facial",
+        "description": "Deep cellular hydration and nano-peptide collagen restoration therapy designed to illuminate dewy, camera-ready glass skin.",
+        "price": "$350+",
+        "image": "./assets/service_skin_care.png",
+        "features": [
+          "24K gold foil mask",
+          "Lymphatic massage",
+          "Infrared stimulation"
+        ]
+      },
+      {
+        "id": "service-makeup",
+        "category": "COUTURE MAKEUP",
+        "title": "Royal Kundan & Bridal Artistry",
+        "description": "High-definition velvet bridal finish with custom contoured eyes, shimmering Kundan embellishments, and rich crimson lipstick.",
+        "price": "$450+",
+        "image": "./assets/service_makeup.png",
+        "features": [
+          "Waterproof HD finish",
+          "Lash architectural fitting",
+          "Trial suite session"
+        ]
+      },
+      {
+        "id": "service-nail-bar",
+        "category": "NAIL ARCHITECTURE",
+        "title": "24K Gold Leaf Minimalist Manicure",
+        "description": "Precision manicure on nude blush base accented with hand-placed 24k gold leaf foil and organic oil cuticle nourishment.",
+        "price": "$160+",
+        "image": "./assets/service_nail_bar.png",
+        "features": [
+          "Organic cuticle detox",
+          "24K gold leafing",
+          "Long-wear glass gel"
+        ]
+      }
+    ]
+  },
+  "gallery": {
+    "scriptLabel": "Curated Portfolio",
+    "sectionTitle": "OUR GALLERY",
+    "sectionDescription": "Immerse yourself in our portfolio of luxury hair transformations, glowing facial therapies, couture bridal looks, and bespoke nail artistry.",
+    "items": [
+      {
+        "id": 1,
+        "category": "HAIR CARE",
+        "title": "Dimensional Balayage & Silk Waves",
+        "subtitle": "Precision Hair Care",
+        "description": "Bespoke hand-painted balayage with rich warm tones and smooth, voluminous glossy waves.",
+        "image": "./assets/gallery_indian_hair.png"
+      },
+      {
+        "id": 2,
+        "category": "SKIN RADIANCE",
+        "title": "Gold Radiance Spa Facial",
+        "subtitle": "Skin Radiance Therapy",
+        "description": "Deep hydration and collagen restoration treatment for luminous, camera-ready skin.",
+        "image": "./assets/gallery_indian_facial.png"
+      },
+      {
+        "id": 3,
+        "category": "BRIDAL & MAKEUP",
+        "title": "Royal Kundan Bridal Makeup",
+        "subtitle": "Editorial Makeup Studio",
+        "description": "HD velvet finish with shimmering gold eye makeup and rich crimson lips for unforgettable bride allure.",
+        "image": "./assets/gallery_indian_bridal.png"
+      },
+      {
+        "id": 4,
+        "category": "NAIL ART",
+        "title": "Bridal Gold Leaf Manicure",
+        "subtitle": "Nail Architecture",
+        "description": "Precision manicured blush base with hand-placed 24k gold leaf foil accents.",
+        "image": "./assets/gallery_indian_nails.png"
+      },
+      {
+        "id": 5,
+        "category": "HAIR CARE",
+        "title": "Traditional Floral Bridal Updo",
+        "subtitle": "Haute Hair Styling",
+        "description": "Intricate swept-back traditional Indian updo styled with mogra flowers and gold jewelry.",
+        "image": "./assets/gallery_indian_updo.png"
+      },
+      {
+        "id": 6,
+        "category": "SALON SANCTUARY",
+        "title": "VIP Salon Therapy Suite",
+        "subtitle": "Luxury Atmosphere",
+        "description": "Immerse yourself in our serene, botanical-scented private beauty suites.",
+        "image": "./assets/faq_hair_wash.png"
+      }
+    ]
+  },
+  "testimonials": {
+    "scriptLabel": "Client Stories",
+    "sectionTitle": "WHAT OUR CLIENTS SAY",
+    "sectionDescription": "Join the community of discerning women who trust us with their beauty. Excellence is our only standard.",
+    "items": [
+      {
+        "id": 1,
+        "name": "ANANYA SHARMA",
+        "role": "Fashion Curator & Editor",
+        "image": "./assets/testimonial_ananya.png",
+        "quote": "Tekkzy Salon has completely redefined what a hair transformation feels like. It is not an appointment; it is a ritual of quiet luxury.",
+        "rating": 5
+      },
+      {
+        "id": 2,
+        "name": "MEGHA KAPOOR",
+        "role": "Creative Director, Vogue Studio",
+        "image": "./assets/testimonial_megha.png",
+        "quote": "The 24K Gold Facial and bespoke balayage restored my hair and skin to a condition I haven't seen in years. Truly world class.",
+        "rating": 5
+      },
+      {
+        "id": 3,
+        "name": "RITIKA ROY",
+        "role": "Bridal Stylist & Entrepreneur",
+        "image": "./assets/testimonial_ritika.png",
+        "quote": "My royal bridal session was absolute perfection. The private hydrotherapy suite and champagne welcome made me feel like royalty.",
+        "rating": 5
+      }
+    ]
+  },
+  "faq": {
+    "scriptLabel": "Curious Minds",
+    "sectionTitle": "FREQUENTLY ASKED QUESTIONS",
+    "sectionDescription": "Everything you need to know about our luxury salon rituals, booking guidelines, and customized beauty therapies.",
+    "image": "./assets/faq_hair_wash.png",
+    "items": [
+      {
+        "question": "How far in advance should I book my appointment?",
+        "answer": "We recommend booking 2 to 3 weeks in advance for weekend sessions and bridal packages to ensure your preferred master stylist and private suite availability."
+      },
+      {
+        "question": "What hair color and skincare products do you use?",
+        "answer": "We exclusively use organic, zero-formaldehyde, ammonia-free French color formulations infused with caviar extracts and 24K gold nano-peptides."
+      },
+      {
+        "question": "Do you offer private VIP room consultations?",
+        "answer": "Yes, our private sanctuary suites offer full soundproofing, custom ambient lighting, private hydrotherapy stations, and complimentary champagne service."
+      },
+      {
+        "question": "What is your cancellation and rescheduling policy?",
+        "answer": "We request at least 24 hours notice for any cancellations or rescheduling so we may accommodate other valued guests on our waitlist."
+      }
+    ]
+  },
+  "contact": {
+    "scriptLabel": "Get In Touch",
+    "sectionTitle": "CONTACT TEKKZY",
+    "sectionDescription": "Whether reserving a private session, inquiring about bridal packages, or consulting with our master stylists, our concierge team is at your service.",
+    "locationCard": {
+      "badge": "VISIT THE SANCTUARY",
+      "title": "Couture Avenue",
+      "address": "428 Luxury Lane, Couture Avenue, Suite 100, New York, NY 10021",
+      "phone": "+1 (555) 019-2834",
+      "email": "concierge@tekkzy-salon.com"
+    },
+    "hoursCard": {
+      "badge": "HOURS OF BEAUTY",
+      "title": "Operating Hours",
+      "weekdaysLabel": "Monday – Friday",
+      "weekdaysTime": "9:00 AM – 8:00 PM",
+      "saturdayLabel": "Saturday",
+      "saturdayTime": "9:00 AM – 7:00 PM",
+      "sundayLabel": "Sunday",
+      "sundayTime": "10:00 AM – 5:00 PM",
+      "note": "Prior appointment recommended for master stylists"
+    },
+    "vipCard": {
+      "badge": "BESPOKE EXCELLENCE",
+      "title": "VIP Private Appointments",
+      "description": "Step into our completely secluded hydrotherapy suites tailored exclusively for you. Soundproof ambient lighting, private consultation, and personalized sensory care.",
+      "perk1": "COMPLIMENTARY VALET PARKING",
+      "perk2": "CHAMPAGNE & CAVIAR INFUSION WELCOME",
+      "perks": [
+        "COMPLIMENTARY VALET PARKING",
+        "CHAMPAGNE & CAVIAR INFUSION WELCOME"
+      ]
+    },
+    "info": {
+      "title": "SALON SANCTUARY",
+      "address": "428 Luxury Lane, Couture Avenue, Suite 100, New York, NY 10021",
+      "phones": [
+        "+1 (555) 019-2834",
+        "+1 (555) 987-6543"
+      ],
+      "email": "concierge@tekkzy-salon.com",
+      "hours": {
+        "weekdays": "Monday – Friday: 9:00 AM – 8:00 PM",
+        "saturday": "Saturday: 9:00 AM – 7:00 PM",
+        "sunday": "Sunday: 10:00 AM – 5:00 PM"
+      }
+    },
+    "form": {
+      "tagline": "ONLINE INQUIRY & RESERVATION",
+      "title": "SEND A MESSAGE",
+      "description": "Fill in your details below and our team will get back to you within 2 hours.",
+      "services": [
+        "Hair Care & Balayage",
+        "Skin Radiance Facial",
+        "Editorial & Bridal Makeup",
+        "Nail Architecture & Art",
+        "Full VIP Salon Session"
+      ]
+    }
+  },
+  "footer": {
+    "logoTitle": "TEKKZY",
+    "logoSubtitle": "Salon",
+    "description": "Where beauty meets expertise. We bring out the best in you with care, passion and perfection.",
+    "hiddenColumns": [],
+    "columns": {
+      "explore": {
+        "title": "Explore",
+        "links": [
+          {
+            "label": "Home",
+            "href": "#"
+          },
+          {
+            "label": "About Us",
+            "href": "#about"
+          },
+          {
+            "label": "Services",
+            "href": "#services"
+          },
+          {
+            "label": "Gallery",
+            "href": "#gallery"
+          },
+          {
+            "label": "Our Experts",
+            "href": "#experts"
+          },
+          {
+            "label": "Testimonials",
+            "href": "#testimonials"
+          },
+          {
+            "label": "Blog",
+            "href": "#blog"
+          },
+          {
+            "label": "Contact Us",
+            "href": "#contact"
+          }
+        ]
+      },
+      "services": {
+        "title": "Our Services",
+        "links": [
+          {
+            "label": "Hair Care",
+            "href": "#services"
+          },
+          {
+            "label": "Skin Care",
+            "href": "#services"
+          },
+          {
+            "label": "Makeup Studio",
+            "href": "#services"
+          },
+          {
+            "label": "Nail Bar",
+            "href": "#services"
+          },
+          {
+            "label": "Bridal Services",
+            "href": "#services"
+          },
+          {
+            "label": "Spa & Relaxation",
+            "href": "#services"
+          },
+          {
+            "label": "Packages & Offers",
+            "href": "#services"
+          }
+        ]
+      },
+      "quickLinks": {
+        "title": "Quick Links",
+        "links": [
+          {
+            "label": "Book Appointment",
+            "href": "#home"
+          },
+          {
+            "label": "Gift Cards",
+            "href": "#contact"
+          },
+          {
+            "label": "Membership",
+            "href": "#services"
+          },
+          {
+            "label": "FAQs",
+            "href": "#faq"
+          },
+          {
+            "label": "Cancellation Policy",
+            "href": "#faq"
+          },
+          {
+            "label": "Privacy Policy",
+            "href": "#"
+          },
+          {
+            "label": "Terms & Conditions",
+            "href": "#"
+          }
+        ]
+      },
+      "contact": {
+        "title": "Get In Touch"
+      },
+      "social": {
+        "title": "Follow Us",
+        "links": [
+          {
+            "platform": "facebook",
+            "label": "Facebook",
+            "url": "https://facebook.com"
+          },
+          {
+            "platform": "instagram",
+            "label": "Instagram",
+            "url": "https://instagram.com"
+          },
+          {
+            "platform": "pinterest",
+            "label": "Pinterest",
+            "url": "https://pinterest.com"
+          },
+          {
+            "platform": "youtube",
+            "label": "YouTube",
+            "url": "https://youtube.com"
+          }
+        ]
+      }
+    },
+    "contact": {
+      "phone": "+1 (555) 019-2834",
+      "email": "concierge@tekkzy-salon.com",
+      "address": "428 Luxury Lane, Suite 100, New York, NY 10021",
+      "instagram": "@tekkzy.salon"
+    },
+    "hours": [
+      "Mon - Fri: 9:00 AM - 8:00 PM",
+      "Sat: 9:00 AM - 7:00 PM",
+      "Sun: 10:00 AM - 5:00 PM"
+    ],
+    "newsletterTitle": "STAY BEAUTIFUL, STAY UPDATED.",
+    "newsletterDescription": "Subscribe to our newsletter and get exclusive offers & beauty tips.",
+    "copyright": "© 2024 Tekkzy Salon. All Rights Reserved.",
+    "bottomTagline": "Expert care. Premium products. Your satisfaction."
+  },
+  "theme": {
+    "name": "Royal Burgundy & Gold",
+    "primary": "#4A121B",
+    "gold": "#D4A574",
+    "bg": "#F4EDE3",
+    "darkBg": "#1A0A0E",
+    "accent": "#63202B"
+  }
+}
