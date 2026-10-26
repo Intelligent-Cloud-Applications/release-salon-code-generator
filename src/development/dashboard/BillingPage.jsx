@@ -916,19 +916,31 @@ const BillingPage = () => {
             (phoneNumber && (c.phoneNumber === phoneNumber || c.phone === phoneNumber || c.PhoneNumber === phoneNumber))
         )?.clientId || "";
 
-      if (!clientId && clientName && clientName.toLowerCase() !== "walk-in client") {
+      const trimmedName = String(clientName || "").trim();
+      const trimmedPhone = String(phoneNumber || "").replace(/[^0-9+]/g, "").trim();
+
+      const hasValidName =
+        trimmedName.length > 0 &&
+        !trimmedName.toLowerCase().includes("walk-in") &&
+        trimmedName.toLowerCase() !== "guest" &&
+        trimmedName.toLowerCase() !== "client";
+
+      const hasValidPhone = trimmedPhone.length >= 7;
+
+      // Only create client in directory if BOTH a valid name and phone number are explicitly entered
+      if (!clientId && hasValidName && hasValidPhone) {
         try {
           const newC = await createClient({
-            userName: clientName,
-            clientName,
-            phoneNumber,
+            userName: trimmedName,
+            clientName: trimmedName,
+            phoneNumber: trimmedPhone,
             emailId: "",
             createdAt: epochNow,
           });
           clientId = newC?.client?.clientId || newC?.clientId || newC?.id || "";
           if (fetchClients) fetchClients();
         } catch (e) {
-          console.warn("Client auto-create warning:", e);
+          console.warn("Client auto-create skipped or warning:", e);
         }
       }
 
@@ -1089,44 +1101,23 @@ const BillingPage = () => {
       clearCart();
 
       toast({
-        title: "Bill settled",
+        title: "Bill settled successfully",
         description: targetAppointmentId
           ? `Invoice #${completedBill.id} settled and appointment completed.`
-          : `Invoice #${completedBill.id} created.`,
+          : `Invoice #${completedBill.id} generated and payment recorded.`,
       });
 
-      // 3) DIRECT AUTO-PRINT WITHOUT MODAL: USB or Bluetooth as configured in Settings
+      // Direct auto-print if configured in Settings, completely without opening any modal
       const printerSettings = getStoredPrinterSettings();
-      const isBluetooth = printerSettings?.printerType === "bluetooth";
-
-      toast({
-        title: isBluetooth ? "Printing via Bluetooth..." : "Printing Receipt...",
-        description: isBluetooth
-          ? "Connecting to Bluetooth thermal printer..."
-          : `Printing on USB printer (${printerSettings?.paperSize || "80mm"})...`,
-      });
-
-      try {
-        await directPrintBill(completedBill, institutionData, printerSettings);
-        if (isBluetooth) {
-          toast({
-            title: "Bill Printed",
-            description: `Invoice #${completedBill.id} printed via Bluetooth.`,
-          });
+      if (printerSettings?.autoPrint) {
+        try {
+          await directPrintBill(completedBill, institutionData, printerSettings);
+        } catch (printErr) {
+          console.warn("Direct background print notice:", printErr);
         }
-      } catch (printErr) {
-        console.warn("Direct auto-print failed, opening invoice preview:", printErr);
-        toast({
-          variant: "destructive",
-          title: "Printer Notice",
-          description: printErr.message || "Direct print failed. Opening invoice preview.",
-        });
-        setBillToPrint(completedBill);
-        setIsDraftPrint(false);
-        setShowBillPrint(true);
       }
 
-      // Refresh in the background AFTER the receipt is on screen, never blocking it
+      // Refresh in the background
       setTimeout(() => {
         Promise.resolve(fetchAppointments?.()).catch((e) =>
           console.warn("Fetch refresh warning:", e)

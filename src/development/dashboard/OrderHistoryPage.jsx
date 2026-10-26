@@ -145,11 +145,31 @@ const OrderHistoryPage = () => {
   const { appointments, barbers, institutionData } = useContext(Context);
   const { toast } = useToast();
 
+  const todayKey = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const currentMonthKey = useMemo(() => format(new Date(), "yyyy-MM"), []);
+
   const [period, setPeriod] = useState("today");
+  const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [status, setStatus] = useState("completed");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState({ from: "", to: "" });
   const [visible, setVisible] = useState(PAGE_SIZE);
+
+  // Available months list for dropdown (last 24 months + current month)
+  const availableMonths = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        value: format(d, "yyyy-MM"),
+        label: format(d, "MMMM yyyy"),
+        isCurrent: i === 0,
+      });
+    }
+    return months;
+  }, []);
   const [showBillPrint, setShowBillPrint] = useState(false);
   const [billToPrint, setBillToPrint] = useState(null);
 
@@ -272,16 +292,19 @@ const OrderHistoryPage = () => {
 
   const filtered = useMemo(() => {
     const now = new Date();
-    const todayKey = format(now, "yyyy-MM-dd");
 
     let r = bills.filter((b) => {
-      if (period === "today") return b.dateKey === todayKey;
+      if (period === "today") return b.dateKey === (selectedDate || todayKey);
       if (period === "week") {
         const diff = (now.getTime() - b.rawDate.getTime()) / 86400000;
         return diff >= 0 && diff <= 7;
       }
-      if (period === "month")
-        return b.rawDate.getMonth() === now.getMonth() && b.rawDate.getFullYear() === now.getFullYear();
+      if (period === "month") {
+        return (
+          b.dateKey &&
+          b.dateKey.startsWith(selectedMonth || currentMonthKey)
+        );
+      }
       if (period === "custom" && range.from)
         return b.dateKey >= range.from && b.dateKey <= (range.to || range.from);
       return true;
@@ -300,9 +323,9 @@ const OrderHistoryPage = () => {
       );
     }
     return r;
-  }, [bills, period, status, search, range]);
+  }, [bills, period, selectedDate, selectedMonth, todayKey, currentMonthKey, status, search, range]);
 
-  useEffect(() => setVisible(PAGE_SIZE), [period, status, search, range]);
+  useEffect(() => setVisible(PAGE_SIZE), [period, selectedDate, selectedMonth, status, search, range]);
 
   const { total, cash, digital, avg } = useMemo(() => {
     let t = 0, c = 0, d = 0;
@@ -316,9 +339,18 @@ const OrderHistoryPage = () => {
   }, [filtered]);
 
   const shown = filtered.slice(0, visible);
-  const dirty = search.trim() !== "" || status !== "completed" || period !== "today";
+  const dirty =
+    search.trim() !== "" ||
+    status !== "completed" ||
+    period !== "today" ||
+    selectedDate !== todayKey ||
+    selectedMonth !== currentMonthKey ||
+    Boolean(range.from);
+
   const reset = () => {
     setPeriod("today");
+    setSelectedDate(todayKey);
+    setSelectedMonth(currentMonthKey);
     setStatus("completed");
     setSearch("");
     setRange({ from: "", to: "" });
@@ -477,8 +509,20 @@ const OrderHistoryPage = () => {
 
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 touch-pan-x flex-nowrap sm:flex-wrap">
             {PERIODS.map((p) => (
-              <Pill key={p.id} active={period === p.id} onClick={() => setPeriod(p.id)}>
-                {p.label}
+              <Pill
+                key={p.id}
+                active={period === p.id}
+                onClick={() => setPeriod(p.id)}
+              >
+                {p.id === "today"
+                  ? selectedDate === todayKey
+                    ? "Today"
+                    : "Date"
+                  : p.id === "month"
+                  ? selectedMonth === currentMonthKey
+                    ? "This Month"
+                    : "Month"
+                  : p.label}
               </Pill>
             ))}
             <span className="hidden sm:block w-px h-6 bg-slate-200 mx-1 shrink-0" />
@@ -497,6 +541,61 @@ const OrderHistoryPage = () => {
               </button>
             )}
           </div>
+
+          {/* Date Picker when "today / Date" is selected */}
+          {period === "today" && (
+            <div className="flex items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm flex-wrap">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="font-semibold text-slate-700">Choose Specific Date:</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 font-semibold focus:outline-none cursor-pointer text-xs"
+                />
+              </div>
+              {selectedDate !== todayKey && (
+                <button
+                  onClick={() => setSelectedDate(todayKey)}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded-md cursor-pointer shrink-0"
+                >
+                  Back to Today
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Month Dropdown when "month" is selected */}
+          {period === "month" && (
+            <div className="flex items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm flex-wrap">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span className="font-semibold text-slate-700">Choose Month:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-800 font-semibold focus:outline-none cursor-pointer text-xs"
+                >
+                  {availableMonths.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedMonth !== currentMonthKey && (
+                <button
+                  onClick={() => setSelectedMonth(currentMonthKey)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded-md cursor-pointer shrink-0"
+                >
+                  This Month
+                </button>
+              )}
+            </div>
+          )}
 
           {period === "custom" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-slate-600 pt-1">

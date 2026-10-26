@@ -81,31 +81,78 @@ export const isSplitPayment = (item) => {
  */
 export const getCollectionBreakdown = (item) => {
   if (!item) return { cash: 0, upi: 0, card: 0, digital: 0, total: 0 };
-  const total = Number(item.total != null ? item.total : item.amount != null ? item.amount : 0) || 0;
+  const total =
+    Number(
+      item.total != null
+        ? item.total
+        : item.totalAmount != null
+        ? item.totalAmount
+        : item.amount != null
+        ? item.amount
+        : item.price != null
+        ? item.price
+        : 0
+    ) || 0;
   const split = parsePaymentSplit(item);
-  const mode = String(item.paymentMode || item.paymentMethod || "").toLowerCase();
+  const mode = String(
+    item.paymentMode || item.paymentMethod || item.mode || item.payment_mode || ""
+  )
+    .toLowerCase()
+    .trim();
 
   if (split && (split.cash > 0 || split.upi > 0 || split.card > 0 || mode === "split")) {
     const cash = Number(split.cash) || 0;
     const upi = Number(split.upi) || 0;
     const card = Number(split.card) || 0;
+    const splitSum = cash + upi + card;
     return {
       cash,
       upi,
       card,
       digital: upi + card,
-      total,
+      total: total > 0 ? total : splitSum,
     };
   }
 
-  if (mode === "cash") {
+  if (mode === "cash" || mode.includes("cash")) {
     return { cash: total, upi: 0, card: 0, digital: 0, total };
   }
-  if (mode.includes("card")) {
+  if (
+    mode.includes("card") ||
+    mode.includes("pos") ||
+    mode.includes("credit") ||
+    mode.includes("debit")
+  ) {
     return { cash: 0, upi: 0, card: total, digital: total, total };
   }
-  // Default to UPI / digital
-  return { cash: 0, upi: total, card: 0, digital: total, total };
+  if (
+    mode.includes("upi") ||
+    mode.includes("online") ||
+    mode.includes("qr") ||
+    mode.includes("gpay") ||
+    mode.includes("paytm") ||
+    mode.includes("phonepe") ||
+    mode.includes("netbanking")
+  ) {
+    return { cash: 0, upi: total, card: 0, digital: total, total };
+  }
+
+  // Check explicit amount attributes if mode string is ambiguous or empty
+  const cAmt = Number(item.cashAmount) || 0;
+  const uAmt = Number(item.upiAmount) || 0;
+  const cdAmt = Number(item.cardAmount) || 0;
+  if (cAmt > 0 || uAmt > 0 || cdAmt > 0) {
+    return {
+      cash: cAmt,
+      upi: uAmt,
+      card: cdAmt,
+      digital: uAmt + cdAmt,
+      total: total > 0 ? total : cAmt + uAmt + cdAmt,
+    };
+  }
+
+  // Default to Cash for settled salon transactions if mode is unspecified
+  return { cash: total, upi: 0, card: 0, digital: 0, total };
 };
 
 /**

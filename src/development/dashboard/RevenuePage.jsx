@@ -117,21 +117,35 @@ const PERIODS = [
   { id: "all", label: "All Time" },
 ];
 
-const getPeriodRange = (period) => {
+const getPeriodRange = (period, selectedDate, selectedMonth) => {
   const now = new Date();
   const today0 = startOfDay(now);
 
   if (period === "today") {
-    const y = new Date(today0);
+    let target = today0;
+    if (selectedDate) {
+      try {
+        const parsed = new Date(selectedDate + "T00:00:00");
+        if (isValidDate(parsed)) target = parsed;
+      } catch {}
+    }
+    const targetStart = startOfDay(target);
+    const targetEnd = endOfDay(target);
+    const y = new Date(targetStart);
     y.setDate(y.getDate() - 1);
+    const isCurrentToday =
+      format(target, "yyyy-MM-dd") === format(now, "yyyy-MM-dd");
+
     return {
-      start: today0,
-      end: endOfDay(now),
-      prevStart: y,
+      start: targetStart,
+      end: targetEnd,
+      prevStart: startOfDay(y),
       prevEnd: endOfDay(y),
       compare: true,
-      prevLabel: "vs yesterday",
-      trendTitle: "Today (Hourly)",
+      prevLabel: isCurrentToday ? "vs yesterday" : "vs previous day",
+      trendTitle: isCurrentToday
+        ? "Today (Hourly)"
+        : `${safeFormat(target, "dd MMM yyyy")} (Hourly)`,
     };
   }
   if (period === "week") {
@@ -152,20 +166,38 @@ const getPeriodRange = (period) => {
     };
   }
   if (period === "this_month") {
-    const s = new Date(now.getFullYear(), now.getMonth(), 1);
-    const prevMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-    const ps = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const pe = endOfDay(
-      new Date(now.getFullYear(), now.getMonth() - 1, Math.min(now.getDate(), prevMonthDays))
-    );
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    if (
+      selectedMonth &&
+      typeof selectedMonth === "string" &&
+      selectedMonth.includes("-")
+    ) {
+      const parts = selectedMonth.split("-").map(Number);
+      if (parts[0] && parts[1]) {
+        year = parts[0];
+        month = parts[1] - 1;
+      }
+    }
+    const s = new Date(year, month, 1, 0, 0, 0);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const e = new Date(year, month, daysInMonth, 23, 59, 59, 999);
+
+    const ps = new Date(year, month - 1, 1, 0, 0, 0);
+    const prevDaysInMonth = new Date(year, month, 0).getDate();
+    const pe = new Date(year, month - 1, prevDaysInMonth, 23, 59, 59, 999);
+
+    const isCurrentMonth =
+      year === now.getFullYear() && month === now.getMonth();
+
     return {
       start: s,
-      end: endOfDay(now),
+      end: e,
       prevStart: ps,
       prevEnd: pe,
       compare: true,
-      prevLabel: "vs same days last month",
-      trendTitle: "This Month (Date-wise)",
+      prevLabel: isCurrentMonth ? "vs last month" : "vs previous month",
+      trendTitle: `${safeFormat(s, "MMMM yyyy")} (Date-wise)`,
     };
   }
   return {
@@ -345,9 +377,29 @@ const payKey = (mode) => {
 const RevenuePage = () => {
   const { appointments, barbers } = useContext(Context);
 
+  const todayKey = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const currentMonthKey = useMemo(() => format(new Date(), "yyyy-MM"), []);
+
   const [revenuePeriod, setRevenuePeriod] = useState("today");
+  const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [activeTrend, setActiveTrend] = useState(null);
   const [activeHour, setActiveHour] = useState(null);
+
+  // Available months list for dropdown (last 24 months + current month)
+  const availableMonths = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        value: format(d, "yyyy-MM"),
+        label: format(d, "MMMM yyyy"),
+        isCurrent: i === 0,
+      });
+    }
+    return months;
+  }, []);
 
   /* ---- normalize every completed appointment into a bill record ---- */
   const allBills = useMemo(() => {
@@ -412,7 +464,10 @@ const RevenuePage = () => {
     return list;
   }, [appointments, barbers]);
 
-  const range = useMemo(() => getPeriodRange(revenuePeriod), [revenuePeriod]);
+  const range = useMemo(
+    () => getPeriodRange(revenuePeriod, selectedDate, selectedMonth),
+    [revenuePeriod, selectedDate, selectedMonth]
+  );
 
   const revenueBills = useMemo(
     () => allBills.filter((b) => inRange(b, range.start, range.end)),
@@ -498,17 +553,36 @@ const RevenuePage = () => {
     }
 
     if (revenuePeriod === "this_month") {
-      const year = now.getFullYear();
-      const month = now.getMonth();
+      let year = now.getFullYear();
+      let month = now.getMonth();
+      if (
+        selectedMonth &&
+        typeof selectedMonth === "string" &&
+        selectedMonth.includes("-")
+      ) {
+        const parts = selectedMonth.split("-").map(Number);
+        if (parts[0] && parts[1]) {
+          year = parts[0];
+          month = parts[1] - 1;
+        }
+      }
+      const isCurrentMonth =
+        year === now.getFullYear() && month === now.getMonth();
       const currentDay = now.getDate();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const maxBillDay = revenueBills.reduce((acc, b) => {
-        if (b.rawDate && b.rawDate.getMonth() === month && b.rawDate.getFullYear() === year) {
+        if (
+          b.rawDate &&
+          b.rawDate.getMonth() === month &&
+          b.rawDate.getFullYear() === year
+        ) {
           return Math.max(acc, b.rawDate.getDate());
         }
         return acc;
-      }, currentDay);
-      const endDay = Math.min(Math.max(maxBillDay, 7), daysInMonth);
+      }, isCurrentMonth ? currentDay : daysInMonth);
+      const endDay = isCurrentMonth
+        ? Math.min(Math.max(maxBillDay, 7), daysInMonth)
+        : daysInMonth;
 
       const list = [];
       for (let dayNum = 1; dayNum <= endDay; dayNum++) {
@@ -520,8 +594,8 @@ const RevenuePage = () => {
           longLabel: safeFormat(d, "EEE, dd MMM yyyy"),
           amount: 0,
           orders: 0,
-          isToday: dayNum === currentDay,
-          isCurrent: dayNum === currentDay,
+          isToday: isCurrentMonth && dayNum === currentDay,
+          isCurrent: isCurrentMonth && dayNum === currentDay,
         });
       }
       const map = Object.fromEntries(list.map((item) => [item.key, item]));
@@ -557,7 +631,7 @@ const RevenuePage = () => {
       }
     });
     return list;
-  }, [allBills, revenueBills, revenuePeriod]);
+  }, [allBills, revenueBills, revenuePeriod, selectedDate, selectedMonth]);
 
   /* ---- hourly footfall (9 AM – 8 PM, extended if data falls outside) ---- */
   const hourlyData = useMemo(() => {
@@ -628,11 +702,31 @@ const RevenuePage = () => {
   }, [trendData]);
 
   const rangeLabel = useMemo(() => {
+    if (revenuePeriod === "today") {
+      const isCurrentDay = selectedDate === todayKey;
+      try {
+        const parsed = new Date(selectedDate + "T00:00:00");
+        return isCurrentDay
+          ? `Today • ${safeFormat(parsed, "EEEE, dd MMMM yyyy")}`
+          : `${safeFormat(parsed, "EEEE, dd MMMM yyyy")}`;
+      } catch {
+        return safeFormat(range.start, "EEEE, dd MMM yyyy");
+      }
+    }
+    if (revenuePeriod === "this_month") {
+      try {
+        const [yr, mo] = selectedMonth.split("-").map(Number);
+        const d = new Date(yr, mo - 1, 1);
+        return safeFormat(d, "MMMM yyyy");
+      } catch {
+        return "This Month";
+      }
+    }
     if (!range.start) return "All recorded sales";
     const s = safeFormat(range.start, "dd MMM");
     const e = safeFormat(range.end, "dd MMM yyyy");
-    return revenuePeriod === "today" ? safeFormat(range.start, "EEEE, dd MMM yyyy") : `${s} – ${e}`;
-  }, [range, revenuePeriod]);
+    return `${s} – ${e}`;
+  }, [range, revenuePeriod, selectedDate, selectedMonth, todayKey]);
 
   /* ---- trend chart geometry ---- */
   const chart = useMemo(() => {
@@ -719,26 +813,91 @@ const RevenuePage = () => {
               </div>
             </div>
 
-            {/* Period selector */}
-            <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl w-full lg:w-auto lg:inline-flex">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setRevenuePeriod(p.id);
-                    setActiveTrend(null);
-                    setActiveHour(null);
-                  }}
-                  className={cn(
-                    "px-2 sm:px-4 h-9 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap",
-                    revenuePeriod === p.id
-                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
-                      : "text-slate-500 hover:text-slate-800"
+            {/* Period selector & Date / Month Selectors */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+              <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setRevenuePeriod(p.id);
+                      setActiveTrend(null);
+                      setActiveHour(null);
+                    }}
+                    className={cn(
+                      "px-2 sm:px-3.5 h-9 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap",
+                      revenuePeriod === p.id
+                        ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    {p.id === "today"
+                      ? selectedDate === todayKey
+                        ? "Today"
+                        : "Date"
+                      : p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Date Chooser when "today / Date" is selected */}
+              {revenuePeriod === "today" && (
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 shadow-2xs rounded-xl px-2.5 h-9">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-600 shrink-0">
+                    Date:
+                  </span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setSelectedDate(e.target.value);
+                        setActiveTrend(null);
+                        setActiveHour(null);
+                      }
+                    }}
+                    className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
+                  />
+                  {selectedDate !== todayKey && (
+                    <button
+                      onClick={() => {
+                        setSelectedDate(todayKey);
+                        setActiveTrend(null);
+                        setActiveHour(null);
+                      }}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded cursor-pointer ml-1"
+                    >
+                      Today
+                    </button>
                   )}
-                >
-                  {p.label}
-                </button>
-              ))}
+                </div>
+              )}
+
+              {/* Month Dropdown when "this_month" is selected */}
+              {revenuePeriod === "this_month" && (
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 shadow-2xs rounded-xl px-2.5 h-9">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-600 shrink-0">
+                    Month:
+                  </span>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      setSelectedMonth(e.target.value);
+                      setActiveTrend(null);
+                      setActiveHour(null);
+                    }}
+                    className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-1"
+                  >
+                    {availableMonths.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
         </header>
