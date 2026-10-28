@@ -45,6 +45,7 @@ import {
   isSplitPayment,
   formatPaymentSummary,
   getCollectionBreakdown,
+  isSettledAppointment,
 } from "../lib/paymentUtils";
 
 /* ----------------------------------------------------------------------------
@@ -317,8 +318,29 @@ const ReportsPage = () => {
             : 0
         ) || 0;
       const computed = subtotal + tax - discount;
-      const parsedSplit = parsePaymentSplit(apt);
-      const isSplit = isSplitPayment(apt) || !!parsedSplit;
+
+      const rawStatus = String(
+        apt?.status || apt?.Status || apt?.appointment_status || ""
+      ).trim();
+      const statusNormalized = rawStatus.toLowerCase();
+
+      // Check whether this appointment is settled/completed/paid
+      const isSettled = isSettledAppointment(apt);
+      const isCancelled =
+        statusNormalized === "cancelled" || statusNormalized.includes("cancel");
+
+      const displayStatus = isSettled
+        ? "Completed"
+        : isCancelled
+        ? "Cancelled"
+        : statusNormalized === "in_progress" || statusNormalized.includes("progress")
+        ? "In Progress"
+        : statusNormalized === "confirmed"
+        ? "Confirmed"
+        : "Scheduled";
+
+      const parsedSplit = isSettled ? parsePaymentSplit(apt) : null;
+      const isSplit = isSettled && (isSplitPayment(apt) || !!parsedSplit);
       const breakdown = getCollectionBreakdown(apt);
 
       const splitSum =
@@ -331,31 +353,31 @@ const ReportsPage = () => {
           apt?.total != null ? apt.total : computed > 0 ? computed : subtotal
         ) || 0;
 
-      // Ensure total always accounts for split collections
-      const total = Math.max(baseTotal, breakdown.total, splitSum);
-
-      const rawStatus = String(
-        apt?.status || apt?.Status || apt?.appointment_status || "Completed"
-      ).trim();
-      const statusNormalized = rawStatus.toLowerCase();
+      // Ensure total always accounts for split collections when settled
+      const total = isSettled ? Math.max(baseTotal, breakdown.total, splitSum) : baseTotal;
 
       const rawPaymentMethod =
         apt?.paymentMode ||
         apt?.paymentMethod ||
         apt?.PaymentMethod ||
-        apt?.payment_method ||
-        "Cash";
+        apt?.payment_method;
 
-      const paymentMethod =
-        rawPaymentMethod &&
-        String(rawPaymentMethod).toLowerCase() !== "undefined"
-          ? String(rawPaymentMethod)
-          : "Cash";
+      // Unsettled appointments must NOT be marked as Cash
+      const paymentMethod = isSettled
+        ? (rawPaymentMethod && String(rawPaymentMethod).toLowerCase() !== "undefined"
+            ? String(rawPaymentMethod)
+            : "Cash")
+        : isCancelled
+        ? "Cancelled"
+        : "Unsettled";
 
-      const paymentSummary =
-        isSplit && parsedSplit
-          ? formatPaymentSummary(apt)
-          : paymentMethod.toUpperCase();
+      const paymentSummary = isSettled
+        ? (isSplit && parsedSplit
+            ? formatPaymentSummary(apt)
+            : paymentMethod.toUpperCase())
+        : isCancelled
+        ? "CANCELLED"
+        : "UNSETTLED";
 
       const rawClient =
         apt?.clientName ||
@@ -418,14 +440,9 @@ const ReportsPage = () => {
         tax,
         total,
         gstPercent: Number(apt?.gstPercent || apt?.gst_percent || 0),
-        status:
-          statusNormalized === "completed" ||
-          statusNormalized === "settled" ||
-          statusNormalized === "paid"
-            ? "Completed"
-            : statusNormalized === "cancelled"
-            ? "Cancelled"
-            : "Scheduled",
+        status: displayStatus,
+        isSettled,
+        isCancelled,
         rawStatus,
         paymentMethod,
         isSplit,
@@ -514,14 +531,16 @@ const ReportsPage = () => {
       if (filterPaymentMode !== "all") {
         const mode = tx.paymentMethod.toLowerCase();
         if (filterPaymentMode === "cash") {
-          const hasCash = (Number(tx.breakdown?.cash) || 0) > 0 || (!tx.isSplit && mode === "cash");
+          const hasCash = tx.isSettled && ((Number(tx.breakdown?.cash) || 0) > 0 || (!tx.isSplit && mode === "cash"));
           if (!hasCash) return false;
         } else if (filterPaymentMode === "upi") {
-          const hasUpi = (Number(tx.breakdown?.upi) || 0) > 0 || (!tx.isSplit && (mode.includes("upi") || mode.includes("online")));
+          const hasUpi = tx.isSettled && ((Number(tx.breakdown?.upi) || 0) > 0 || (!tx.isSplit && (mode.includes("upi") || mode.includes("online"))));
           if (!hasUpi) return false;
         } else if (filterPaymentMode === "card") {
-          const hasCard = (Number(tx.breakdown?.card) || 0) > 0 || (!tx.isSplit && mode.includes("card"));
+          const hasCard = tx.isSettled && ((Number(tx.breakdown?.card) || 0) > 0 || (!tx.isSplit && mode.includes("card")));
           if (!hasCard) return false;
+        } else if (filterPaymentMode === "unsettled") {
+          if (tx.isSettled) return false;
         }
       }
 
@@ -580,6 +599,9 @@ const ReportsPage = () => {
   const dailyCollectionRows = useMemo(() => {
     const map = {};
     filteredTransactions.forEach((tx) => {
+      // ONLY include settled transactions in Daily Collection Register!
+      if (!tx.isSettled) return;
+
       const key = tx.dateKey;
       if (!map[key]) {
         map[key] = {
@@ -794,33 +816,40 @@ const ReportsPage = () => {
     let totalCash = 0;
     let totalDigital = 0;
     let totalTax = 0;
+    let settledCount = 0;
 
     filteredTransactions.forEach((tx) => {
+      // In Daily Collection register or collection stats, only count settled bills
+      if (selectedReportType === "daily_collection" && !tx.isSettled) return;
+
       const txBreakdownSum =
         (Number(tx.breakdown?.cash) || 0) +
         (Number(tx.breakdown?.upi) || 0) +
         (Number(tx.breakdown?.card) || 0);
       const txAmount = Math.max(Number(tx.total) || 0, txBreakdownSum);
 
-      totalRevenue += txAmount;
-      totalCash += Number(tx.breakdown?.cash) || 0;
-      totalDigital += Number(tx.breakdown?.digital) || 0;
-      totalTax += Number(tx.tax) || 0;
+      if (tx.isSettled) {
+        totalRevenue += txAmount;
+        totalCash += Number(tx.breakdown?.cash) || 0;
+        totalDigital += Number(tx.breakdown?.digital) || 0;
+        totalTax += Number(tx.tax) || 0;
+        settledCount += 1;
+      }
     });
 
     return {
       recordsCount: activeRecords.length,
-      totalOrders: filteredTransactions.length,
+      totalOrders: selectedReportType === "daily_collection" ? settledCount : filteredTransactions.length,
       totalRevenue,
       totalCash,
       totalDigital,
       totalTax,
       avgTicket:
-        filteredTransactions.length > 0
-          ? Math.round(totalRevenue / filteredTransactions.length)
+        settledCount > 0
+          ? Math.round(totalRevenue / settledCount)
           : 0,
     };
-  }, [filteredTransactions, activeRecords]);
+  }, [filteredTransactions, activeRecords, selectedReportType]);
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -869,8 +898,8 @@ const ReportsPage = () => {
         r.staff || "Unassigned",
         r.dateTimeDisplay || r.dateDisplay || "—",
         r.total || 0,
-        r.paymentSummary || "CASH",
-        r.status || "Completed",
+        r.isSettled ? (r.paymentSummary || "CASH") : (r.isCancelled ? "CANCELLED" : "UNSETTLED"),
+        r.status || (r.isSettled ? "Completed" : "Scheduled"),
       ]);
     } else if (selectedReportType === "sales") {
       headers = [
@@ -896,8 +925,8 @@ const ReportsPage = () => {
         r.discount || 0,
         r.tax || 0,
         r.total || 0,
-        r.paymentSummary || "CASH",
-        r.status || "Completed",
+        r.isSettled ? (r.paymentSummary || "CASH") : (r.isCancelled ? "CANCELLED" : "UNSETTLED"),
+        r.status || (r.isSettled ? "Completed" : "Scheduled"),
       ]);
     } else if (selectedReportType === "daily_collection") {
       headers = [
@@ -1555,7 +1584,7 @@ const ReportsPage = () => {
             <option value="cash">Cash Only</option>
             <option value="upi">UPI / Online QR Only</option>
             <option value="card">Card Only</option>
-            
+            <option value="unsettled">Unsettled / Pending Only</option>
           </select>
         </div>
 
@@ -1952,6 +1981,8 @@ const ReportsPage = () => {
                                 "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border",
                                 r.status === "Completed"
                                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : r.status === "Cancelled"
+                                  ? "bg-rose-50 text-rose-700 border-rose-200"
                                   : "bg-amber-50 text-amber-700 border-amber-200"
                               )}
                             >
@@ -1983,7 +2014,7 @@ const ReportsPage = () => {
                           <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                             <div>
                               <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                                Amount Paid
+                                {r.isSettled ? "Amount Paid" : "Estimated Amount"}
                               </span>
                               <span className="font-mono font-black text-sm text-slate-900">
                                 {formatCurrency(r.total)}
@@ -1993,9 +2024,19 @@ const ReportsPage = () => {
                               <span className="text-[10px] uppercase font-bold text-slate-400 block">
                                 Payment Mode
                               </span>
-                              <span className="text-xs font-semibold text-slate-800">
-                                {r.isSplit ? `Split (${r.paymentSummary})` : r.paymentMethod}
-                              </span>
+                              {r.isSplit ? (
+                                <span className="text-xs font-semibold text-purple-700">
+                                  Split ({r.paymentSummary})
+                                </span>
+                              ) : !r.isSettled ? (
+                                <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
+                                  {r.isCancelled ? "Cancelled" : "Unsettled"}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-semibold text-slate-800">
+                                  {r.paymentMethod}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2366,12 +2407,16 @@ const ReportsPage = () => {
                                         {r.paymentSummary || "Multiple"}
                                       </p>
                                     </div>
+                                  ) : !r.isSettled ? (
+                                    <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
+                                      {r.isCancelled ? "Cancelled" : "Unsettled"}
+                                    </span>
                                   ) : (
                                     <span
                                       className={cn(
                                         "inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded border",
                                         (r.paymentMethod || "").toLowerCase() === "cash"
-                                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                           : (r.paymentMethod || "").toLowerCase().includes("card")
                                           ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                                           : "bg-blue-50 text-blue-700 border-blue-200"
@@ -2392,7 +2437,7 @@ const ReportsPage = () => {
                                         : "bg-amber-50 text-amber-700 border-amber-200"
                                     )}
                                   >
-                                    {r.status || "Completed"}
+                                    {r.status || "Scheduled"}
                                   </span>
                                 </td>
                               </tr>
@@ -2434,6 +2479,10 @@ const ReportsPage = () => {
                                     <span className="inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
                                       Split ({r.paymentSummary || "Multiple"})
                                     </span>
+                                  ) : !r.isSettled ? (
+                                    <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
+                                      {r.isCancelled ? "Cancelled" : "Unsettled"}
+                                    </span>
                                   ) : (
                                     <span className="font-semibold text-slate-800 uppercase">
                                       {r.paymentMethod || "CASH"}
@@ -2446,10 +2495,12 @@ const ReportsPage = () => {
                                       "inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border",
                                       r.status === "Completed"
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : r.status === "Cancelled"
+                                        ? "bg-rose-50 text-rose-700 border-rose-200"
                                         : "bg-amber-50 text-amber-700 border-amber-200"
                                     )}
                                   >
-                                    {r.status || "Completed"}
+                                    {r.status || "Scheduled"}
                                   </span>
                                 </td>
                               </tr>

@@ -236,22 +236,7 @@ export default function DashboardLayout() {
               <Menu className="w-5 h-5" />
             </button>
 
-            <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 flex items-center">
-              <Search className="w-4 h-4 text-slate-400 absolute left-2.5 sm:left-3 pointer-events-none shrink-0" />
-              <input
-                id="salon-omnisearch-input"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search appointments, clients, services..."
-                className="w-full pl-8 sm:pl-9 pr-2 sm:pr-16 py-1.5 text-xs font-normal bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-800 placeholder-slate-400 border border-slate-200/90 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-blue-500/30 focus:border-blue-500 transition-all truncate"
-              />
-              <div className="hidden sm:flex absolute right-2 items-center pointer-events-none">
-                <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-400 bg-white border border-slate-200/80 rounded shadow-2xs">
-                  Ctrl + /
-                </span>
-              </div>
-            </form>
+            
           </div>
 
           {/* Right Controls: Clean User Profile Dropdown Only (No Clutter) */}

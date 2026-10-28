@@ -73,14 +73,104 @@ export const isSplitPayment = (item) => {
 };
 
 /**
+ * Checks whether an appointment or bill is fully settled/completed/paid.
+ * Returns false if status is scheduled, pending, in_progress, cancelled, etc.,
+ * and no settled payment has occurred.
+ *
+ * @param {object} item Bill or appointment object
+ * @returns {boolean}
+ */
+export const isSettledAppointment = (item) => {
+  if (!item) return false;
+
+  const rawStatus = String(
+    item.status || item.Status || item.appointment_status || ""
+  ).toLowerCase().trim();
+
+  // Completed / settled / paid / done
+  if (
+    rawStatus === "completed" ||
+    rawStatus === "settled" ||
+    rawStatus === "paid" ||
+    rawStatus === "done"
+  ) {
+    return true;
+  }
+
+  // POS walk-in sale generated directly from POS/Billing
+  if (item.isWalkinPOS || item.isPosSale) {
+    return true;
+  }
+
+  // Cancelled appointments are definitely not settled
+  if (rawStatus === "cancelled" || rawStatus.includes("cancel")) {
+    return false;
+  }
+
+  // Scheduled, pending, in-progress appointments are NOT settled
+  if (
+    rawStatus === "scheduled" ||
+    rawStatus === "pending" ||
+    rawStatus === "in_progress" ||
+    rawStatus === "in-progress" ||
+    rawStatus === "in_queue" ||
+    rawStatus === "booked" ||
+    rawStatus === "confirmed" ||
+    rawStatus === "draft" ||
+    rawStatus === "draft estimate"
+  ) {
+    return false;
+  }
+
+  // Check explicit payment status
+  const pStatus = String(item.paymentStatus || item.payment_status || "").toLowerCase().trim();
+  if (pStatus === "completed" || pStatus === "paid" || pStatus === "settled" || pStatus === "success") {
+    return true;
+  }
+  if (pStatus === "pending" || pStatus === "unpaid" || pStatus === "failed") {
+    return false;
+  }
+
+  // If status was omitted/empty: check if explicit payments are recorded
+  const cAmt = Number(item.cashAmount) || 0;
+  const uAmt = Number(item.upiAmount) || 0;
+  const cdAmt = Number(item.cardAmount) || 0;
+  const split = parsePaymentSplit(item);
+  const splitPaid = split ? (Number(split.cash) || 0) + (Number(split.upi) || 0) + (Number(split.card) || 0) : 0;
+  const hasPayments = Array.isArray(item.payments) && item.payments.length > 0;
+
+  if (cAmt > 0 || uAmt > 0 || cdAmt > 0 || splitPaid > 0 || hasPayments) {
+    return true;
+  }
+
+  // If status is empty and mode is explicitly set to something other than unsettled
+  const mode = String(item.paymentMode || item.paymentMethod || item.mode || "").trim();
+  if (mode && mode.toLowerCase() !== "unsettled" && mode.toLowerCase() !== "pending") {
+    return true;
+  }
+
+  return false;
+};
+
+/**
  * Returns exact amounts collected per channel for an order/bill.
  * Accurately divides split payments into Cash, UPI, and Card.
+ * 
+ * If an appointment is scheduled/pending/unsettled, it returns 0 for all channels
+ * so that uncollected appointments are NOT counted as collected cash.
  * 
  * @param {object} item Bill or appointment object
  * @returns {{ cash: number, upi: number, card: number, digital: number, total: number }}
  */
 export const getCollectionBreakdown = (item) => {
   if (!item) return { cash: 0, upi: 0, card: 0, digital: 0, total: 0 };
+
+  // If this item is an unsettled appointment (e.g. scheduled, pending, in-progress, cancelled),
+  // DO NOT treat it as cash or collected revenue.
+  if (!isSettledAppointment(item)) {
+    return { cash: 0, upi: 0, card: 0, digital: 0, total: 0 };
+  }
+
   const total =
     Number(
       item.total != null
@@ -157,10 +247,21 @@ export const getCollectionBreakdown = (item) => {
 
 /**
  * Human-readable payment summary for invoice labels and tables
- * e.g. "UPI ₹200 + Card ₹300" or "CASH"
+ * e.g. "UPI ₹200 + Card ₹300" or "CASH", or "Unsettled" for pending appointments.
  */
 export const formatPaymentSummary = (item) => {
-  if (!item) return "Cash";
+  if (!item) return "Unsettled";
+
+  if (!isSettledAppointment(item)) {
+    const rawStatus = String(
+      item.status || item.Status || item.appointment_status || ""
+    ).toLowerCase().trim();
+    if (rawStatus === "cancelled" || rawStatus.includes("cancel")) {
+      return "Cancelled";
+    }
+    return "Unsettled";
+  }
+
   const split = parsePaymentSplit(item);
   if (split && (split.cash > 0 || split.upi > 0 || split.card > 0)) {
     const parts = [];

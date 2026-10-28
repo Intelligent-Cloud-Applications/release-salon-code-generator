@@ -95,6 +95,14 @@ const Pill = ({ active, children, ...props }) => (
 );
 
 const PaymentLabel = ({ bill }) => {
+  if (!isDone(bill.status)) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+        Unsettled
+      </span>
+    );
+  }
   if (isSplit(bill)) {
     return (
       <div className="space-y-0.5">
@@ -263,10 +271,12 @@ const OrderHistoryPage = () => {
           discount,
           total,
           status: String(apt.status || apt.Status || apt.appointment_status || "pending").toLowerCase(),
-          paymentMethod:
-            apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || apt.payment_method || "Cash",
-          paymentMode:
-            apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || apt.payment_method || "Cash",
+          paymentMethod: isDone(String(apt.status || apt.Status || apt.appointment_status || "").toLowerCase()) || Boolean(apt.isWalkinPOS || apt.isPosSale)
+            ? (apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || apt.payment_method || "Cash")
+            : "Unsettled",
+          paymentMode: isDone(String(apt.status || apt.Status || apt.appointment_status || "").toLowerCase()) || Boolean(apt.isWalkinPOS || apt.isPosSale)
+            ? (apt.paymentMode || apt.paymentMethod || apt.PaymentMethod || apt.payment_method || "Cash")
+            : "Unsettled",
           paymentSplit: parsePaymentSplit(apt),
           paymentSummary: apt.paymentSummary || "",
           cashAmount: apt.cashAmount,
@@ -324,13 +334,17 @@ const OrderHistoryPage = () => {
 
   const { total, cash, digital, avg } = useMemo(() => {
     let t = 0, c = 0, d = 0;
+    let completedCount = 0;
     filtered.forEach((b) => {
-      t += b.total || 0;
-      const bd = getCollectionBreakdown(b);
-      c += bd.cash;
-      d += bd.digital;
+      if (isDone(b.status)) {
+        t += b.total || 0;
+        const bd = getCollectionBreakdown(b);
+        c += bd.cash;
+        d += bd.digital;
+        completedCount++;
+      }
     });
-    return { total: t, cash: c, digital: d, avg: filtered.length ? t / filtered.length : 0 };
+    return { total: t, cash: c, digital: d, avg: completedCount ? t / completedCount : 0 };
   }, [filtered]);
 
   const shown = filtered.slice(0, visible);

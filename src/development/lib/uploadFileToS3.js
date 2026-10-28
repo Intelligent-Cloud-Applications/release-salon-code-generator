@@ -22,6 +22,7 @@ export const uploadFileToS3 = async (
           bucketName: bucketName,
           region: region,
         },
+        contentType: file.type || "image/png",
         onProgress: ({ transferredBytes, totalBytes }) => {
           if (totalBytes) {
             console.log(
@@ -44,16 +45,43 @@ export const uploadFileToS3 = async (
     };
   } catch (error) {
     console.error("Error uploading file to S3:", error);
-    // In local dev without AWS credentials, provide base64 data URL fallback so testing isn't blocked
+    // In local dev without AWS credentials, provide optimized data URL fallback to avoid DynamoDB 400KB limit
     if (import.meta.env.DEV) {
-      console.warn("Dev mode fallback: using data URL preview");
+      console.warn("Dev mode fallback: optimizing image preview to stay well under DynamoDB size limit");
       return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-          resolve({
-            filename: file.name,
-            url: reader.result,
-          });
+        reader.onload = (e) => {
+          const raw = e.target?.result;
+          if (typeof raw === "string" && raw.startsWith("data:image/")) {
+            const img = new Image();
+            img.onload = () => {
+              const maxDim = 200;
+              let w = img.width;
+              let h = img.height;
+              if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                  h = Math.round((h * maxDim) / w);
+                  w = maxDim;
+                } else {
+                  w = Math.round((w * maxDim) / h);
+                  h = maxDim;
+                }
+              }
+              const canvas = document.createElement("canvas");
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve({
+                filename: file.name,
+                url: canvas.toDataURL("image/jpeg", 0.7),
+              });
+            };
+            img.onerror = () => resolve({ filename: file.name, url: raw });
+            img.src = raw;
+          } else {
+            resolve({ filename: file.name, url: raw });
+          }
         };
         reader.readAsDataURL(file);
       });

@@ -30,6 +30,7 @@ import { useToast } from "../hooks/use-toast";
 import { BillPrintModal, formatCurrency, parseAppointmentDate } from "./BillPrintModal";
 import { getStoredGstSettings, getStoredPrinterSettings } from "./SettingsPage";
 import { directPrintBill } from "../lib/printerService";
+import { normalizeItemName } from "../lib/paymentUtils";
 import { FaMoneyBillWave, FaCreditCard, FaQrcode } from "react-icons/fa";
 import { format } from "date-fns";
 
@@ -879,15 +880,20 @@ const BillingPage = () => {
     if (Array.isArray(apt.products) && apt.products.length > 0) {
       apt.products.forEach((p) => {
         const pName = typeof p === "string" ? p : p?.productName || p?.name || "Product";
-        const matched = (products || []).find(
-          (prod) => prod.productName?.toLowerCase() === pName.toLowerCase()
-        );
+        const matched = (products || []).find((prod) => {
+          if (p.productId && (prod.productId === p.productId || prod.id === p.productId)) return true;
+          const prodName = prod.productName || prod.name || "";
+          return (
+            prodName.toLowerCase() === pName.toLowerCase() ||
+            normalizeItemName(prodName) === normalizeItemName(pName)
+          );
+        });
         const qty = typeof p === "object" && p.quantity ? Number(p.quantity) : 1;
         if (matched) {
           itemsToAdd.push({ ...matched, isProduct: true, quantity: qty, amount: Number(matched.amount || matched.price || 0) });
         } else {
           itemsToAdd.push({
-            productId: `apt-prd-${Math.random().toString(36).substring(2, 7)}`,
+            productId: p?.productId || `apt-prd-${Math.random().toString(36).substring(2, 7)}`,
             productName: pName,
             amount: Number(p?.amount || p?.price || 150),
             isProduct: true,
@@ -1126,10 +1132,23 @@ const BillingPage = () => {
         for (const item of productItems) {
           try {
             const pId = item.productId || item.id;
-            if (!pId) continue;
-            const fullProd = (products || []).find(
-              (p) => String(p.productId || p.id) === String(pId)
-            );
+            const itemProdName = item.productName || item.name || "";
+            // Resilient lookup: match by productId, id, or normalized product name
+            const fullProd = (products || []).find((p) => {
+              if (pId && String(p.productId || p.id) === String(pId)) return true;
+              const pName = p.productName || p.name || "";
+              if (itemProdName && pName) {
+                return (
+                  pName.toLowerCase() === itemProdName.toLowerCase() ||
+                  normalizeItemName(pName) === normalizeItemName(itemProdName)
+                );
+              }
+              return false;
+            });
+
+            const targetProductId = fullProd?.productId || fullProd?.id || pId;
+            if (!targetProductId) continue;
+
             const currentStock = Number(
               fullProd?.currentStock ?? fullProd?.stock ?? fullProd?.quantity ?? item.currentStock ?? 0
             );
@@ -1143,8 +1162,8 @@ const BillingPage = () => {
                 ? "low_stock"
                 : "in_stock";
 
-            const { productId: _p, institutionId: _i, ...cleanProd } = fullProd || {};
-            await updateProduct(instId, pId, {
+            const { productId: _p, institutionId: _i, updatedAt: _u, ...cleanProd } = fullProd || {};
+            await updateProduct(instId, targetProductId, {
               ...cleanProd,
               currentStock: newStock,
               status: newStatus,
