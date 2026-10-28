@@ -1,7 +1,7 @@
 {
-  "institutionId": "tekkzysalon",
-  "s3BucketName": "templatesalon.awsaiapp.com",
-  "cloudFrontId": "E2D1GDOQNTUYKR",
-  "domain": "https://templatesalon.awsaiapp.com",
+  "institutionId": "LOOK8806",
+  "s3BucketName": "lookssalon.tekkzy.com",
+  "cloudFrontId": "EF0JNFXPI8SU0",
+  "domain": "https://lookssalon.tekkzy.com",
   "printPaperSize": "55"
 }
