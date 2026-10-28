@@ -18,6 +18,7 @@ import {
   Clock,
   Printer,
   Pencil,
+  Lock,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -354,6 +355,9 @@ const BillingPage = () => {
     updateAppointment,
     fetchAppointments,
     fetchClients,
+    updateProduct,
+    fetchProducts,
+    institutionId,
   } = useContext(Context);
 
   const { toast } = useToast();
@@ -1068,7 +1072,54 @@ const BillingPage = () => {
           });
         }
       } else {
-        await createAppointment({ ...billPayload, createdAt: epochNow });
+        // Direct counter POS sale for walk-in client: tagged so it does not clutter the Appointments schedule
+        await createAppointment({
+          ...billPayload,
+          isWalkinPOS: true,
+          source: "pos",
+          isPosSale: true,
+          createdAt: epochNow,
+        });
+      }
+
+      // Deduct sold products from inventory stock
+      if (productItems && productItems.length > 0 && updateProduct) {
+        const instId = institutionId || institutionData?.institutionid || institutionData?.institutionId;
+        for (const item of productItems) {
+          try {
+            const pId = item.productId || item.id;
+            if (!pId) continue;
+            const fullProd = (products || []).find(
+              (p) => String(p.productId || p.id) === String(pId)
+            );
+            const currentStock = Number(
+              fullProd?.currentStock ?? fullProd?.stock ?? fullProd?.quantity ?? item.currentStock ?? 0
+            );
+            const soldQty = Number(item.quantity || 1);
+            const newStock = Math.max(0, currentStock - soldQty);
+            const minStock = Number(fullProd?.minStock || 5);
+            const newStatus =
+              newStock === 0
+                ? "out_of_stock"
+                : newStock <= minStock
+                ? "low_stock"
+                : "in_stock";
+
+            await updateProduct(instId, pId, {
+              ...(fullProd || {}),
+              currentStock: newStock,
+              status: newStatus,
+            });
+          } catch (pErr) {
+            console.error("Failed to deduct inventory for sold product:", item, pErr);
+          }
+        }
+        if (fetchProducts) {
+          try {
+            const instId = institutionId || institutionData?.institutionid || institutionData?.institutionId;
+            await fetchProducts(instId);
+          } catch (_) {}
+        }
       }
 
       const completedBill = {
@@ -1406,28 +1457,13 @@ const BillingPage = () => {
           {/* On mobile drawer, render GST + Discount + Payment in scrollable section so virtual keyboard never clips or hides them */}
           {isSheet && (
             <div className="rounded-lg border border-slate-200/90 bg-slate-50/70 p-2.5 space-y-2.5">
-              {/* GST rate row */}
+              {/* GST rate row (Locked to salon configured rate) */}
               <div className="flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">GST Rate</span>
-                <div className="grid grid-cols-4 gap-1 w-full max-w-[200px]">
-                  {[0, 5, 12, 18].map((rate) => (
-                    <button
-                      key={rate}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedGst(rate);
-                      }}
-                      className={cn(
-                        "h-7 rounded text-xs font-bold border cursor-pointer transition-colors text-center",
-                        selectedGst === rate
-                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                      )}
-                    >
-                      {rate}%
-                    </button>
-                  ))}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs">
+                  <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span>{selectedGst}%</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">(Settings)</span>
                 </div>
               </div>
 
@@ -1606,28 +1642,13 @@ const BillingPage = () => {
           {/* On desktop, keep GST + Discount + Payment in pinned bottom */}
           {!isSheet && (
             <>
-              {/* GST rate row */}
+              {/* GST rate row (Locked to salon configured rate) */}
               <div className="flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">GST Rate</span>
-                <div className="grid grid-cols-4 gap-1 w-full max-w-[200px]">
-                  {[0, 5, 12, 18].map((rate) => (
-                    <button
-                      key={rate}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedGst(rate);
-                      }}
-                      className={cn(
-                        "h-7 rounded text-xs font-bold border cursor-pointer transition-colors text-center",
-                        selectedGst === rate
-                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                      )}
-                    >
-                      {rate}%
-                    </button>
-                  ))}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs">
+                  <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span>{selectedGst}%</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">(Settings)</span>
                 </div>
               </div>
 

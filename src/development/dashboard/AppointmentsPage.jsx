@@ -268,6 +268,96 @@ const formatCurrency = (amount) => {
   return `₹${numeric.toLocaleString("en-IN")}`;
 };
 
+/**
+ * Robust staff name resolution: checks direct name fields and cross-references IDs against barbers
+ */
+export const resolveStaffName = (appt, barbers = []) => {
+  if (!appt) return "Unassigned";
+
+  const directName =
+    appt.staffName ||
+    appt.barberName ||
+    appt.barber?.name ||
+    appt.barber?.userName ||
+    appt.staff_name ||
+    (typeof appt.staff === "string" &&
+      !appt.staff.startsWith("STF") &&
+      !appt.staff.startsWith("BAR") &&
+      appt.staff.trim()) ||
+    "";
+
+  const rawId =
+    appt.staffId ||
+    appt.barberId ||
+    (typeof appt.barber === "string"
+      ? appt.barber
+      : appt.barber?.staffId || appt.barber?.id || appt.barber?._id) ||
+    (typeof appt.staff === "string" ? appt.staff : "");
+
+  if (rawId && Array.isArray(barbers) && barbers.length > 0) {
+    const matched = barbers.find(
+      (b) =>
+        String(b.staffId || b.id || b._id || "") === String(rawId) ||
+        (b.name && String(b.name).toLowerCase() === String(rawId).toLowerCase()) ||
+        (b.userName && String(b.userName).toLowerCase() === String(rawId).toLowerCase())
+    );
+    if (matched) {
+      return matched.name || matched.userName || directName || "Unassigned";
+    }
+  }
+
+  if (directName && directName.trim() && directName.toLowerCase() !== "unassigned") {
+    return directName.trim();
+  }
+
+  return "Unassigned";
+};
+
+/**
+ * Resolves a staffId from an appointment record using ID or staff name
+ */
+export const resolveStaffId = (appt, barbers = []) => {
+  if (!appt) return "";
+  const rawId =
+    appt.staffId ||
+    appt.barberId ||
+    (typeof appt.barber === "string"
+      ? appt.barber
+      : appt.barber?.staffId || appt.barber?.id || appt.barber?._id);
+
+  if (rawId && Array.isArray(barbers) && barbers.length > 0) {
+    const matched = barbers.find(
+      (b) => String(b.staffId || b.id || b._id || "") === String(rawId)
+    );
+    if (matched) return String(matched.staffId || matched.id || matched._id);
+  }
+
+  const nameToMatch =
+    appt.staff ||
+    appt.staffName ||
+    appt.barberName ||
+    (typeof appt.barber === "object" ? appt.barber?.name : "");
+
+  if (nameToMatch && Array.isArray(barbers) && barbers.length > 0) {
+    const matched = barbers.find(
+      (b) =>
+        (b.name && b.name.toLowerCase() === String(nameToMatch).toLowerCase()) ||
+        (b.userName && b.userName.toLowerCase() === String(nameToMatch).toLowerCase())
+    );
+    if (matched) return String(matched.staffId || matched.id || matched._id);
+  }
+
+  return rawId ? String(rawId) : "";
+};
+
+/**
+ * Identifies if a record is purely a POS Walk-in checkout (not a scheduled calendar appointment)
+ */
+export const isNotPosWalkin = (appt) => {
+  if (!appt) return false;
+  return !appt.isWalkinPOS && appt.source !== "pos" && !appt.isPosSale;
+};
+
 /* ==========================================================================
    BOOK & EDIT APPOINTMENT MODAL (COMPACT, MATCHING STAFFS PAGE PATTERN)
    ========================================================================== */
@@ -282,6 +372,7 @@ const AppointmentModal = ({
   barbers = [],
   services = [],
   clients = [],
+  appointments = [],
   isLoading = false,
 }) => {
   const [formData, setFormData] = useState({
@@ -320,7 +411,11 @@ const AppointmentModal = ({
       }
 
       let serviceList = [];
-      if (Array.isArray(appointmentData.service)) {
+      if (Array.isArray(appointmentData.services)) {
+        serviceList = appointmentData.services.map((s) =>
+          typeof s === "object" ? s.serviceName || s.name : s
+        );
+      } else if (Array.isArray(appointmentData.service)) {
         serviceList = appointmentData.service.map((s) =>
           typeof s === "object" ? s.serviceName || s.name : s
         );
@@ -328,16 +423,21 @@ const AppointmentModal = ({
         serviceList = appointmentData.service.split(",").map((s) => s.trim());
       }
 
+      const resolvedStaff = resolveStaffId(appointmentData, barbers);
+
       setFormData({
         clientName:
-          appointmentData.client?.clientName || appointmentData.clientName || "",
+          appointmentData.client?.clientName ||
+          appointmentData.clientName ||
+          appointmentData.userName ||
+          "",
         phoneNumber:
           appointmentData.client?.phoneNumber ||
           appointmentData.clientPhone ||
           appointmentData.phoneNumber ||
           "",
         dateTime: dateTimeString,
-        staffId: appointmentData.staffId || appointmentData.barberId || "",
+        staffId: resolvedStaff || appointmentData.staffId || appointmentData.barberId || "",
         services: serviceList,
         status: normalizeStatus(appointmentData.status),
         notes: appointmentData.notes || appointmentData.Notes || "",
@@ -368,7 +468,7 @@ const AppointmentModal = ({
     setSearchTerm("");
     setFilteredClients([]);
     setErrors({});
-  }, [appointmentData, isOpen, initialDate, initialStaffId]);
+  }, [appointmentData, isOpen, initialDate, initialStaffId, barbers]);
 
   // Client quick search
   useEffect(() => {
@@ -417,6 +517,39 @@ const AppointmentModal = ({
     });
   };
 
+  const overlappingConflict = useMemo(() => {
+    if (!formData.dateTime || !formData.staffId || formData.staffId === "unassigned") return null;
+    const startMs = new Date(formData.dateTime).getTime();
+    if (isNaN(startMs)) return null;
+    const durMin = Math.max(30, (formData.services.length || 1) * 30);
+    const endMs = startMs + durMin * 60 * 1000;
+
+    const currentId = appointmentData?.appointmentId || appointmentData?.id;
+
+    return (appointments || []).find((a) => {
+      const aId = a.appointmentId || a.id;
+      if (currentId && aId === currentId) return false;
+      const aNorm = normalizeStatus(a.status);
+      if (aNorm === "cancelled" || aNorm === "completed") return false;
+
+      const aStaffId = resolveStaffId(a, barbers) || a.staffId || a.barberId;
+      if (String(aStaffId) !== String(formData.staffId)) return false;
+
+      const aDate = parseAppointmentDateTime(
+        a.dateTime,
+        a.date || a.appointment_date,
+        a.time || a.appointment_time
+      );
+      if (!aDate || isNaN(aDate.getTime())) return false;
+      const aStartMs = aDate.getTime();
+      const aDurMin = Number(a.duration || a.duration_minutes || 30);
+      const aEndMs = aStartMs + aDurMin * 60 * 1000;
+
+      // Overlap: requested start < existing end AND requested end > existing start
+      return startMs < aEndMs && endMs > aStartMs;
+    });
+  }, [formData.dateTime, formData.staffId, formData.services, appointments, appointmentData, barbers]);
+
   const validate = () => {
     const errs = {};
     if (!formData.clientName.trim()) errs.clientName = "Client name is required";
@@ -435,8 +568,13 @@ const AppointmentModal = ({
       const dateTimeEpoch = Math.floor(new Date(formData.dateTime).getTime() / 1000);
       const duration = formData.services.length * 30;
       const selectedStaff = barbers.find(
-        (b) => (b.staffId || b.id) === formData.staffId
+        (b) => String(b.staffId || b.id || b._id) === String(formData.staffId)
       );
+      const staffName =
+        selectedStaff?.name ||
+        selectedStaff?.fullName ||
+        selectedStaff?.userName ||
+        "";
 
       let total = 0;
       formData.services.forEach((sName) => {
@@ -446,15 +584,20 @@ const AppointmentModal = ({
 
       const payload = {
         clientName: formData.clientName.trim(),
+        userName: formData.clientName.trim(),
         phoneNumber: formData.phoneNumber.trim(),
+        clientPhone: formData.phoneNumber.trim(),
         dateTime: dateTimeEpoch,
         service: formData.services.join(", "),
+        services: formData.services,
         duration,
         total,
+        amount: total,
         totalAmount: total,
         staffId: formData.staffId || "",
-        staff: selectedStaff?.name || selectedStaff?.fullName || "",
-        barberName: selectedStaff?.name || selectedStaff?.fullName || "",
+        staff: staffName,
+        staffName: staffName,
+        barberName: staffName,
         status: formData.status,
         notes: formData.notes.trim(),
       };
@@ -654,6 +797,19 @@ const AppointmentModal = ({
                 ))}
               </SelectContent>
             </Select>
+
+            {overlappingConflict && (
+              <div className="mt-1 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Overlapping slot: </span>
+                  <span>
+                    This stylist already has a booking with{" "}
+                    <b>{overlappingConflict.clientName || "another client"}</b> around this time. Both appointments will be scheduled in this slot.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Services Selection (Chips) */}
@@ -807,55 +963,47 @@ const CalendarView = ({
     );
   };
 
-  // Parsed appointment items with Date object
+  // Parsed appointment items with Date object (excluding POS walk-in sales)
   const appointmentsWithDates = useMemo(() => {
-    return appointments.map((appt) => {
-      const dateObj = parseAppointmentDateTime(
-        appt.dateTime,
-        appt.date || appt.appointment_date,
-        appt.time || appt.appointment_time
-      );
-      const staffName =
-        appt.staff ||
-        appt.barberName ||
-        appt.barber?.name ||
-        appt.staff_name ||
-        "";
-      const staffId =
-        appt.staffId ||
-        appt.barberId ||
-        appt.barber?.staffId ||
-        appt.barber?.id ||
-        "";
-      const clientName =
-        appt.client?.clientName ||
-        appt.clientName ||
-        appt.client_name ||
-        appt.userName ||
-        appt.name ||
-        appt.customerName ||
-        "Client";
-      const phone =
-        appt.client?.phoneNumber ||
-        appt.clientPhone ||
-        appt.phoneNumber ||
-        "";
-      const serviceName = Array.isArray(appt.service)
-        ? appt.service.join(", ")
-        : appt.service || "Service";
+    return (appointments || [])
+      .filter(isNotPosWalkin)
+      .map((appt) => {
+        const dateObj = parseAppointmentDateTime(
+          appt.dateTime,
+          appt.date || appt.appointment_date,
+          appt.time || appt.appointment_time
+        );
+        const staffName = resolveStaffName(appt, barbers);
+        const staffId = resolveStaffId(appt, barbers) || appt.staffId || "";
+        const clientName =
+          appt.client?.clientName ||
+          appt.clientName ||
+          appt.client_name ||
+          appt.userName ||
+          appt.name ||
+          appt.customerName ||
+          "Client";
+        const phone =
+          appt.client?.phoneNumber ||
+          appt.clientPhone ||
+          appt.phoneNumber ||
+          "";
+        const serviceName = Array.isArray(appt.service)
+          ? appt.service.join(", ")
+          : appt.service || "Service";
 
-      return {
-        ...appt,
-        parsedDate: dateObj,
-        clientName,
-        phone,
-        staffName,
-        staffId,
-        serviceName,
-        normStatus: normalizeStatus(appt.status),
-      };
-    });
-  }, [appointments]);
+        return {
+          ...appt,
+          parsedDate: dateObj,
+          clientName,
+          phone,
+          staffName,
+          staffId,
+          serviceName,
+          normStatus: normalizeStatus(appt.status),
+        };
+      });
+  }, [appointments, barbers]);
 
   // Appointments for the active day (in Day view or selected day in Month view)
   const activeDayAppointments = useMemo(() => {
@@ -917,12 +1065,12 @@ const CalendarView = ({
     return [{ staffId: "general", name: "General Queue", role: "All Stylists" }];
   }, [barbers]);
 
-  // Check busy status for a stylist at a particular hour on currentDate
-  const getStylistApptAtHour = (stylist, hour) => {
+  // Check busy status for a stylist at a particular hour on currentDate (returns all bookings in slot)
+  const getStylistApptsAtHour = (stylist, hour) => {
     const sId = String(stylist.staffId || stylist.id || "");
     const sName = (stylist.name || stylist.fullName || "").toLowerCase();
 
-    return activeDayAppointments.find((a) => {
+    return activeDayAppointments.filter((a) => {
       if (!a.parsedDate) return false;
       const apptHour = a.parsedDate.getHours();
       const matchHour = apptHour === hour;
@@ -1053,15 +1201,6 @@ const CalendarView = ({
               </button>
             ))}
           </div>
-
-          <Button
-            size="sm"
-            onClick={() => onBookSlot(currentDate)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs h-8 px-2.5 cursor-pointer shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            <span>Book</span>
-          </Button>
         </div>
       </div>
 
@@ -1170,7 +1309,7 @@ const CalendarView = ({
 
                         {/* Columns for each stylist */}
                         {displayStylists.map((st) => {
-                          const appt = getStylistApptAtHour(st, hour);
+                          const apptsInSlot = getStylistApptsAtHour(st, hour);
                           const sId = st.staffId || st.id || "";
 
                           return (
@@ -1178,68 +1317,96 @@ const CalendarView = ({
                               key={sId || st.name}
                               className="p-1.5 border-r border-slate-200 last:border-r-0 align-top"
                             >
-                              {appt ? (
-                                <div
-                                  className={clsx(
-                                    "p-2 rounded-lg border text-xs shadow-2xs flex flex-col justify-between transition-all",
-                                    appt.normStatus === "in_progress"
-                                      ? "bg-blue-50 border-blue-200/90 border-l-[3.5px] border-l-blue-600"
-                                      : appt.normStatus === "completed"
-                                      ? "bg-emerald-50/80 border-emerald-200 border-l-[3.5px] border-l-emerald-600"
-                                      : "bg-white border-slate-200 border-l-[3.5px] border-l-indigo-600"
-                                  )}
-                                >
-                                  <div className="flex items-start justify-between gap-1 mb-1">
-                                    <div className="font-bold text-slate-900 truncate">
-                                      {appt.clientName}
-                                    </div>
-                                    <StatusPill status={appt.status} compact />
-                                  </div>
-
-                                  <div className="text-[11px] text-slate-600 truncate mb-1">
-                                    ✂️ {appt.serviceName}
-                                  </div>
-
-                                  {appt.phone && (
-                                    <div className="text-[10px] text-slate-400 flex items-center gap-1 mb-1.5">
-                                      <Phone className="w-2.5 h-2.5" />
-                                      <span>{appt.phone}</span>
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
-                                    <span className="text-[10px] font-extrabold text-slate-700">
-                                      {formatCurrency(appt.amount || appt.total)}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      {appt.normStatus !== "completed" && (
-                                        <button
-                                          type="button"
-                                          onClick={() => onStatusUpdate(appt.appointmentId || appt.id, "completed")}
-                                          className="p-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors"
-                                          title="Mark Completed"
-                                        >
-                                          <Check className="w-2.5 h-2.5" />
-                                        </button>
+                              {apptsInSlot.length > 0 ? (
+                                <div className="space-y-1.5">
+                                  {apptsInSlot.map((appt) => (
+                                    <div
+                                      key={appt.appointmentId || appt.id}
+                                      className={clsx(
+                                        "p-2 rounded-lg border text-xs shadow-2xs flex flex-col justify-between transition-all",
+                                        appt.normStatus === "in_progress"
+                                          ? "bg-blue-50 border-blue-200/90 border-l-[3.5px] border-l-blue-600"
+                                          : appt.normStatus === "completed"
+                                          ? "bg-emerald-50/80 border-emerald-200 border-l-[3.5px] border-l-emerald-600"
+                                          : "bg-white border-slate-200 border-l-[3.5px] border-l-indigo-600"
                                       )}
-                                      <button
-                                        type="button"
-                                        onClick={() => onEdit(appt)}
-                                        className="p-1 rounded hover:bg-blue-100 text-slate-500 hover:text-blue-700 transition-colors"
-                                        title="Edit"
-                                      >
-                                        <Edit className="w-2.5 h-2.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => onDelete(appt)}
-                                        className="p-1 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition-colors"
-                                        title="Delete"
-                                      >
-                                        <Trash2 className="w-2.5 h-2.5" />
-                                      </button>
+                                    >
+                                      <div className="flex items-start justify-between gap-1 mb-1">
+                                        <div className="min-w-0">
+                                          <span className="text-[10px] font-bold text-blue-700 bg-blue-100/70 px-1 py-0.2 rounded mr-1">
+                                            {formatTimeLabel(appt.parsedDate, appt.time)}
+                                          </span>
+                                          <span className="font-bold text-slate-900 truncate">
+                                            {appt.clientName}
+                                          </span>
+                                        </div>
+                                        <StatusPill status={appt.status} compact />
+                                      </div>
+
+                                      <div className="text-[11px] text-slate-600 truncate mb-1">
+                                        ✂️ {appt.serviceName}
+                                      </div>
+
+                                      {appt.phone && (
+                                        <div className="text-[10px] text-slate-400 flex items-center gap-1 mb-1.5">
+                                          <Phone className="w-2.5 h-2.5" />
+                                          <span>{appt.phone}</span>
+                                        </div>
+                                      )}
+
+                                      <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
+                                        <span className="text-[10px] font-extrabold text-slate-700">
+                                          {formatCurrency(appt.amount || appt.total)}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                          {appt.normStatus !== "completed" && (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                onStatusUpdate(
+                                                  appt.appointmentId || appt.id,
+                                                  "completed"
+                                                )
+                                              }
+                                              className="p-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors"
+                                              title="Mark Completed"
+                                            >
+                                              <Check className="w-2.5 h-2.5" />
+                                            </button>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => onEdit(appt)}
+                                            className="p-1 rounded hover:bg-blue-100 text-slate-500 hover:text-blue-700 transition-colors"
+                                            title="Edit"
+                                          >
+                                            <Edit className="w-2.5 h-2.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => onDelete(appt)}
+                                            className="p-1 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition-colors"
+                                            title="Delete"
+                                          >
+                                            <Trash2 className="w-2.5 h-2.5" />
+                                          </button>
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const slotDate = new Date(currentDate);
+                                      slotDate.setHours(hour, 0, 0, 0);
+                                      onBookSlot(slotDate, sId !== "general" ? sId : "");
+                                    }}
+                                    className="w-full py-1 text-[10px] font-semibold text-slate-500 hover:text-blue-600 hover:bg-blue-50/60 rounded border border-dashed border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                    title="Add another booking in this hour"
+                                  >
+                                    <Plus className="w-2.5 h-2.5" />
+                                    <span>Add Booking</span>
+                                  </button>
                                 </div>
                               ) : (
                                 <button
@@ -1714,7 +1881,7 @@ export default function AppointmentsPage() {
     }
   };
 
-  // Derived Counts & Filtered Appointments
+  // Derived Counts & Filtered Appointments (excluding direct POS walk-ins)
   const { filteredAppointments, counts } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1726,7 +1893,9 @@ export default function AppointmentsPage() {
     let completedCount = 0;
     let cancelledCount = 0;
 
-    appointments.forEach((appt) => {
+    const validAppointments = (appointments || []).filter(isNotPosWalkin);
+
+    validAppointments.forEach((appt) => {
       const norm = normalizeStatus(appt.status);
       const dateObj = parseAppointmentDateTime(
         appt.dateTime,
@@ -1751,7 +1920,7 @@ export default function AppointmentsPage() {
 
     const q = searchTerm.toLowerCase().trim();
 
-    const filtered = appointments.filter((appt) => {
+    const filtered = validAppointments.filter((appt) => {
       const norm = normalizeStatus(appt.status);
 
       // Status filter
@@ -1787,12 +1956,7 @@ export default function AppointmentsPage() {
           appt.phoneNumber ||
           ""
         ).toLowerCase();
-        const staff = (
-          appt.staff ||
-          appt.barberName ||
-          appt.barber?.name ||
-          ""
-        ).toLowerCase();
+        const staff = resolveStaffName(appt, barbers).toLowerCase();
         const service = String(
           Array.isArray(appt.service)
             ? appt.service.join(" ")
@@ -1837,7 +2001,7 @@ export default function AppointmentsPage() {
     return {
       filteredAppointments: filtered,
       counts: {
-        total: appointments.length,
+        total: validAppointments.length,
         today: todayCount,
         active: scheduledCount + confirmedCount + inProgressCount,
         scheduled: scheduledCount,
@@ -1847,7 +2011,7 @@ export default function AppointmentsPage() {
         cancelled: cancelledCount,
       },
     };
-  }, [appointments, statusFilter, searchTerm]);
+  }, [appointments, statusFilter, searchTerm, barbers]);
 
   return (
     <div className="p-3 sm:p-4 lg:p-5 space-y-3 font-sans bg-[#f8fafc] min-h-full text-slate-800">
@@ -2230,12 +2394,7 @@ export default function AppointmentsPage() {
                           appt.phoneNumber ||
                           "";
 
-                        const staffName =
-                          appt.staff ||
-                          appt.barberName ||
-                          appt.barber?.name ||
-                          appt.staff_name ||
-                          "Unassigned";
+                        const staffName = resolveStaffName(appt, barbers);
 
                         const serviceList = Array.isArray(appt.service)
                           ? appt.service.map((s) =>
@@ -2445,12 +2604,7 @@ export default function AppointmentsPage() {
                   appt.phoneNumber ||
                   "";
 
-                const staffName =
-                  appt.staff ||
-                  appt.barberName ||
-                  appt.barber?.name ||
-                  appt.staff_name ||
-                  "Unassigned";
+                const staffName = resolveStaffName(appt, barbers);
 
                 const serviceList = Array.isArray(appt.service)
                   ? appt.service.map((s) =>
@@ -2717,6 +2871,7 @@ export default function AppointmentsPage() {
         barbers={barbers}
         services={services}
         clients={clients}
+        appointments={appointments}
         isLoading={isSubmitting}
       />
 
@@ -2733,6 +2888,7 @@ export default function AppointmentsPage() {
         barbers={barbers}
         services={services}
         clients={clients}
+        appointments={appointments}
         isLoading={isSubmitting}
       />
     </div>

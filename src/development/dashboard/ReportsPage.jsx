@@ -53,9 +53,9 @@ import {
 const REPORT_TYPES = [
   {
     id: "guest",
-    title: "Guest Report",
-    shortTitle: "Guest Report",
-    subtitle: "Guest information and visit history from billing data",
+    title: "Client Report",
+    shortTitle: "Client Report",
+    subtitle: "Client information and visit history from billing data",
     icon: Users,
     color: "text-blue-600",
     bgColor: "bg-blue-50 border-blue-100",
@@ -317,10 +317,22 @@ const ReportsPage = () => {
             : 0
         ) || 0;
       const computed = subtotal + tax - discount;
-      const total =
+      const parsedSplit = parsePaymentSplit(apt);
+      const isSplit = isSplitPayment(apt) || !!parsedSplit;
+      const breakdown = getCollectionBreakdown(apt);
+
+      const splitSum =
+        (Number(breakdown?.cash) || 0) +
+        (Number(breakdown?.upi) || 0) +
+        (Number(breakdown?.card) || 0);
+
+      const baseTotal =
         Number(
           apt?.total != null ? apt.total : computed > 0 ? computed : subtotal
         ) || 0;
+
+      // Ensure total always accounts for split collections
+      const total = Math.max(baseTotal, breakdown.total, splitSum);
 
       const rawStatus = String(
         apt?.status || apt?.Status || apt?.appointment_status || "Completed"
@@ -340,13 +352,10 @@ const ReportsPage = () => {
           ? String(rawPaymentMethod)
           : "Cash";
 
-      const parsedSplit = parsePaymentSplit(apt);
-      const isSplit = isSplitPayment(apt) || !!parsedSplit;
       const paymentSummary =
         isSplit && parsedSplit
           ? formatPaymentSummary(apt)
           : paymentMethod.toUpperCase();
-      const breakdown = getCollectionBreakdown(apt);
 
       const rawClient =
         apt?.clientName ||
@@ -363,7 +372,7 @@ const ReportsPage = () => {
         String(rawClient).toLowerCase() !== "undefined" &&
         String(rawClient).toLowerCase() !== "null"
           ? String(rawClient).trim()
-          : "Walk-in Guest";
+          : "Walk-in Client";
 
       const rawPhone =
         apt?.phoneNumber ||
@@ -585,13 +594,19 @@ const ReportsPage = () => {
           splitRevenue: 0,
         };
       }
+      const txBreakdownSum =
+        (Number(tx.breakdown?.cash) || 0) +
+        (Number(tx.breakdown?.upi) || 0) +
+        (Number(tx.breakdown?.card) || 0);
+      const txAmount = Math.max(Number(tx.total) || 0, txBreakdownSum);
+
       map[key].billsCount += 1;
-      map[key].totalRevenue += tx.total;
-      map[key].cash += tx.breakdown.cash;
-      map[key].upi += tx.breakdown.upi;
-      map[key].card += tx.breakdown.card;
+      map[key].totalRevenue += txAmount;
+      map[key].cash += Number(tx.breakdown?.cash) || 0;
+      map[key].upi += Number(tx.breakdown?.upi) || 0;
+      map[key].card += Number(tx.breakdown?.card) || 0;
       if (tx.isSplit) {
-        map[key].splitRevenue += tx.total;
+        map[key].splitRevenue += txAmount;
       }
     });
 
@@ -785,7 +800,13 @@ const ReportsPage = () => {
     let totalTax = 0;
 
     filteredTransactions.forEach((tx) => {
-      totalRevenue += Number(tx.total) || 0;
+      const txBreakdownSum =
+        (Number(tx.breakdown?.cash) || 0) +
+        (Number(tx.breakdown?.upi) || 0) +
+        (Number(tx.breakdown?.card) || 0);
+      const txAmount = Math.max(Number(tx.total) || 0, txBreakdownSum);
+
+      totalRevenue += txAmount;
       totalCash += Number(tx.breakdown?.cash) || 0;
       totalDigital += Number(tx.breakdown?.digital) || 0;
       totalTax += Number(tx.tax) || 0;
@@ -835,7 +856,7 @@ const ReportsPage = () => {
     if (selectedReportType === "guest") {
       headers = [
         "Bill ID",
-        "Guest Name",
+        "Client Name",
         "Mobile Number",
         "Services Taken",
         "Stylist",
@@ -846,7 +867,7 @@ const ReportsPage = () => {
       ];
       rows = activeRecords.map((r) => [
         r.id || "N/A",
-        r.clientName || "Walk-in Guest",
+        r.clientName || "Walk-in Client",
         r.phoneNumber || "—",
         Array.isArray(r.services) ? r.services.join(" | ") : "Salon Treatment",
         r.staff || "Unassigned",
@@ -872,7 +893,7 @@ const ReportsPage = () => {
       rows = activeRecords.map((r) => [
         r.id || "N/A",
         r.dateTimeDisplay || r.dateDisplay || "—",
-        r.clientName || "Walk-in Guest",
+        r.clientName || "Walk-in Client",
         r.phoneNumber || "—",
         r.staff || "Unassigned",
         r.subtotal || 0,
@@ -975,7 +996,7 @@ const ReportsPage = () => {
         return [
           r.id || "N/A",
           r.dateDisplay || "—",
-          r.clientName || "Walk-in Guest",
+          r.clientName || "Walk-in Client",
           salonGst || "N/A",
           Math.max(0, (Number(r.subtotal) || 0) - (Number(r.discount) || 0)),
           halfTax,
@@ -1035,7 +1056,7 @@ const ReportsPage = () => {
       tableHeadHtml = `
         <tr>
           <th style="width:12%">BILL ID</th>
-          <th style="width:18%">GUEST NAME</th>
+          <th style="width:18%">CLIENT NAME</th>
           <th style="width:14%">MOBILE</th>
           <th style="width:20%">SERVICES</th>
           <th style="width:12%">STYLIST</th>
@@ -1048,7 +1069,7 @@ const ReportsPage = () => {
           (r) => `
         <tr>
           <td><b>#${r.id || "N/A"}</b></td>
-          <td>${r.clientName || "Walk-in Guest"}</td>
+          <td>${r.clientName || "Walk-in Client"}</td>
           <td>${r.phoneNumber || "—"}</td>
           <td>${Array.isArray(r.services) ? r.services.join(", ") : "Salon Treatment"}</td>
           <td>${r.staff || "Stylist"}</td>
@@ -1078,7 +1099,7 @@ const ReportsPage = () => {
         <tr>
           <td><b>#${r.id || "N/A"}</b></td>
           <td>${r.dateTimeDisplay || r.dateDisplay || "—"}</td>
-          <td>${r.clientName || "Walk-in Guest"}</td>
+          <td>${r.clientName || "Walk-in Client"}</td>
           <td>${r.staff || "Stylist"}</td>
           <td style="text-align:right">₹${(Number(r.subtotal) || 0).toLocaleString("en-IN")}</td>
           <td style="text-align:right; color:#e11d48;">-₹${(Number(r.discount) || 0).toLocaleString("en-IN")}</td>
@@ -1215,7 +1236,7 @@ const ReportsPage = () => {
           <tr>
             <td><b>#${r.id || "N/A"}</b></td>
             <td>${r.dateDisplay || "—"}</td>
-            <td>${r.clientName || "Walk-in Guest"}</td>
+            <td>${r.clientName || "Walk-in Client"}</td>
             <td>${salonGst || "N/A"}</td>
             <td style="text-align:right">₹${Math.max(0, (Number(r.subtotal) || 0) - (Number(r.discount) || 0)).toLocaleString("en-IN")}</td>
             <td style="text-align:right">₹${halfTax.toLocaleString("en-IN")}</td>
@@ -1923,7 +1944,7 @@ const ReportsPage = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* 1. Guest Report Cards */}
+                    {/* 1. Client Report Cards */}
                     {selectedReportType === "guest" &&
                       activeRecords.map((r) => (
                         <div
@@ -2183,7 +2204,7 @@ const ReportsPage = () => {
                           <th className="py-3 px-4 sticky left-0 bg-slate-50 z-20 shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
                             BILL ID
                           </th>
-                          <th className="py-3 px-4">GUEST NAME</th>
+                          <th className="py-3 px-4">CLIENT NAME</th>
                           <th className="py-3 px-4">MOBILE</th>
                           <th className="py-3 px-4">SERVICES</th>
                           <th className="py-3 px-4">STYLIST</th>
@@ -2311,7 +2332,7 @@ const ReportsPage = () => {
                         </tr>
                       ) : (
                         <>
-                          {/* 1. Guest Report Rows */}
+                          {/* 1. Client Report Rows */}
                           {selectedReportType === "guest" &&
                             activeRecords.map((r) => (
                               <tr
@@ -2322,7 +2343,7 @@ const ReportsPage = () => {
                                   #{r.id || "N/A"}
                                 </td>
                                 <td className="py-3 px-4 font-semibold text-slate-900">
-                                  {r.clientName || "Walk-in Guest"}
+                                  {r.clientName || "Walk-in Client"}
                                 </td>
                                 <td className="py-3 px-4 text-slate-500 font-mono">
                                   {r.phoneNumber || "—"}
@@ -2400,7 +2421,7 @@ const ReportsPage = () => {
                                   {r.dateTimeDisplay || r.dateDisplay || "—"}
                                 </td>
                                 <td className="py-3 px-4 font-semibold text-slate-900">
-                                  {r.clientName || "Walk-in Guest"}
+                                  {r.clientName || "Walk-in Client"}
                                 </td>
                                 <td className="py-3 px-4 text-slate-600">
                                   {r.staff || "Unassigned"}
@@ -2578,7 +2599,7 @@ const ReportsPage = () => {
                                     {r.dateDisplay || "—"}
                                   </td>
                                   <td className="py-3 px-4 font-semibold text-slate-900">
-                                    {r.clientName || "Walk-in Guest"}
+                                    {r.clientName || "Walk-in Client"}
                                   </td>
                                   <td className="py-3 px-4 font-mono text-slate-500">
                                     {salonGst || "N/A"}
@@ -2650,25 +2671,25 @@ const ReportsPage = () => {
 
                         {selectedReportType === "daily_collection" && (
                           <tr>
-                            <td className="py-3 px-4 sticky left-0 bg-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
+                            <td className="py-3 px-4 sticky left-0 bg-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.03)] font-bold">
                               TOTALS:
                             </td>
-                            <td className="py-3 px-4 text-center">
+                            <td className="py-3 px-4 text-center font-bold">
                               {dailyCollectionRows.reduce((sum, r) => sum + r.billsCount, 0)} bills
                             </td>
                             <td className="py-3 px-4 text-right font-mono font-black text-sm text-blue-700">
-                              {formatCurrency(summaryMetrics.totalRevenue)}
+                              {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono text-amber-700">
-                              {formatCurrency(summaryMetrics.totalCash)}
+                            <td className="py-3 px-4 text-right font-mono font-bold text-amber-700">
+                              {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.cash, 0))}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono text-blue-600">
-                              {formatCurrency(summaryMetrics.totalDigital - dailyCollectionRows.reduce((sum, r) => sum + r.card, 0))}
+                            <td className="py-3 px-4 text-right font-mono font-bold text-blue-600">
+                              {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.upi, 0))}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono text-indigo-600">
+                            <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
                               {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.card, 0))}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono text-purple-700">
+                            <td className="py-3 px-4 text-right font-mono font-bold text-purple-700">
                               {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.splitRevenue, 0))}
                             </td>
                           </tr>

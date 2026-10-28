@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import {
   Building2,
   Receipt,
@@ -17,6 +17,8 @@ import {
   FileText,
   AlertCircle,
   HelpCircle,
+  Trash2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -30,11 +32,33 @@ import { cn } from "../lib/utils";
 import ScissorsLoader from "../components/Loader";
 import { connectBluetoothPrinter, printViaBluetooth, isWebBluetoothSupported } from "../lib/printerService";
 
-export const getStoredPrinterSettings = () => {
+export const getStoredPrinterSettings = (institutionData = null) => {
+  // 1. Check backend-persisted printer settings
+  const backendPrinter =
+    institutionData?.printerSettings ||
+    institutionData?.landingPageData?.printerSettings;
+  if (backendPrinter && typeof backendPrinter === "object") {
+    return {
+      printerType: backendPrinter.printerType || "usb",
+      paperSize: backendPrinter.paperSize || "80mm",
+      receiptTitle: backendPrinter.receiptTitle || "TAX INVOICE",
+      footerMessage:
+        backendPrinter.footerMessage ??
+        "Thank you for visiting! Please visit again.",
+      termsAndConditions:
+        backendPrinter.termsAndConditions ??
+        "Goods once sold or services rendered will not be refunded.",
+      showStylist: backendPrinter.showStylist ?? true,
+      showGstBreakdown: backendPrinter.showGstBreakdown ?? true,
+    };
+  }
+
+  // 2. Check local storage fallback
   try {
     const raw = localStorage.getItem("salon_billing_printer_settings");
     if (raw) return JSON.parse(raw);
   } catch (e) {}
+
   return {
     printerType: "usb", // 'bluetooth' | 'usb'
     paperSize: "80mm", // '80mm' | '58mm' | 'a4'
@@ -47,6 +71,34 @@ export const getStoredPrinterSettings = () => {
 };
 
 export const getStoredGstSettings = (institutionData = null) => {
+  // 1. Check backend-persisted GST settings
+  const backendGst =
+    institutionData?.gstSettings ||
+    institutionData?.landingPageData?.gstSettings;
+  if (backendGst && typeof backendGst === "object") {
+    return {
+      gstEnabled: backendGst.gstEnabled ?? true,
+      defaultGstRate: Number(
+        backendGst.defaultGstRate != null
+          ? backendGst.defaultGstRate
+          : institutionData?.gstRate != null
+          ? institutionData.gstRate
+          : 18
+      ),
+      gstNumber:
+        backendGst.gstNumber || institutionData?.gstNumber || "",
+    };
+  }
+
+  if (institutionData?.gstRate != null || institutionData?.gstNumber != null) {
+    return {
+      gstEnabled: institutionData.gstEnabled ?? true,
+      defaultGstRate: Number(institutionData.gstRate != null ? institutionData.gstRate : 18),
+      gstNumber: institutionData.gstNumber || "",
+    };
+  }
+
+  // 2. Check local storage fallback
   try {
     const raw = localStorage.getItem("salon_billing_gst_settings");
     if (raw) {
@@ -54,14 +106,15 @@ export const getStoredGstSettings = (institutionData = null) => {
       return {
         gstEnabled: parsed.gstEnabled ?? true,
         defaultGstRate: Number(parsed.defaultGstRate != null ? parsed.defaultGstRate : 18),
-        gstNumber: parsed.gstNumber || institutionData?.gstNumber || "",
+        gstNumber: parsed.gstNumber || "",
       };
     }
   } catch (e) {}
+
   return {
     gstEnabled: true,
-    defaultGstRate: Number(institutionData?.gstRate || 18),
-    gstNumber: institutionData?.gstNumber || "",
+    defaultGstRate: 18,
+    gstNumber: "",
   };
 };
 
@@ -79,6 +132,43 @@ const SettingsPage = () => {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [tagline, setTagline] = useState("");
+  const logoFileInputRef = useRef(null);
+
+  const handleLogoFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "Invalid File Type",
+        description: "Please select an image file (PNG, JPG, SVG, WebP).",
+      });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File Too Large",
+        description: "Please select an image smaller than 2MB.",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result;
+      if (typeof dataUrl === "string") {
+        setLogoUrl(dataUrl);
+        toast({
+          title: "Logo Loaded",
+          description: "Logo image loaded from file. Remember to click 'Save All Settings' to persist.",
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // GST & Taxes State
   const [gstEnabled, setGstEnabled] = useState(true);
@@ -187,8 +277,8 @@ const SettingsPage = () => {
     setDefaultGstRate(gstConf.defaultGstRate);
     setGstNumber(gstConf.gstNumber);
 
-    // Load Printer settings
-    const printConf = getStoredPrinterSettings();
+    // Load Printer settings (from backend institutionData or localStorage)
+    const printConf = getStoredPrinterSettings(institutionData);
     setPrinterType(printConf.printerType || "usb");
     setPaperSize(printConf.paperSize || "80mm");
     setReceiptTitle(printConf.receiptTitle || "TAX INVOICE");
@@ -202,7 +292,7 @@ const SettingsPage = () => {
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      // 1. Save Printer settings to localStorage
+      // 1. Prepare Printer settings
       const printerConfig = {
         printerType,
         paperSize,
@@ -214,7 +304,7 @@ const SettingsPage = () => {
       };
       localStorage.setItem("salon_billing_printer_settings", JSON.stringify(printerConfig));
 
-      // 2. Save GST settings to localStorage
+      // 2. Prepare GST settings
       const gstConfig = {
         gstEnabled,
         defaultGstRate: Number(defaultGstRate) || 0,
@@ -222,7 +312,7 @@ const SettingsPage = () => {
       };
       localStorage.setItem("salon_billing_gst_settings", JSON.stringify(gstConfig));
 
-      // 3. Save Branding & GST to backend via updateLandingPageData
+      // 3. Save Branding, GST, and Printer settings to backend via updateLandingPageData / admin-update-ui
       const updatedLanding = {
         ...(landingPageData || {}),
         navigation: {
@@ -248,7 +338,13 @@ const SettingsPage = () => {
       };
 
       if (updateLandingPageData) {
-        await updateLandingPageData(updatedLanding);
+        await updateLandingPageData(updatedLanding, {
+          printerSettings: printerConfig,
+          gstSettings: gstConfig,
+          gstRate: Number(defaultGstRate) || 0,
+          gstNumber: gstNumber.trim(),
+          gstEnabled: gstEnabled,
+        });
       }
 
       // Also update institutionData in Context
@@ -263,6 +359,9 @@ const SettingsPage = () => {
           tagline: tagline.trim(),
           gstRate: Number(defaultGstRate) || 0,
           gstNumber: gstNumber.trim(),
+          gstEnabled: gstEnabled,
+          gstSettings: gstConfig,
+          printerSettings: printerConfig,
           printerType,
           paperSize,
         }));
@@ -399,23 +498,61 @@ const SettingsPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-700">Logo Image URL</Label>
-                  <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">Company Logo</Label>
+                    <span className="text-[11px] text-slate-400">Used on website, bills & thermal receipts</span>
+                  </div>
+
+                  {/* Hidden file input for "Choose Image" */}
+                  <input
+                    type="file"
+                    ref={logoFileInputRef}
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoFileUpload}
+                  />
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => logoFileInputRef.current?.click()}
+                      className="h-8 text-xs font-bold border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-700 gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Choose Image</span>
+                    </Button>
+
                     <Input
                       value={logoUrl}
                       onChange={(e) => setLogoUrl(e.target.value)}
-                      placeholder="https://example.com/salon-logo.png"
+                      placeholder="Or enter logo image URL..."
                       className="h-8 text-xs rounded-lg border-slate-200 flex-1 font-mono text-[11px]"
                     />
+
                     {logoUrl && (
-                      <div className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 p-0.5 flex items-center justify-center shrink-0">
-                        <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 p-0.5 flex items-center justify-center shrink-0">
+                          <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLogoUrl("")}
+                          className="h-8 px-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
+                          title="Remove logo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          <span>Remove</span>
+                        </Button>
                       </div>
                     )}
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    High contrast black & white or transparent PNG works best on thermal receipt printers
+                    Click "Choose Image" to upload from your device or paste an image URL. High-contrast PNG works best on thermal receipt printers.
                   </p>
                 </div>
 

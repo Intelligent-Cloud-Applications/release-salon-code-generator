@@ -95,13 +95,14 @@ const ContextProvider = (props) => {
     }
   };
 
-  const updateLandingPageData = async (newData) => {
+  const updateLandingPageData = async (newData, extraTopLevelData = {}) => {
     try {
       setLoader(true);
 
       // Store EVERYTHING OUTSIDE the companyInfo map as top-level attributes
       const topLevelData = {
         landingPageData: newData,
+        ...extraTopLevelData,
       };
 
       // Top-level company name outside companyInfo
@@ -1335,6 +1336,7 @@ const ContextProvider = (props) => {
       adminUpdateOrder,
       adminDeleteOrder,
       // Landing Page Dynamic Data & Customization
+      institutionId,
       landingPageData,
       setLandingPageData,
       updateLandingPageData,
@@ -1342,6 +1344,7 @@ const ContextProvider = (props) => {
     [
       isAuth,
       loader,
+      institutionId,
       institutionData,
       landingPageData,
       userData,
