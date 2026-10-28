@@ -35,6 +35,8 @@ import {
   isSplitPayment,
   formatPaymentSummary,
   parsePaymentSplit,
+  normalizeItemName,
+  buildDeduplicatedBillItems,
 } from "../lib/paymentUtils";
 
 /* ----------------------------- helpers ----------------------------- */
@@ -195,56 +197,19 @@ const OrderHistoryPage = () => {
         const staffId = apt.staffId || apt.staff || apt.Staff || apt.staff_name || "";
         const d = parseAppointmentDate(apt.dateTime || apt.createdAt || apt.date);
 
-        let serviceNames = [];
-        let detailedItems = [];
-        let productDisplayNames = [];
+        const detailedItems = buildDeduplicatedBillItems(apt);
+        const serviceNames = [];
+        const productDisplayNames = [];
 
-        if (Array.isArray(apt.services) && apt.services.length > 0) {
-          apt.services.forEach((s) => {
-            if (typeof s === "string") {
-              serviceNames.push(s);
-              detailedItems.push({ serviceName: s, amount: null, quantity: 1, isProduct: false });
-            } else if (s && typeof s === "object") {
-              const name = s.serviceName || s.name || "Service";
-              serviceNames.push(name);
-              detailedItems.push({
-                serviceName: name,
-                amount: s.amount != null && Number(s.amount) > 0 ? Number(s.amount) : null,
-                quantity: Number(s.quantity || s.qty) || 1,
-                isProduct: false,
-              });
-            }
-          });
-        } else if (typeof apt.service === "string" && apt.service.trim()) {
-          const splitList = apt.service.split(",").map((s) => s.trim()).filter(Boolean);
-          const isGeneric =
-            splitList.length === 1 &&
-            (splitList[0].toLowerCase() === "salon service" ||
-              splitList[0].toLowerCase() === "salon services");
-          if (!isGeneric || !(Array.isArray(apt.products) && apt.products.length > 0)) {
-            serviceNames = splitList;
-            detailedItems = serviceNames.map((name) => ({
-              serviceName: name,
-              amount: null,
-              quantity: 1,
-              isProduct: false,
-            }));
-          }
-        }
-
-        if (Array.isArray(apt.products) && apt.products.length > 0) {
-          apt.products.forEach((p) => {
-            const name = p?.productName || p?.name || "Product";
-            const qty = Number(p?.quantity || p?.qty) || 1;
+        detailedItems.forEach((it) => {
+          const name = it.serviceName || it.productName || it.name || "Item";
+          const qty = Number(it.quantity || it.qty) || 1;
+          if (it.isProduct) {
             productDisplayNames.push(`${name}${qty > 1 ? ` (×${qty})` : ""}`);
-            detailedItems.push({
-              serviceName: name,
-              amount: Number(p?.price || p?.amount || 0),
-              quantity: qty,
-              isProduct: true,
-            });
-          });
-        }
+          } else {
+            serviceNames.push(`${name}${qty > 1 ? ` (×${qty})` : ""}`);
+          }
+        });
 
         const displayItems = [
           ...serviceNames,
@@ -254,11 +219,7 @@ const OrderHistoryPage = () => {
         const finalServices =
           displayItems.length > 0
             ? displayItems
-            : serviceNames.length > 0
-            ? serviceNames
-            : productDisplayNames.length > 0
-            ? productDisplayNames
-            : ["Salon Service"];
+            : ["Salon Treatment"];
 
         const rawSubtotal = Number(apt.subtotal || apt.billAmount || apt.amount || 0);
         const rawTotal = Number(apt.total != null ? apt.total : apt.totalAmount != null ? apt.totalAmount : 0);

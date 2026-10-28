@@ -1004,12 +1004,9 @@ const BillingPage = () => {
         ...productsMapped.map((p) => ({ ...p, name: p.productName, isProduct: true })),
       ];
 
-      const allItemNames = [
-        ...servicesMapped.map((s) => `${s.serviceName}${s.quantity > 1 ? ` (×${s.quantity})` : ""}`),
-        ...productsMapped.map((p) => `${p.productName}${p.quantity > 1 ? ` (×${p.quantity})` : ""}`),
-      ];
-
-      const serviceCSV = allItemNames.join(", ");
+      const servicesOnlyCSV = servicesMapped
+        .map((s) => `${s.serviceName}${s.quantity > 1 ? ` (×${s.quantity})` : ""}`)
+        .join(", ");
 
       const targetAppointmentId = linkedAppointment?.appointmentId || linkedAppointment?.id;
 
@@ -1066,7 +1063,8 @@ const BillingPage = () => {
         phoneNumber,
         services: servicesMapped,
         products: productsMapped,
-        service: serviceCSV || (productsMapped.length > 0 ? productsMapped.map(p => p.productName).join(", ") : "Salon Treatment"),
+        items: allBillItems,
+        service: servicesOnlyCSV || (productsMapped.length > 0 ? productsMapped.map(p => p.productName).join(", ") : "Salon Treatment"),
         isWalkinPOS: !isRealClient,
         isPosSale: true,
         source: "pos",
