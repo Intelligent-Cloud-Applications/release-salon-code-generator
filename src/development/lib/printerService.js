@@ -6,7 +6,7 @@
  */
 
 import { getStoredPrinterSettings, getStoredGstSettings } from "../dashboard/SettingsPage";
-import { parsePaymentSplit } from "./paymentUtils";
+import { parsePaymentSplit, buildDeduplicatedBillItems } from "./paymentUtils";
 
 // In-memory cache for paired Bluetooth device & characteristic to avoid repeated pairing prompts
 let cachedBluetoothDevice = null;
@@ -238,18 +238,8 @@ export const buildEscPosPayload = (bill, institutionData, printerSettings) => {
   addBytes(...BOLD_OFF);
   addText("-".repeat(cols) + "\n");
 
-  // Items List
-  const items = [];
-  if (Array.isArray(bill.items) && bill.items.length > 0) {
-    items.push(...bill.items);
-  } else {
-    if (Array.isArray(bill.services)) {
-      items.push(...bill.services.map((s) => (typeof s === "string" ? { serviceName: s } : s)));
-    }
-    if (Array.isArray(bill.products)) {
-      items.push(...bill.products.map((p) => ({ ...p, isProduct: true })));
-    }
-  }
+  // Items List - deduplicated to prevent products from showing twice
+  const items = buildDeduplicatedBillItems(bill);
 
   const rawSubtotal = Number(bill.subtotal || 0);
   const rawTotal = Number(bill.total || 0);
@@ -387,17 +377,7 @@ export const generateThermalReceiptHtml = (bill, institutionData, printerSetting
   const computedSubtotal = rawSubtotal > 0 ? rawSubtotal : Math.max(0, rawTotal - tax + discount) || rawTotal || 0;
   const computedTotal = rawTotal > 0 ? rawTotal : (computedSubtotal + tax - discount);
 
-  const items = [];
-  if (Array.isArray(bill.items) && bill.items.length > 0) {
-    items.push(...bill.items);
-  } else {
-    if (Array.isArray(bill.services)) {
-      items.push(...bill.services.map((s) => (typeof s === "string" ? { serviceName: s } : s)));
-    }
-    if (Array.isArray(bill.products)) {
-      items.push(...bill.products.map((p) => ({ ...p, isProduct: true })));
-    }
-  }
+  const items = buildDeduplicatedBillItems(bill);
 
   const splitDetails = parsePaymentSplit(bill);
   const isSplit = (bill.paymentMode || bill.paymentMethod || "").toLowerCase() === "split" || !!splitDetails;

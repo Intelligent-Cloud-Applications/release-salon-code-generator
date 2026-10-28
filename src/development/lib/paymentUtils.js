@@ -177,3 +177,80 @@ export const formatPaymentSummary = (item) => {
   const mode = item.paymentMode || item.paymentMethod || "Cash";
   return String(mode).toUpperCase();
 };
+
+/**
+ * Normalizes an item or service name for resilient comparison and deduplication.
+ * Strips '(Prod)', '[Product]', '(×3)', etc.
+ */
+export const normalizeItemName = (name) => {
+  if (!name) return "";
+  return String(name)
+    .toLowerCase()
+    .replace(/\(prod(uct)?\)/gi, "")
+    .replace(/\[prod(uct)?\]/gi, "")
+    .replace(/\s*\(×\d+\)/gi, "")
+    .replace(/\s*\(x\d+\)/gi, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+};
+
+/**
+ * Builds a clean, deduplicated list of bill items for receipt printing and previews.
+ * Prevents products from erroneously appearing twice (once as a ghost service and once as a product).
+ */
+export const buildDeduplicatedBillItems = (bill) => {
+  if (!bill) return [];
+
+  const rawItems = Array.isArray(bill.items) && bill.items.length > 0 ? bill.items : [];
+  const prods = Array.isArray(bill.products) ? bill.products : [];
+  const srvs = Array.isArray(bill.services) ? bill.services : [];
+
+  const prodNormNames = new Set(
+    prods.map((p) => normalizeItemName(p?.productName || p?.name)).filter(Boolean)
+  );
+
+  const items = [];
+
+  if (rawItems.length > 0) {
+    rawItems.forEach((it) => {
+      const isProd = it.isProduct === true;
+      const name = it.serviceName || it.productName || it.name || "";
+      const norm = normalizeItemName(name);
+      if (!isProd && norm && prodNormNames.has(norm)) {
+        return; // Skip duplicate ghost service
+      }
+      items.push(it);
+    });
+  } else {
+    srvs.forEach((s) => {
+      const name = typeof s === "string" ? s : s?.serviceName || s?.name || "";
+      const norm = normalizeItemName(name);
+      if (norm && prodNormNames.has(norm)) {
+        return; // Skip ghost service item duplicating a product
+      }
+      items.push(
+        typeof s === "string"
+          ? { serviceName: s, isProduct: false }
+          : { ...s, isProduct: false }
+      );
+    });
+
+    prods.forEach((p) => {
+      items.push({ ...p, isProduct: true });
+    });
+  }
+
+  // Deduplicate exact duplicate keys
+  const seen = new Set();
+  const deduped = [];
+  items.forEach((it) => {
+    const itName = it.serviceName || it.productName || it.name || "Item";
+    const key = `${normalizeItemName(itName)}_${it.isProduct ? "prod" : "srv"}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(it);
+    }
+  });
+
+  return deduped;
+};

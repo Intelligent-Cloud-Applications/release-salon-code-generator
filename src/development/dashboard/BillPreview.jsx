@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Context from "../Context/Context";
+import { buildDeduplicatedBillItems } from "../lib/paymentUtils";
 import { Button } from "../components/ui/button";
 import { X, Download } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
@@ -117,17 +118,17 @@ export default function BillPreview() {
   }, [bill]);
 
   const items = useMemo(() => {
-    const billServices = bill?.services || [];
+    const rawBillItems = buildDeduplicatedBillItems(bill);
     // Normalize items: { name, qty, price, discount, final }
-    if (!Array.isArray(billServices)) return [];
-    const normalized = billServices.map((s) => {
-      if (typeof s === "string") return { name: s, qty: 1 };
+    if (!Array.isArray(rawBillItems)) return [];
+    const normalized = rawBillItems.map((s) => {
       return {
-        name: s.serviceName || s.name || "Service",
-        qty: s.qty || 1,
-        price: s.amount || s.price,
-        discount: s.discount || 0,
+        name: s.serviceName || s.productName || s.name || (s.isProduct ? "Product" : "Service"),
+        qty: Number(s.quantity || s.qty) || 1,
+        price: s.amount != null ? Number(s.amount) : s.price != null ? Number(s.price) : null,
+        discount: Number(s.discount) || 0,
         staff: s.staff || bill?.staff || "",
+        isProduct: s.isProduct === true,
       };
     });
     // Map names to master services list (from Context) for price when missing

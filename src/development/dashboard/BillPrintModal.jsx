@@ -20,7 +20,7 @@ import { cn } from "../lib/utils";
 import Context from "../Context/Context";
 import { getStoredPrinterSettings, getStoredGstSettings } from "./SettingsPage";
 import { directPrintBill } from "../lib/printerService";
-import { parsePaymentSplit, isSplitPayment as checkIsSplit, formatPaymentSummary } from "../lib/paymentUtils";
+import { parsePaymentSplit, isSplitPayment as checkIsSplit, formatPaymentSummary, buildDeduplicatedBillItems } from "../lib/paymentUtils";
 
 export const formatCurrency = (amount, currency = "INR") => {
   const num = Number(amount) || 0;
@@ -98,29 +98,10 @@ export const BillPrintModal = ({
     return calc > 0 ? calc : computedSubtotal;
   }, [rawTotal, computedSubtotal, tax, discount]);
 
-  // 7. Hook: billItems Memo
+  // 7. Hook: billItems Memo - Deduplicated to ensure products are not listed twice
   const billItems = useMemo(() => {
-    const items = [];
-    if (Array.isArray(safeBill.items) && safeBill.items.length > 0) {
-      items.push(...safeBill.items);
-    } else {
-      if (Array.isArray(safeBill.services)) {
-        items.push(
-          ...safeBill.services.map((s) =>
-            typeof s === "string"
-              ? { serviceName: s, isProduct: false }
-              : { ...s, isProduct: false }
-          )
-        );
-      }
-      if (Array.isArray(safeBill.products)) {
-        items.push(
-          ...safeBill.products.map((p) => ({ ...p, isProduct: true }))
-        );
-      }
-    }
-    return items;
-  }, [safeBill.items, safeBill.services, safeBill.products]);
+    return buildDeduplicatedBillItems(safeBill);
+  }, [safeBill]);
 
   // All hooks have been called unconditionally!
   // Safe early return if modal is closed or no bill provided
