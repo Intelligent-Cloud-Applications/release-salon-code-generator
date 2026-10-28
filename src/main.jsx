@@ -57,8 +57,8 @@ Amplify.configure({
   Storage: {
     // CHANGE: 'AWSS3' renamed to 'S3'
     S3: {
-      region: "us-east-1",
-      bucket: "institution-utils",
+      region: isProd ? "us-east-1" : "us-east-2",
+      bucket: "templatesalon.awsaiapp.com",
     },
   },
   API: {

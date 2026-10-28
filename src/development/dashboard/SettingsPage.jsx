@@ -31,6 +31,7 @@ import Context from "../Context/Context";
 import { cn } from "../lib/utils";
 import ScissorsLoader from "../components/Loader";
 import { connectBluetoothPrinter, printViaBluetooth, isWebBluetoothSupported } from "../lib/printerService";
+import { uploadFileToS3 } from "../lib/uploadFileToS3";
 
 export const getStoredPrinterSettings = (institutionData = null) => {
   // 1. Check backend-persisted printer settings from DB
@@ -121,9 +122,10 @@ const SettingsPage = () => {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [tagline, setTagline] = useState("");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoFileInputRef = useRef(null);
 
-  const handleLogoFileUpload = (e) => {
+  const handleLogoFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -145,47 +147,35 @@ const SettingsPage = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result;
-      if (typeof dataUrl === "string") {
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 500;
-          let width = img.width;
-          let height = img.height;
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          const optimizedDataUrl = canvas.toDataURL("image/png");
-          setLogoUrl(optimizedDataUrl);
-          toast({
-            title: "Logo Loaded",
-            description: "Logo image loaded successfully (supports up to 4MB). Remember to click 'Save All Settings' to persist.",
-          });
-        };
-        img.onerror = () => {
-          setLogoUrl(dataUrl);
-          toast({
-            title: "Logo Loaded",
-            description: "Logo image loaded from file. Remember to click 'Save All Settings' to persist.",
-          });
-        };
-        img.src = dataUrl;
+    setIsUploadingLogo(true);
+    try {
+      toast({
+        title: "Uploading to S3",
+        description: "Uploading logo directly to cloud storage (S3)... please wait.",
+      });
+
+      const { url } = await uploadFileToS3(file, "salon-assets");
+
+      if (url) {
+        setLogoUrl(url);
+        toast({
+          title: "Logo Uploaded to S3",
+          description: "Logo uploaded to S3 successfully! Click 'Save All Settings' to persist.",
+        });
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (uploadErr) {
+      console.error("Logo upload error:", uploadErr);
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: uploadErr.message || "Failed to upload logo to S3. Please try again.",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoFileInputRef.current) {
+        logoFileInputRef.current.value = "";
+      }
+    }
   };
 
   // GST & Taxes State
@@ -308,6 +298,14 @@ const SettingsPage = () => {
 
   // Handle Save
   const handleSaveSettings = async () => {
+    if (isUploadingLogo) {
+      toast({
+        variant: "destructive",
+        title: "Upload in progress",
+        description: "Please wait for your logo image to finish uploading to S3.",
+      });
+      return;
+    }
     setIsSaving(true);
     try {
       // 1. Prepare Printer settings
@@ -541,11 +539,21 @@ const SettingsPage = () => {
                       type="button"
                       variant="outline"
                       size="sm"
+                      disabled={isUploadingLogo}
                       onClick={() => logoFileInputRef.current?.click()}
                       className="h-8 text-xs font-bold border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-700 gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                     >
-                      <Upload className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Choose Image</span>
+                      {isUploadingLogo ? (
+                        <>
+                          <ScissorsLoader className="w-3.5 h-3.5 animate-spin" />
+                          <span>Uploading to S3...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Choose Image</span>
+                        </>
+                      )}
                     </Button>
 
                     <Input
@@ -575,7 +583,13 @@ const SettingsPage = () => {
                     )}
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Click "Choose Image" to upload from your device (up to 4MB) or paste an image URL. High-contrast PNG works best on thermal receipt printers.
+                    {isUploadingLogo ? (
+                      <span className="text-blue-600 font-semibold animate-pulse">
+                        Uploading image directly to S3 cloud storage... please wait.
+                      </span>
+                    ) : (
+                      "Click \"Choose Image\" to upload from your device (up to 4MB, uploaded to S3) or paste an image URL. High-contrast PNG works best on thermal receipt printers."
+                    )}
                   </p>
                 </div>
 

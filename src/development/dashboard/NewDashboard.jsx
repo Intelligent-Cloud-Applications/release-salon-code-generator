@@ -177,9 +177,20 @@ export default function NewDashboard() {
       }
     });
 
-    // If no completed appointments yet, check if any appointment has an amount
+    // If no completed appointments yet, only check appointments that are explicitly settled
     if (billsCount === 0 && appointments.length > 0) {
       appointments.forEach((appt) => {
+        const rawStatus = String(
+          appt?.status || appt?.Status || appt?.appointment_status || ""
+        ).toLowerCase().trim();
+        const isSettled =
+          rawStatus === "completed" ||
+          rawStatus === "settled" ||
+          rawStatus === "paid" ||
+          rawStatus === "done" ||
+          Boolean(appt?.isWalkinPOS || appt?.isPosSale);
+        if (!isSettled) return;
+
         const amt =
           parseNumeric(
             appt?.total ||
@@ -192,7 +203,7 @@ export default function NewDashboard() {
           const breakdown = getCollectionBreakdown(appt);
           billsCount++;
           totalRevenue += breakdown.total || amt;
-          cashRevenue += breakdown.cash || amt;
+          cashRevenue += breakdown.cash;
           upiRevenue += breakdown.upi;
           cardRevenue += breakdown.card;
         }
