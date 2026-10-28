@@ -349,6 +349,7 @@ const BillingPage = () => {
     products,
     barbers,
     institutionData,
+    fetchInstitutionData,
     createClient,
     createAppointment,
     updateAppointmentBilling,
@@ -469,17 +470,31 @@ const BillingPage = () => {
     setClientSuggestions(false);
   };
 
-  // GST
-  const initialGst = useMemo(() => {
-    const conf = getStoredGstSettings(institutionData);
-    return conf.defaultGstRate != null ? conf.defaultGstRate : 18;
+  // GST from Database (institutionData)
+  const gstConfig = useMemo(() => {
+    return getStoredGstSettings(institutionData);
   }, [institutionData]);
+
+  const initialGst = useMemo(() => {
+    if (gstConfig.gstEnabled === false) return 0;
+    return gstConfig.defaultGstRate != null ? gstConfig.defaultGstRate : 18;
+  }, [gstConfig]);
   const [selectedGst, setSelectedGst] = useState(initialGst);
 
   useEffect(() => {
-    const conf = getStoredGstSettings(institutionData);
-    if (conf.defaultGstRate != null) setSelectedGst(conf.defaultGstRate);
-  }, [institutionData]);
+    if (gstConfig.gstEnabled === false) {
+      setSelectedGst(0);
+    } else if (gstConfig.defaultGstRate != null) {
+      setSelectedGst(gstConfig.defaultGstRate);
+    }
+  }, [gstConfig]);
+
+  // Ensure institution data is fetched from DB if not already loaded
+  useEffect(() => {
+    if (fetchInstitutionData && (!institutionData || Object.keys(institutionData).length === 0)) {
+      fetchInstitutionData();
+    }
+  }, [fetchInstitutionData, institutionData]);
 
   // Discount
   const [discountType, setDiscountType] = useState("amount");
@@ -502,9 +517,23 @@ const BillingPage = () => {
 
   useEffect(() => {
     const handleClick = () => setClientSuggestions(false);
+    document.addEventListener("pointerdown", handleClick);
+    document.addEventListener("touchstart", handleClick);
     window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
+    return () => {
+      document.removeEventListener("pointerdown", handleClick);
+      document.removeEventListener("touchstart", handleClick);
+      window.removeEventListener("click", handleClick);
+    };
   }, []);
+
+  // Ensure products list is loaded on mount
+  useEffect(() => {
+    const instId = institutionId || institutionData?.institutionid || institutionData?.institutionId;
+    if (fetchProducts && instId && (!products || products.length === 0)) {
+      fetchProducts(instId);
+    }
+  }, [fetchProducts, products, institutionId, institutionData]);
 
   useEffect(() => {
     if (location.state?.selectedAppointment) {
@@ -763,7 +792,7 @@ const BillingPage = () => {
 
     setShowMobileCart(false);
 
-    const printerSettings = getStoredPrinterSettings();
+    const printerSettings = getStoredPrinterSettings(institutionData);
     const isBluetooth = printerSettings?.printerType === "bluetooth";
 
     toast({
@@ -908,36 +937,41 @@ const BillingPage = () => {
     setIsSettlingPOS(true);
     try {
       const epochNow = Math.floor(Date.now() / 1000);
-      const clientName = client.clientName.trim() || "Walk-in Client";
-      const phoneNumber = client.phoneNumber.trim() || "";
+      const rawName = String(client.clientName || "").trim();
+      const rawPhone = String(client.phoneNumber || "").replace(/[^0-9+]/g, "").trim();
 
-      let clientId =
-        selectedExistingClient?.id ||
-        (clients || []).find(
+      const isRealClient =
+        rawName.length > 0 &&
+        !rawName.toLowerCase().includes("walk-in") &&
+        !rawName.toLowerCase().includes("walk in") &&
+        rawName.toLowerCase() !== "guest" &&
+        rawName.toLowerCase() !== "client" &&
+        rawPhone.length >= 7;
+
+      const clientName = rawName || "Walk-in Client";
+      const phoneNumber = rawPhone || "";
+
+      let clientId = selectedExistingClient?.id || "";
+
+      if (!clientId && isRealClient) {
+        const found = (clients || []).find(
           (c) =>
             ((c.userName || c.clientName || c.name) &&
-              (c.userName || c.clientName || c.name).toLowerCase() === clientName.toLowerCase()) ||
-            (phoneNumber && (c.phoneNumber === phoneNumber || c.phone === phoneNumber || c.PhoneNumber === phoneNumber))
-        )?.clientId || "";
+              (c.userName || c.clientName || c.name).toLowerCase() === rawName.toLowerCase()) ||
+            (rawPhone && (c.phoneNumber === rawPhone || c.phone === rawPhone || c.PhoneNumber === rawPhone))
+        );
+        if (found) {
+          clientId = found.clientId || found.cognitoId || found.id || "";
+        }
+      }
 
-      const trimmedName = String(clientName || "").trim();
-      const trimmedPhone = String(phoneNumber || "").replace(/[^0-9+]/g, "").trim();
-
-      const hasValidName =
-        trimmedName.length > 0 &&
-        !trimmedName.toLowerCase().includes("walk-in") &&
-        trimmedName.toLowerCase() !== "guest" &&
-        trimmedName.toLowerCase() !== "client";
-
-      const hasValidPhone = trimmedPhone.length >= 7;
-
-      // Only create client in directory if BOTH a valid name and phone number are explicitly entered
-      if (!clientId && hasValidName && hasValidPhone) {
+      // ONLY create client in directory if user explicitly provided a real name AND valid phone number
+      if (!clientId && isRealClient) {
         try {
           const newC = await createClient({
-            userName: trimmedName,
-            clientName: trimmedName,
-            phoneNumber: trimmedPhone,
+            userName: rawName,
+            clientName: rawName,
+            phoneNumber: rawPhone,
             emailId: "",
             createdAt: epochNow,
           });
@@ -970,9 +1004,12 @@ const BillingPage = () => {
         ...productsMapped.map((p) => ({ ...p, name: p.productName, isProduct: true })),
       ];
 
-      const serviceCSV = servicesMapped
-        .map((s) => `${s.serviceName}${s.quantity > 1 ? ` (×${s.quantity})` : ""}`)
-        .join(", ");
+      const allItemNames = [
+        ...servicesMapped.map((s) => `${s.serviceName}${s.quantity > 1 ? ` (×${s.quantity})` : ""}`),
+        ...productsMapped.map((p) => `${p.productName}${p.quantity > 1 ? ` (×${p.quantity})` : ""}`),
+      ];
+
+      const serviceCSV = allItemNames.join(", ");
 
       const targetAppointmentId = linkedAppointment?.appointmentId || linkedAppointment?.id;
 
@@ -1024,12 +1061,15 @@ const BillingPage = () => {
 
       const billPayload = {
         appointmentId: targetAppointmentId || `INV-${epochNow}`,
-        clientId: clientId || `CLT-${epochNow.toString().slice(-6)}`,
+        clientId: clientId || (isRealClient ? `CLT-${epochNow.toString().slice(-6)}` : null),
         clientName,
         phoneNumber,
         services: servicesMapped,
         products: productsMapped,
-        service: serviceCSV || "Salon Service",
+        service: serviceCSV || (productsMapped.length > 0 ? productsMapped.map(p => p.productName).join(", ") : "Salon Treatment"),
+        isWalkinPOS: !isRealClient,
+        isPosSale: true,
+        source: "pos",
         duration: totalServiceDuration || 30,
         dateTime: epochNow,
         subtotal: cartSubtotal,
@@ -1105,8 +1145,9 @@ const BillingPage = () => {
                 ? "low_stock"
                 : "in_stock";
 
+            const { productId: _p, institutionId: _i, ...cleanProd } = fullProd || {};
             await updateProduct(instId, pId, {
-              ...(fullProd || {}),
+              ...cleanProd,
               currentStock: newStock,
               status: newStatus,
             });
@@ -1159,7 +1200,7 @@ const BillingPage = () => {
       });
 
       // Direct auto-print if configured in Settings, completely without opening any modal
-      const printerSettings = getStoredPrinterSettings();
+      const printerSettings = getStoredPrinterSettings(institutionData);
       if (printerSettings?.autoPrint) {
         try {
           await directPrintBill(completedBill, institutionData, printerSettings);
@@ -1286,7 +1327,7 @@ const BillingPage = () => {
             )}
 
             {/* Direct Client Name & Phone Number */}
-            <div className="grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <div className="grid grid-cols-2 gap-1.5">
               <div className="relative">
                 <Input
                   placeholder="Client name"
@@ -1308,10 +1349,22 @@ const BillingPage = () => {
                   className="h-8 text-base md:text-xs rounded-md border-slate-200 bg-white"
                 />
                 {clientSuggestions && client.clientName.trim() && (
-                  <div
-                    className="absolute left-0 top-full mt-1 w-[205%] max-w-[320px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setClientSuggestions(false);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        setClientSuggestions(false);
+                      }}
+                    />
+                    <div
+                      className="absolute left-0 top-full mt-1 w-[205%] max-w-[320px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                     <div className="px-2.5 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       <span>Existing Clients</span>
                       <span>{clientSuggestionsList.length} found</span>
@@ -1354,8 +1407,9 @@ const BillingPage = () => {
                       )}
                     </div>
                   </div>
-                )}
-              </div>
+                </>
+              )}
+            </div>
 
               <Input
                 placeholder="Phone number"
@@ -1462,7 +1516,7 @@ const BillingPage = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">GST Rate</span>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs">
                   <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span>{selectedGst}%</span>
+                  <span>{gstConfig.gstEnabled === false ? "Exempt (0%)" : `${selectedGst}%`}</span>
                   <span className="text-[10px] text-slate-400 font-semibold">(Settings)</span>
                 </div>
               </div>
@@ -1647,7 +1701,7 @@ const BillingPage = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">GST Rate</span>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-2xs">
                   <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span>{selectedGst}%</span>
+                  <span>{gstConfig.gstEnabled === false ? "Exempt (0%)" : `${selectedGst}%`}</span>
                   <span className="text-[10px] text-slate-400 font-semibold">(Settings)</span>
                 </div>
               </div>

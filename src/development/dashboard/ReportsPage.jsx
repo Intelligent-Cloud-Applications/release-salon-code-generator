@@ -73,7 +73,7 @@ const REPORT_TYPES = [
     id: "daily_collection",
     title: "Daily Collection Register",
     shortTitle: "Collection Register",
-    subtitle: "Day-end reconciliation of Cash, UPI, Card, and Split settlements",
+    subtitle: "Day-end reconciliation of Cash, UPI, and Card settlements",
     icon: Wallet,
     color: "text-amber-600",
     bgColor: "bg-amber-50 border-amber-100",
@@ -510,19 +510,19 @@ const ReportsPage = () => {
         if (tx.staffId !== filterStaff && tx.staff !== filterStaff) return false;
       }
 
-      // Payment mode filter
+      // Payment mode filter - mixes split portions into Cash, UPI, Card
       if (filterPaymentMode !== "all") {
         const mode = tx.paymentMethod.toLowerCase();
-        if (filterPaymentMode === "split" && !tx.isSplit) return false;
-        if (filterPaymentMode === "cash" && (tx.isSplit || mode !== "cash"))
-          return false;
-        if (
-          filterPaymentMode === "upi" &&
-          (tx.isSplit || (!mode.includes("upi") && !mode.includes("online")))
-        )
-          return false;
-        if (filterPaymentMode === "card" && (tx.isSplit || !mode.includes("card")))
-          return false;
+        if (filterPaymentMode === "cash") {
+          const hasCash = (Number(tx.breakdown?.cash) || 0) > 0 || (!tx.isSplit && mode === "cash");
+          if (!hasCash) return false;
+        } else if (filterPaymentMode === "upi") {
+          const hasUpi = (Number(tx.breakdown?.upi) || 0) > 0 || (!tx.isSplit && (mode.includes("upi") || mode.includes("online")));
+          if (!hasUpi) return false;
+        } else if (filterPaymentMode === "card") {
+          const hasCard = (Number(tx.breakdown?.card) || 0) > 0 || (!tx.isSplit && mode.includes("card"));
+          if (!hasCard) return false;
+        }
       }
 
       // Status filter
@@ -591,7 +591,6 @@ const ReportsPage = () => {
           cash: 0,
           upi: 0,
           card: 0,
-          splitRevenue: 0,
         };
       }
       const txBreakdownSum =
@@ -605,9 +604,6 @@ const ReportsPage = () => {
       map[key].cash += Number(tx.breakdown?.cash) || 0;
       map[key].upi += Number(tx.breakdown?.upi) || 0;
       map[key].card += Number(tx.breakdown?.card) || 0;
-      if (tx.isSplit) {
-        map[key].splitRevenue += txAmount;
-      }
     });
 
     return Object.values(map).sort(
@@ -911,7 +907,6 @@ const ReportsPage = () => {
         "Cash Received (Rs)",
         "UPI / QR (Rs)",
         "Card (Rs)",
-        "Split Bills Total (Rs)",
         "Average Ticket (Rs)",
       ];
       rows = activeRecords.map((r) => [
@@ -921,7 +916,6 @@ const ReportsPage = () => {
         r.cash || 0,
         r.upi || 0,
         r.card || 0,
-        r.splitRevenue || 0,
         r.billsCount > 0 ? Math.round(r.totalRevenue / r.billsCount) : 0,
       ]);
     } else if (selectedReportType === "staff") {
@@ -1119,7 +1113,6 @@ const ReportsPage = () => {
           <th style="text-align:right">CASH (₹)</th>
           <th style="text-align:right">UPI (₹)</th>
           <th style="text-align:right">CARD (₹)</th>
-          <th style="text-align:right">SPLIT (₹)</th>
         </tr>
       `;
       tableRowsHtml = activeRecords
@@ -1132,7 +1125,6 @@ const ReportsPage = () => {
           <td style="text-align:right">₹${(Number(r.cash) || 0).toLocaleString("en-IN")}</td>
           <td style="text-align:right">₹${(Number(r.upi) || 0).toLocaleString("en-IN")}</td>
           <td style="text-align:right">₹${(Number(r.card) || 0).toLocaleString("en-IN")}</td>
-          <td style="text-align:right">₹${(Number(r.splitRevenue) || 0).toLocaleString("en-IN")}</td>
         </tr>
       `
         )
@@ -1563,7 +1555,7 @@ const ReportsPage = () => {
             <option value="cash">Cash Only</option>
             <option value="upi">UPI / Online QR Only</option>
             <option value="card">Card Only</option>
-            <option value="split">Split Payments Only</option>
+            
           </select>
         </div>
 
@@ -2242,7 +2234,6 @@ const ReportsPage = () => {
                           <th className="py-3 px-4 text-right">CASH IN HAND</th>
                           <th className="py-3 px-4 text-right">UPI / ONLINE</th>
                           <th className="py-3 px-4 text-right">CARD</th>
-                          <th className="py-3 px-4 text-right">SPLIT REVENUE</th>
                         </tr>
                       )}
 
@@ -2489,9 +2480,6 @@ const ReportsPage = () => {
                                 <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
                                   {formatCurrency(r.card)}
                                 </td>
-                                <td className="py-3 px-4 text-right font-mono text-purple-700 font-semibold">
-                                  {formatCurrency(r.splitRevenue)}
-                                </td>
                               </tr>
                             ))}
 
@@ -2688,9 +2676,6 @@ const ReportsPage = () => {
                             </td>
                             <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
                               {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.card, 0))}
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono font-bold text-purple-700">
-                              {formatCurrency(dailyCollectionRows.reduce((sum, r) => sum + r.splitRevenue, 0))}
                             </td>
                           </tr>
                         )}

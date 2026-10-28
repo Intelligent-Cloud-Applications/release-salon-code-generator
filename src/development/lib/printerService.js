@@ -192,7 +192,7 @@ export const buildEscPosPayload = (bill, institutionData, printerSettings) => {
     "TEKKZY HAIR SALON";
   const salonAddress = institutionData?.Query_Address || institutionData?.Address || "";
   const salonPhone = institutionData?.Query_PhoneNumber || institutionData?.Contact || institutionData?.phoneNumber || "";
-  const gstNumber = printerSettings?.gstNumber || institutionData?.gstNumber || "";
+  const gstNumber = printerSettings?.gstNumber || institutionData?.gstNumber || institutionData?.gstSettings?.gstNumber || "";
   const receiptTitle = printerSettings?.receiptTitle || (bill.status === "Draft Estimate" ? "ESTIMATE BILL" : "TAX INVOICE");
 
   addBytes(...ALIGN_CENTER);
@@ -373,7 +373,7 @@ export const generateThermalReceiptHtml = (bill, institutionData, printerSetting
     institutionData?.Address ||
     "";
 
-  const gstNumber = printerSettings?.gstNumber || institutionData?.gstNumber || "";
+  const gstNumber = printerSettings?.gstNumber || institutionData?.gstNumber || institutionData?.gstSettings?.gstNumber || "";
   const receiptTitle = printerSettings?.receiptTitle || (bill.status === "Draft Estimate" ? "ESTIMATE BILL" : "TAX INVOICE");
 
   const safeDate = bill.date ? new Date(bill.date) : new Date();
@@ -608,7 +608,7 @@ export const printViaUSB = async (bill, institutionData, printerSettings) => {
  * NO MODAL POPUP NEEDED!
  */
 export const directPrintBill = async (bill, institutionData, explicitSettings = null) => {
-  const printerSettings = explicitSettings || getStoredPrinterSettings();
+  const printerSettings = explicitSettings || getStoredPrinterSettings(institutionData);
   const isBluetooth = printerSettings?.printerType === "bluetooth";
 
   if (isBluetooth) {

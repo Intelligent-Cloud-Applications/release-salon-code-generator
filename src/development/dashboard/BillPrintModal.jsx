@@ -59,7 +59,7 @@ export const BillPrintModal = ({
   // 1. Hook: Context
   const { institutionData, landingPageData } = useContext(Context) || {};
 
-  const printerSettings = getStoredPrinterSettings();
+  const printerSettings = getStoredPrinterSettings(institutionData);
   const gstSettings = getStoredGstSettings(institutionData);
 
   // 2. Hook: activePaperSize State

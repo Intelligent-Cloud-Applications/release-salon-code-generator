@@ -142,8 +142,16 @@ const Services = ({ list }) =>
 /* ------------------------------ page ------------------------------ */
 
 const OrderHistoryPage = () => {
-  const { appointments, barbers, institutionData } = useContext(Context);
+  const { appointments, barbers, institutionData, fetchInstitutionData } = useContext(Context);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!institutionData || Object.keys(institutionData).length === 0) {
+      if (typeof fetchInstitutionData === "function") {
+        fetchInstitutionData();
+      }
+    }
+  }, [institutionData, fetchInstitutionData]);
 
   const todayKey = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const currentMonthKey = useMemo(() => format(new Date(), "yyyy-MM"), []);
@@ -189,8 +197,9 @@ const OrderHistoryPage = () => {
 
         let serviceNames = [];
         let detailedItems = [];
+        let productDisplayNames = [];
 
-        if (Array.isArray(apt.services)) {
+        if (Array.isArray(apt.services) && apt.services.length > 0) {
           apt.services.forEach((s) => {
             if (typeof s === "string") {
               serviceNames.push(s);
@@ -207,26 +216,49 @@ const OrderHistoryPage = () => {
             }
           });
         } else if (typeof apt.service === "string" && apt.service.trim()) {
-          serviceNames = apt.service.split(",").map((s) => s.trim()).filter(Boolean);
-          detailedItems = serviceNames.map((name) => ({
-            serviceName: name,
-            amount: null,
-            quantity: 1,
-            isProduct: false,
-          }));
+          const splitList = apt.service.split(",").map((s) => s.trim()).filter(Boolean);
+          const isGeneric =
+            splitList.length === 1 &&
+            (splitList[0].toLowerCase() === "salon service" ||
+              splitList[0].toLowerCase() === "salon services");
+          if (!isGeneric || !(Array.isArray(apt.products) && apt.products.length > 0)) {
+            serviceNames = splitList;
+            detailedItems = serviceNames.map((name) => ({
+              serviceName: name,
+              amount: null,
+              quantity: 1,
+              isProduct: false,
+            }));
+          }
         }
 
-        if (Array.isArray(apt.products)) {
+        if (Array.isArray(apt.products) && apt.products.length > 0) {
           apt.products.forEach((p) => {
             const name = p?.productName || p?.name || "Product";
+            const qty = Number(p?.quantity || p?.qty) || 1;
+            productDisplayNames.push(`${name}${qty > 1 ? ` (×${qty})` : ""}`);
             detailedItems.push({
               serviceName: name,
               amount: Number(p?.price || p?.amount || 0),
-              quantity: Number(p?.quantity || p?.qty) || 1,
+              quantity: qty,
               isProduct: true,
             });
           });
         }
+
+        const displayItems = [
+          ...serviceNames,
+          ...productDisplayNames.map((p) => `${p} [Product]`),
+        ];
+
+        const finalServices =
+          displayItems.length > 0
+            ? displayItems
+            : serviceNames.length > 0
+            ? serviceNames
+            : productDisplayNames.length > 0
+            ? productDisplayNames
+            : ["Salon Service"];
 
         const rawSubtotal = Number(apt.subtotal || apt.billAmount || apt.amount || 0);
         const rawTotal = Number(apt.total != null ? apt.total : apt.totalAmount != null ? apt.totalAmount : 0);
@@ -261,7 +293,7 @@ const OrderHistoryPage = () => {
           dateShort: format(d, "dd MMM yyyy"),
           time: format(d, "hh:mm a"),
           dateTimeFormatted: format(d, "dd MMM yyyy, hh:mm a"),
-          services: serviceNames,
+          services: finalServices,
           items: detailedItems,
           products: apt.products || [],
           subtotal,
@@ -319,7 +351,9 @@ const OrderHistoryPage = () => {
           b.clientName.toLowerCase().includes(q) ||
           b.id.toLowerCase().includes(q) ||
           b.phoneNumber.includes(q) ||
-          b.staff.toLowerCase().includes(q)
+          b.staff.toLowerCase().includes(q) ||
+          (b.paymentMethod && b.paymentMethod.toLowerCase().includes(q)) ||
+          (b.paymentSummary && b.paymentSummary.toLowerCase().includes(q))
       );
     }
     return r;
