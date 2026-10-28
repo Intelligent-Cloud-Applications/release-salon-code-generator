@@ -24,9 +24,9 @@ export default function BillPreview() {
   const [fetchedAppt, setFetchedAppt] = useState(null);
   const isDashboard = location.pathname.startsWith("/dashboard");
 
-  const salonName = institutionData?.InstitutionName || institutionData?.institutionname || "THE MIRROR SALON AND MAKEUP STUDIO";
-  const salonAddress = institutionData?.Address || institutionData?.address || "Hilltown Beside of SBI ATM, Bhawanipatna, ODISHA - 766001";
-  const salonContact = institutionData?.Contact || institutionData?.contact || "Contact: 8144122018";
+  const salonName = institutionData?.companyName || institutionData?.InstitutionName || institutionData?.institutionname || "THE MIRROR SALON AND MAKEUP STUDIO";
+  const salonAddress = institutionData?.Query_Address || institutionData?.Address || institutionData?.address || "Hilltown Beside of SBI ATM, Bhawanipatna, ODISHA - 766001";
+  const salonContact = institutionData?.Query_PhoneNumber || institutionData?.Contact || institutionData?.contact || "Contact: 8144122018";
 
   const stateBill = location.state?.bill;
   const mode = location.state?.mode || "generate";
@@ -396,8 +396,8 @@ export default function BillPreview() {
           <div className="sub-header" style={{ whiteSpace: 'pre-line' }}>{salonAddress}</div>
           <div className="info">Contact: {salonContact} <br/> Date: {fmtDT(bill.date)}</div>
           {/* Optional GSTIN */}
-          {institutionData?.gstin || institutionData?.GSTIN ? (
-            <div className="info">GSTIN: {institutionData?.gstin || institutionData?.GSTIN}</div>
+          {institutionData?.gstNumber || institutionData?.gstSettings?.gstNumber || institutionData?.gstin || institutionData?.GSTIN ? (
+            <div className="info">GSTIN: {institutionData?.gstNumber || institutionData?.gstSettings?.gstNumber || institutionData?.gstin || institutionData?.GSTIN}</div>
           ) : null}
           <div className="divider" />
 

@@ -33,7 +33,7 @@ import ScissorsLoader from "../components/Loader";
 import { connectBluetoothPrinter, printViaBluetooth, isWebBluetoothSupported } from "../lib/printerService";
 
 export const getStoredPrinterSettings = (institutionData = null) => {
-  // 1. Check backend-persisted printer settings
+  // 1. Check backend-persisted printer settings from DB
   const backendPrinter =
     institutionData?.printerSettings ||
     institutionData?.landingPageData?.printerSettings;
@@ -53,12 +53,7 @@ export const getStoredPrinterSettings = (institutionData = null) => {
     };
   }
 
-  // 2. Check local storage fallback
-  try {
-    const raw = localStorage.getItem("salon_billing_printer_settings");
-    if (raw) return JSON.parse(raw);
-  } catch (e) {}
-
+  // Fallback defaults
   return {
     printerType: "usb", // 'bluetooth' | 'usb'
     paperSize: "80mm", // '80mm' | '58mm' | 'a4'
@@ -71,7 +66,7 @@ export const getStoredPrinterSettings = (institutionData = null) => {
 };
 
 export const getStoredGstSettings = (institutionData = null) => {
-  // 1. Check backend-persisted GST settings
+  // 1. Check backend-persisted GST settings from DB
   const backendGst =
     institutionData?.gstSettings ||
     institutionData?.landingPageData?.gstSettings;
@@ -90,7 +85,7 @@ export const getStoredGstSettings = (institutionData = null) => {
     };
   }
 
-  if (institutionData?.gstRate != null || institutionData?.gstNumber != null) {
+  if (institutionData?.gstRate != null || institutionData?.gstNumber != null || institutionData?.gstEnabled != null) {
     return {
       gstEnabled: institutionData.gstEnabled ?? true,
       defaultGstRate: Number(institutionData.gstRate != null ? institutionData.gstRate : 18),
@@ -98,19 +93,7 @@ export const getStoredGstSettings = (institutionData = null) => {
     };
   }
 
-  // 2. Check local storage fallback
-  try {
-    const raw = localStorage.getItem("salon_billing_gst_settings");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        gstEnabled: parsed.gstEnabled ?? true,
-        defaultGstRate: Number(parsed.defaultGstRate != null ? parsed.defaultGstRate : 18),
-        gstNumber: parsed.gstNumber || "",
-      };
-    }
-  } catch (e) {}
-
+  // Fallback defaults
   return {
     gstEnabled: true,
     defaultGstRate: 18,
@@ -119,7 +102,13 @@ export const getStoredGstSettings = (institutionData = null) => {
 };
 
 const SettingsPage = () => {
-  const { institutionData, setInstitutionData, updateLandingPageData, landingPageData } = useContext(Context);
+  const {
+    institutionData,
+    setInstitutionData,
+    updateLandingPageData,
+    fetchInstitutionData,
+    landingPageData,
+  } = useContext(Context);
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState("branding"); // 'branding' | 'gst' | 'printer'
@@ -147,11 +136,11 @@ const SettingsPage = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 4 * 1024 * 1024) {
       toast({
         variant: "destructive",
         title: "File Too Large",
-        description: "Please select an image smaller than 2MB.",
+        description: "Please select an image smaller than 4MB.",
       });
       return;
     }
@@ -160,11 +149,40 @@ const SettingsPage = () => {
     reader.onload = (event) => {
       const dataUrl = event.target?.result;
       if (typeof dataUrl === "string") {
-        setLogoUrl(dataUrl);
-        toast({
-          title: "Logo Loaded",
-          description: "Logo image loaded from file. Remember to click 'Save All Settings' to persist.",
-        });
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 500;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          const optimizedDataUrl = canvas.toDataURL("image/png");
+          setLogoUrl(optimizedDataUrl);
+          toast({
+            title: "Logo Loaded",
+            description: "Logo image loaded successfully (supports up to 4MB). Remember to click 'Save All Settings' to persist.",
+          });
+        };
+        img.onerror = () => {
+          setLogoUrl(dataUrl);
+          toast({
+            title: "Logo Loaded",
+            description: "Logo image loaded from file. Remember to click 'Save All Settings' to persist.",
+          });
+        };
+        img.src = dataUrl;
       }
     };
     reader.readAsDataURL(file);
@@ -302,7 +320,6 @@ const SettingsPage = () => {
         showStylist,
         showGstBreakdown,
       };
-      localStorage.setItem("salon_billing_printer_settings", JSON.stringify(printerConfig));
 
       // 2. Prepare GST settings
       const gstConfig = {
@@ -310,9 +327,14 @@ const SettingsPage = () => {
         defaultGstRate: Number(defaultGstRate) || 0,
         gstNumber: gstNumber.trim(),
       };
-      localStorage.setItem("salon_billing_gst_settings", JSON.stringify(gstConfig));
 
-      // 3. Save Branding, GST, and Printer settings to backend via updateLandingPageData / admin-update-ui
+      // Clean up any legacy localStorage items
+      try {
+        localStorage.removeItem("salon_billing_printer_settings");
+        localStorage.removeItem("salon_billing_gst_settings");
+      } catch (e) {}
+
+      // 3. Save Branding, GST, and Printer settings directly to DynamoDB via updateLandingPageData / admin-update-ui
       const updatedLanding = {
         ...(landingPageData || {}),
         navigation: {
@@ -337,33 +359,34 @@ const SettingsPage = () => {
         },
       };
 
+      const topLevelDataToSave = {
+        printerSettings: printerConfig,
+        gstSettings: gstConfig,
+        gstRate: Number(defaultGstRate) || 0,
+        gstNumber: gstNumber.trim(),
+        gstEnabled: gstEnabled,
+        companyName: companyName.trim(),
+        logoUrl: logoUrl.trim(),
+        Query_PhoneNumber: phoneNumber.trim(),
+        email: email.trim(),
+        Query_Address: address.trim(),
+        tagline: tagline.trim(),
+        printerType,
+        paperSize,
+      };
+
       if (updateLandingPageData) {
-        await updateLandingPageData(updatedLanding, {
-          printerSettings: printerConfig,
-          gstSettings: gstConfig,
-          gstRate: Number(defaultGstRate) || 0,
-          gstNumber: gstNumber.trim(),
-          gstEnabled: gstEnabled,
-        });
+        await updateLandingPageData(updatedLanding, topLevelDataToSave);
       }
 
-      // Also update institutionData in Context
-      if (setInstitutionData) {
+      // Re-fetch fresh institution data from DB to ensure 100% database synchronization
+      if (fetchInstitutionData) {
+        await fetchInstitutionData();
+      } else if (setInstitutionData) {
         setInstitutionData((prev) => ({
           ...(prev || {}),
-          companyName: companyName.trim(),
-          logoUrl: logoUrl.trim(),
-          Query_PhoneNumber: phoneNumber.trim(),
-          email: email.trim(),
-          Query_Address: address.trim(),
-          tagline: tagline.trim(),
-          gstRate: Number(defaultGstRate) || 0,
-          gstNumber: gstNumber.trim(),
-          gstEnabled: gstEnabled,
-          gstSettings: gstConfig,
-          printerSettings: printerConfig,
-          printerType,
-          paperSize,
+          ...topLevelDataToSave,
+          landingPageData: updatedLanding,
         }));
       }
 
@@ -552,7 +575,7 @@ const SettingsPage = () => {
                     )}
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Click "Choose Image" to upload from your device or paste an image URL. High-contrast PNG works best on thermal receipt printers.
+                    Click "Choose Image" to upload from your device (up to 4MB) or paste an image URL. High-contrast PNG works best on thermal receipt printers.
                   </p>
                 </div>
 

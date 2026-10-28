@@ -878,7 +878,14 @@ export default function ClientsPage() {
     }
   }, []);
 
-  const safeClients = Array.isArray(clients) ? clients : [];
+  const safeClients = useMemo(() => {
+    return (Array.isArray(clients) ? clients : []).filter((c) => {
+      if (!c) return false;
+      const name = String(c.userName || c.clientName || c.name || "").trim().toLowerCase();
+      if (!name || name.includes("walk-in") || name === "guest" || name === "client") return false;
+      return true;
+    });
+  }, [clients]);
 
   // Filtered client list by clientName, phone, email, status, or preferred services
   const filteredClients = useMemo(() => {
@@ -1173,7 +1180,7 @@ export default function ClientsPage() {
       {/* 4. Clients Content (Desktop Table / Mobile Cards) */}
       {loader && clients.length === 0 ? (
         <ScissorsLoader text="Loading clients..." />
-      ) : clients.length === 0 ? (
+      ) : safeClients.length === 0 ? (
         /* Empty State */
         <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center my-2 shadow-2xs">
           <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2.5 border border-blue-100">

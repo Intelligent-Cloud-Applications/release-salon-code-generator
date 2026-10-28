@@ -904,6 +904,129 @@ const AppointmentModal = ({
 };
 
 /* ==========================================================================
+   MOBILE APPOINTMENT CARD (CLEAN TOUCH-OPTIMIZED CARD FOR MOBILE CALENDAR)
+   ========================================================================== */
+const MobileAppointmentCard = ({
+  appt,
+  onStatusUpdate,
+  onEdit,
+  onDelete,
+  formatCurrency,
+  navigate,
+}) => {
+  const normStatus = appt.normStatus || normalizeStatus(appt.status);
+  const isCompleted = normStatus === "completed";
+  const isInProgress = normStatus === "in_progress";
+  const isCancelled = normStatus === "cancelled";
+
+  return (
+    <div
+      className={clsx(
+        "p-3 rounded-xl border shadow-2xs space-y-2 transition-all",
+        isInProgress
+          ? "bg-blue-50/60 border-blue-200 border-l-[3.5px] border-l-blue-600"
+          : isCompleted
+          ? "bg-emerald-50/50 border-emerald-200 border-l-[3.5px] border-l-emerald-600"
+          : isCancelled
+          ? "bg-rose-50/40 border-rose-200 border-l-[3.5px] border-l-rose-500 opacity-80"
+          : "bg-white border-slate-200/90 border-l-[3.5px] border-l-indigo-600"
+      )}
+    >
+      {/* Top Row: Time Badge + Status */}
+      <div className="flex items-center justify-between gap-1.5">
+        <span className="inline-flex items-center gap-1 font-mono font-bold text-xs text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md">
+          <Clock className="w-3 h-3 text-blue-600" />
+          {formatTimeLabel(appt.parsedDate, appt.time)}
+        </span>
+        <StatusPill status={appt.status} compact />
+      </div>
+
+      {/* Client Name & Services */}
+      <div className="space-y-0.5">
+        <div className="font-bold text-sm text-slate-900 truncate">
+          {appt.clientName}
+        </div>
+        <div className="text-xs text-slate-600 flex items-center gap-1 truncate">
+          <span>✂️</span>
+          <span className="truncate">{appt.serviceName}</span>
+        </div>
+      </div>
+
+      {/* Staff chip & Phone quick call */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+        {appt.staffName && (
+          <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+            <User className="w-3 h-3 text-indigo-500" />
+            <span className="truncate max-w-[130px]">{appt.staffName}</span>
+          </span>
+        )}
+        {appt.phone && (
+          <a
+            href={`tel:${appt.phone}`}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 px-2 py-0.5 rounded-md transition-colors"
+            title="Call Client"
+          >
+            <Phone className="w-2.5 h-2.5 text-blue-600" />
+            <span>{appt.phone}</span>
+          </a>
+        )}
+      </div>
+
+      {/* Footer: Amount & Quick Actions */}
+      <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100">
+        <span className="text-xs font-black text-slate-900 font-mono truncate">
+          {formatCurrency(appt.amount || appt.total)}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          {!isCompleted && !isCancelled && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate &&
+                navigate("/dashboard/billing", {
+                  state: { selectedAppointment: appt },
+                })
+              }
+              className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-2xs transition-colors cursor-pointer shrink-0"
+              title="Load appointment into Billing"
+            >
+              <CreditCard className="w-3 h-3" />
+              <span>Load Bill</span>
+            </button>
+          )}
+          {isCompleted && (
+            <button
+              type="button"
+              onClick={() => navigate && navigate("/dashboard/order-history")}
+              className="px-2 py-1 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[10px] transition-colors cursor-pointer shrink-0"
+              title="View Invoice in Order History"
+            >
+              Invoice
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onEdit(appt)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:text-blue-700 bg-slate-50 hover:bg-blue-50 border border-slate-200 transition-colors cursor-pointer shrink-0"
+            title="Edit"
+          >
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(appt)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 transition-colors cursor-pointer shrink-0"
+            title="Delete"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ==========================================================================
    INTERACTIVE CALENDAR VIEW (DAY / WEEK / MONTH & WHO IS BUSY TIMELINE)
    ========================================================================== */
 const CalendarView = ({
@@ -924,6 +1047,13 @@ const CalendarView = ({
     return d;
   });
   const [selectedMonthDay, setSelectedMonthDay] = useState(null);
+  const [selectedWeekDay, setSelectedWeekDay] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [selectedStylistId, setSelectedStylistId] = useState("all");
+  const [mobileDayViewMode, setMobileDayViewMode] = useState("timeline"); // "timeline" | "grid"
 
   // Quick navigation
   const handlePrev = () => {
@@ -951,6 +1081,7 @@ const CalendarView = ({
     d.setHours(0, 0, 0, 0);
     setCurrentDate(d);
     setSelectedMonthDay(d);
+    setSelectedWeekDay(d);
   };
 
   // Helper date matching
@@ -1013,6 +1144,24 @@ const CalendarView = ({
     );
   }, [appointmentsWithDates, currentDate, selectedMonthDay, scope]);
 
+  // Mobile filtered day appointments by stylist
+  const mobileFilteredDayAppointments = useMemo(() => {
+    if (!selectedStylistId || selectedStylistId === "all") {
+      return activeDayAppointments;
+    }
+    return activeDayAppointments.filter((a) => {
+      const aStaffId = String(a.staffId || "");
+      const aStaffName = String(a.staffName || "").toLowerCase();
+      const matchedStylist = barbers.find(
+        (b) => String(b.staffId || b.id || "") === selectedStylistId
+      );
+      const sName = matchedStylist
+        ? (matchedStylist.name || matchedStylist.fullName || "").toLowerCase()
+        : "";
+      return aStaffId === selectedStylistId || (sName && aStaffName.includes(sName));
+    });
+  }, [activeDayAppointments, selectedStylistId, barbers]);
+
   // Week days calculation (Monday to Sunday)
   const weekDays = useMemo(() => {
     const start = new Date(currentDate);
@@ -1029,6 +1178,24 @@ const CalendarView = ({
     }
     return days;
   }, [currentDate]);
+
+  // Synchronize selectedWeekDay when currentDate or week changes
+  useEffect(() => {
+    if (scope === "week") {
+      const isInside = weekDays.some((d) => isSameDay(d, selectedWeekDay));
+      if (!isInside && weekDays.length > 0) {
+        setSelectedWeekDay(weekDays[0]);
+      }
+    }
+  }, [currentDate, scope, weekDays, selectedWeekDay]);
+
+  // Appointments for selected week day on mobile
+  const activeWeekDayAppointments = useMemo(() => {
+    const target = selectedWeekDay || currentDate;
+    return appointmentsWithDates.filter(
+      (a) => a.parsedDate && isSameDay(a.parsedDate, target)
+    );
+  }, [appointmentsWithDates, selectedWeekDay, currentDate]);
 
   // Month days calculation
   const monthDays = useMemo(() => {
@@ -1087,9 +1254,9 @@ const CalendarView = ({
   const headerDateTitle = useMemo(() => {
     if (scope === "day") {
       return currentDate.toLocaleDateString("en-IN", {
-        weekday: "long",
+        weekday: "short",
         day: "numeric",
-        month: "long",
+        month: "short",
         year: "numeric",
       });
     }
@@ -1123,16 +1290,16 @@ const CalendarView = ({
 
   return (
     <div className="space-y-3 font-sans">
-      {/* Calendar Navigation & Scope Controls */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Left: Previous, Today, Next + Date Picker */}
-        <div className="flex items-center gap-1.5 w-full md:w-auto justify-between md:justify-start">
-          <div className="flex items-center gap-1">
+      {/* Calendar Navigation & Scope Controls (Fully Responsive for Mobile & Desktop) */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200/90 shadow-2xs space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
+        {/* Mobile Row 1: Nav Buttons (Prev, Today, Next) + Scope Switcher */}
+        <div className="flex items-center justify-between gap-1.5 sm:hidden">
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={handlePrev}
-              className="h-8 w-8 p-0 rounded-lg border-slate-200 hover:bg-slate-50 cursor-pointer"
+              className="h-7.5 w-7.5 p-0 rounded-lg border-slate-200 hover:bg-slate-50 cursor-pointer"
               title="Previous"
             >
               <ChevronLeft className="w-4 h-4 text-slate-600" />
@@ -1141,7 +1308,7 @@ const CalendarView = ({
               variant="outline"
               size="sm"
               onClick={handleToday}
-              className="h-8 px-2.5 rounded-lg border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              className="h-7.5 px-2 rounded-lg border-slate-200 text-[11px] font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
             >
               Today
             </Button>
@@ -1149,15 +1316,38 @@ const CalendarView = ({
               variant="outline"
               size="sm"
               onClick={handleNext}
-              className="h-8 w-8 p-0 rounded-lg border-slate-200 hover:bg-slate-50 cursor-pointer"
+              className="h-7.5 w-7.5 p-0 rounded-lg border-slate-200 hover:bg-slate-50 cursor-pointer"
               title="Next"
             >
               <ChevronRight className="w-4 h-4 text-slate-600" />
             </Button>
           </div>
 
-          {/* Jump to Any Date Input */}
-          <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200/80">
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+            {["day", "week", "month"].map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setScope(mode)}
+                className={clsx(
+                  "px-2 py-1 text-[11px] font-bold rounded-md capitalize transition-all cursor-pointer",
+                  scope === mode
+                    ? "bg-white text-blue-600 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile Row 2: Formatted Title + Jump to Date */}
+        <div className="flex items-center justify-between gap-2 sm:hidden pt-1.5 border-t border-slate-100">
+          <h2 className="text-xs font-bold text-slate-900 tracking-tight truncate">
+            {headerDateTitle}
+          </h2>
+          <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200/80 shrink-0">
             <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <input
               type="date"
@@ -1169,21 +1359,75 @@ const CalendarView = ({
                   newD.setHours(0, 0, 0, 0);
                   setCurrentDate(newD);
                   setSelectedMonthDay(newD);
+                  setSelectedWeekDay(newD);
                 }
               }}
-              className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
-              title="Jump to any date"
+              className="bg-transparent text-[11px] font-semibold text-slate-800 focus:outline-none cursor-pointer max-w-[105px]"
+              title="Jump to date"
             />
           </div>
         </div>
 
-        {/* Center: Formatted Date Title */}
-        <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight text-center">
-          {headerDateTitle}
-        </h2>
+        {/* Desktop Layout (Hidden on Mobile) */}
+        <div className="hidden sm:flex sm:items-center sm:justify-between sm:w-full gap-3">
+          {/* Left: Previous, Today, Next + Date Picker */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrev}
+                className="h-8 w-8 p-0 rounded-lg border-slate-200 hover:bg-slate-50 cursor-pointer"
+                title="Previous"
+              >
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToday}
+                className="h-8 px-2.5 rounded-lg border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Today
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNext}
+                className="h-8 w-8 p-0 rounded-lg border-slate-200 hover:bg-slate-50 cursor-pointer"
+                title="Next"
+              >
+                <ChevronRight className="w-4 h-4 text-slate-600" />
+              </Button>
+            </div>
 
-        {/* Right: Day / Week / Month Scope Switcher + Book Button */}
-        <div className="flex items-center gap-1.5 w-full md:w-auto justify-end">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/80">
+              <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <input
+                type="date"
+                value={inputDateValue}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [y, m, d] = e.target.value.split("-").map(Number);
+                    const newD = new Date(y, m - 1, d);
+                    newD.setHours(0, 0, 0, 0);
+                    setCurrentDate(newD);
+                    setSelectedMonthDay(newD);
+                    setSelectedWeekDay(newD);
+                  }
+                }}
+                className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
+                title="Jump to date"
+              />
+            </div>
+          </div>
+
+          {/* Center: Formatted Date Title */}
+          <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight text-center">
+            {headerDateTitle}
+          </h2>
+
+          {/* Right: Day / Week / Month Switcher */}
           <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             {["day", "week", "month"].map((mode) => (
               <button
@@ -1204,11 +1448,118 @@ const CalendarView = ({
         </div>
       </div>
 
-      {/* 1. DAY VIEW: Stylist Columns & Hourly Timeline */}
+      {/* 1. DAY VIEW: Responsive Mobile Agenda vs Desktop Table Matrix */}
       {scope === "day" && (
         <div className="space-y-3">
-          {/* Stylist Roster & Busy Status Summary */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
+          {/* Stylist Filter Chips & Status Summary on Mobile */}
+          <div className="sm:hidden space-y-2">
+            {/* Scrollable Stylist Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedStylistId("all")}
+                className={clsx(
+                  "px-2.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border",
+                  selectedStylistId === "all"
+                    ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>All Staff ({activeDayAppointments.length})</span>
+              </button>
+              {displayStylists.map((st) => {
+                const sId = String(st.staffId || st.id || "");
+                const sName = (st.name || st.fullName || "").toLowerCase();
+                const stylAppts = activeDayAppointments.filter((a) => {
+                  if (!sId || sId === "general") return true;
+                  return (
+                    String(a.staffId || "") === sId ||
+                    String(a.staffName || "").toLowerCase().includes(sName)
+                  );
+                });
+                const isServing = stylAppts.some((a) => a.normStatus === "in_progress");
+                const isSelected = selectedStylistId === sId;
+
+                return (
+                  <button
+                    key={sId || st.name}
+                    type="button"
+                    onClick={() => setSelectedStylistId(sId)}
+                    className={clsx(
+                      "px-2.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer border",
+                      isSelected
+                        ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                        : isServing
+                        ? "bg-blue-50 text-blue-800 border-blue-200"
+                        : stylAppts.length > 0
+                        ? "bg-slate-50 text-slate-800 border-slate-200"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <div
+                      className={clsx(
+                        "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold",
+                        isSelected ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"
+                      )}
+                    >
+                      {st.name ? st.name.charAt(0).toUpperCase() : "S"}
+                    </div>
+                    <span className="truncate max-w-[100px]">{st.name || "Stylist"}</span>
+                    {isServing && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    )}
+                    <span
+                      className={clsx(
+                        "text-[10px] px-1 rounded-full font-extrabold",
+                        isSelected ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-700"
+                      )}
+                    >
+                      {stylAppts.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Subheader: Count summary & View Mode Toggle (Agenda vs Full Grid) */}
+            <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200/90 shadow-2xs">
+              <span className="text-xs font-bold text-slate-700 truncate">
+                {selectedStylistId === "all"
+                  ? `${activeDayAppointments.length} bookings today`
+                  : `${mobileFilteredDayAppointments.length} bookings for staff`}
+              </span>
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setMobileDayViewMode("timeline")}
+                  className={clsx(
+                    "px-2 py-0.5 text-[11px] font-bold rounded-md transition-all cursor-pointer",
+                    mobileDayViewMode === "timeline"
+                      ? "bg-white text-blue-600 shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Agenda
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileDayViewMode("grid")}
+                  className={clsx(
+                    "px-2 py-0.5 text-[11px] font-bold rounded-md transition-all cursor-pointer",
+                    mobileDayViewMode === "grid"
+                      ? "bg-white text-blue-600 shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Grid
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Stylist Roster & Busy Status Summary on Desktop (Hidden on Mobile) */}
+          <div className="hidden sm:block bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
             <div className="flex items-center justify-between gap-2 mb-2">
               <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-blue-600" />
@@ -1272,8 +1623,88 @@ const CalendarView = ({
             </div>
           </div>
 
-          {/* Hourly Timeline Matrix */}
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+          {/* MOBILE TIMELINE AGENDA (Visible only on mobile when mobileDayViewMode === "timeline") */}
+          <div className={clsx("sm:hidden space-y-2.5", mobileDayViewMode !== "timeline" && "hidden")}>
+            {timeSlots.map((hour) => {
+              const formattedHour = `${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour < 12 ? "AM" : "PM"}`;
+              const slotDate = new Date(currentDate);
+              slotDate.setHours(hour, 0, 0, 0);
+
+              const hourAppts = mobileFilteredDayAppointments.filter((a) => {
+                if (!a.parsedDate) return false;
+                return a.parsedDate.getHours() === hour;
+              });
+
+              if (hourAppts.length === 0) {
+                return (
+                  <div
+                    key={hour}
+                    className="flex items-center justify-between p-2.5 rounded-xl border border-dashed border-slate-200/90 bg-white/70 hover:bg-blue-50/30 hover:border-blue-300 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400 font-mono w-16">
+                        {formattedHour}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">Open slot</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onBookSlot(slotDate, selectedStylistId !== "all" ? selectedStylistId : "")}
+                      className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Book</span>
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={hour} className="space-y-1.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-blue-700 font-mono bg-blue-100/70 px-2 py-0.5 rounded-md">
+                        {formattedHour}
+                      </span>
+                      <span className="text-xs font-bold text-slate-600">
+                        {hourAppts.length} {hourAppts.length === 1 ? "booking" : "bookings"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onBookSlot(slotDate, selectedStylistId !== "all" ? selectedStylistId : "")}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {hourAppts.map((appt) => (
+                      <MobileAppointmentCard
+                        key={appt.appointmentId || appt.id}
+                        appt={appt}
+                        onStatusUpdate={onStatusUpdate}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        formatCurrency={formatCurrency}
+                        navigate={navigate}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Hourly Timeline Matrix: Visible on Desktop OR when mobileDayViewMode === "grid" */}
+          <div
+            className={clsx(
+              "bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden",
+              mobileDayViewMode === "timeline" ? "hidden sm:block" : "block"
+            )}
+          >
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
@@ -1284,7 +1715,7 @@ const CalendarView = ({
                     {displayStylists.map((st) => (
                       <th
                         key={st.staffId || st.id || st.name}
-                        className="py-2.5 px-3 text-left text-xs font-bold text-slate-800 border-r border-slate-200 last:border-r-0 min-w-[200px]"
+                        className="py-2.5 px-3 text-left text-xs font-bold text-slate-800 border-r border-slate-200 last:border-r-0 min-w-[240px]"
                       >
                         <div className="flex items-center gap-1.5">
                           <span className="truncate">{st.name || "General"}</span>
@@ -1299,7 +1730,6 @@ const CalendarView = ({
 
                     return (
                       <tr key={hour} className="hover:bg-slate-50/40 transition-colors">
-                        {/* Time Column */}
                         <td className="py-3 px-3 text-[11px] font-bold text-slate-500 bg-slate-50/50 border-r border-slate-200 align-top">
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
@@ -1307,7 +1737,6 @@ const CalendarView = ({
                           </div>
                         </td>
 
-                        {/* Columns for each stylist */}
                         {displayStylists.map((st) => {
                           const apptsInSlot = getStylistApptsAtHour(st, hour);
                           const sId = st.staffId || st.id || "";
@@ -1359,19 +1788,29 @@ const CalendarView = ({
                                           {formatCurrency(appt.amount || appt.total)}
                                         </span>
                                         <div className="flex items-center gap-1">
-                                          {appt.normStatus !== "completed" && (
+                                          {appt.normStatus !== "completed" && appt.normStatus !== "cancelled" && (
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                onStatusUpdate(
-                                                  appt.appointmentId || appt.id,
-                                                  "completed"
-                                                )
+                                                navigate("/dashboard/billing", {
+                                                  state: { selectedAppointment: appt },
+                                                })
                                               }
-                                              className="p-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors"
-                                              title="Mark Completed"
+                                              className="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] flex items-center gap-0.5 shadow-2xs transition-colors cursor-pointer"
+                                              title="Load appointment into Billing"
                                             >
-                                              <Check className="w-2.5 h-2.5" />
+                                              <CreditCard className="w-2.5 h-2.5" />
+                                              <span>Load Bill</span>
+                                            </button>
+                                          )}
+                                          {appt.normStatus === "completed" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => navigate("/dashboard/order-history")}
+                                              className="px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[9px] transition-colors cursor-pointer"
+                                              title="View Invoice in Order History"
+                                            >
+                                              Invoice
                                             </button>
                                           )}
                                           <button
@@ -1437,127 +1876,260 @@ const CalendarView = ({
         </div>
       )}
 
-      {/* 2. WEEK VIEW: 7 Day Columns */}
+      {/* 2. WEEK VIEW: Mobile Day Strip + Feed vs Desktop 7-Col Matrix */}
       {scope === "week" && (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-          {weekDays.map((d) => {
-            const isTodayDate = isSameDay(d, new Date());
-            const dayAppts = appointmentsWithDates.filter((a) => a.parsedDate && isSameDay(a.parsedDate, d));
-            const dayName = d.toLocaleDateString("en-IN", { weekday: "short" });
-            const dayNum = d.getDate();
-            const monthName = d.toLocaleDateString("en-IN", { month: "short" });
+        <div className="space-y-3">
+          {/* Mobile 7-Day Quick Strip & Schedule Feed (Visible on mobile only) */}
+          <div className="md:hidden space-y-3">
+            {/* Quick Day Selector Strip */}
+            <div className="grid grid-cols-7 gap-1 bg-white p-2 rounded-xl border border-slate-200/90 shadow-2xs">
+              {weekDays.map((d) => {
+                const isTodayDate = isSameDay(d, new Date());
+                const isSelected = isSameDay(d, selectedWeekDay);
+                const dayAppts = appointmentsWithDates.filter(
+                  (a) => a.parsedDate && isSameDay(a.parsedDate, d)
+                );
+                const dayName = d.toLocaleDateString("en-IN", { weekday: "short" });
+                const dayNum = d.getDate();
 
-            return (
-              <div
-                key={d.toISOString()}
-                className={clsx(
-                  "bg-white rounded-xl border p-2 flex flex-col shadow-2xs min-h-[300px]",
-                  isTodayDate ? "border-blue-400 ring-1 ring-blue-200" : "border-slate-200/90"
-                )}
-              >
-                {/* Column Day Header */}
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400 leading-none">
-                      {dayName}
-                    </div>
-                    <div className="text-sm font-extrabold text-slate-900 leading-none mt-0.5">
-                      {dayNum} {monthName}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600">
-                      {dayAppts.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onBookSlot(d)}
-                      className="p-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
-                      title={`Book appointment on ${dayName}`}
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    onClick={() => setSelectedWeekDay(d)}
+                    className={clsx(
+                      "p-1.5 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer relative",
+                      isSelected
+                        ? "bg-blue-600 text-white shadow-2xs ring-1 ring-blue-500"
+                        : isTodayDate
+                        ? "bg-blue-50/80 text-blue-700 border border-blue-200"
+                        : "bg-slate-50/80 text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "text-[10px] uppercase font-bold",
+                        isSelected ? "text-blue-100" : "text-slate-400"
+                      )}
                     >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Day Appointments List */}
-                <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[480px]">
-                  {dayAppts.length === 0 ? (
-                    <div className="h-28 flex flex-col items-center justify-center text-[10px] text-slate-400 border border-dashed border-slate-100 rounded-lg">
-                      <span>No Bookings</span>
-                    </div>
-                  ) : (
-                    dayAppts.map((appt) => (
-                      <div
-                        key={appt.appointmentId || appt.id}
+                      {dayName.slice(0, 3)}
+                    </span>
+                    <span className="text-sm font-extrabold mt-0.5 leading-none">
+                      {dayNum}
+                    </span>
+                    {dayAppts.length > 0 && (
+                      <span
                         className={clsx(
-                          "p-2 rounded-lg border text-xs shadow-2xs space-y-1",
-                          appt.normStatus === "in_progress"
-                            ? "bg-blue-50/80 border-blue-200 border-l-[3.5px] border-l-blue-600"
-                            : appt.normStatus === "completed"
-                            ? "bg-emerald-50/70 border-emerald-200 border-l-[3.5px] border-l-emerald-600"
-                            : "bg-white border-slate-200 border-l-[3.5px] border-l-indigo-600"
+                          "text-[9px] font-black px-1 rounded-full mt-1 leading-tight",
+                          isSelected
+                            ? "bg-white text-blue-600"
+                            : "bg-blue-100 text-blue-700"
                         )}
                       >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-bold text-slate-800">
-                            {formatTimeLabel(appt.parsedDate, appt.time)}
-                          </span>
-                          <StatusPill status={appt.status} compact />
-                        </div>
-                        <div className="font-bold text-slate-900 truncate">
-                          {appt.clientName}
-                        </div>
-                        <div className="text-[10px] text-slate-500 truncate">
-                          ✂️ {appt.serviceName}
-                        </div>
-                        {appt.staffName && (
-                          <div className="text-[9px] font-semibold text-indigo-700 bg-indigo-50/70 px-1.5 py-0.2 rounded w-fit truncate">
-                            👤 {appt.staffName}
+                        {dayAppts.length}
+                      </span>
+                    )}
+                    {isTodayDate && !isSelected && (
+                      <span className="w-1 h-1 rounded-full bg-blue-600 mt-0.5" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected Day Schedule Feed */}
+            <div className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div>
+                  <span className="text-xs font-bold text-slate-900">
+                    {selectedWeekDay.toLocaleDateString("en-IN", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 ml-1.5">
+                    ({activeWeekDayAppointments.length} bookings)
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => onBookSlot(selectedWeekDay)}
+                  className="h-7.5 px-3 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Book
+                </Button>
+              </div>
+
+              {activeWeekDayAppointments.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 space-y-2 border border-dashed border-slate-200 rounded-xl">
+                  <Clock className="w-6 h-6 text-slate-300 mx-auto" />
+                  <p className="text-xs font-semibold text-slate-600">
+                    No appointments scheduled
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Tap "+ Book" above to schedule for this day
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {activeWeekDayAppointments.map((appt) => (
+                    <MobileAppointmentCard
+                      key={appt.appointmentId || appt.id}
+                      appt={appt}
+                      onStatusUpdate={onStatusUpdate}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      formatCurrency={formatCurrency}
+                      navigate={navigate}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop 7-Col Grid (Hidden on Mobile) */}
+          <div className="hidden md:grid md:grid-cols-7 gap-2">
+            {weekDays.map((d) => {
+              const isTodayDate = isSameDay(d, new Date());
+              const dayAppts = appointmentsWithDates.filter(
+                (a) => a.parsedDate && isSameDay(a.parsedDate, d)
+              );
+              const dayName = d.toLocaleDateString("en-IN", { weekday: "short" });
+              const dayNum = d.getDate();
+              const monthName = d.toLocaleDateString("en-IN", { month: "short" });
+
+              return (
+                <div
+                  key={d.toISOString()}
+                  className={clsx(
+                    "bg-white rounded-xl border p-2 flex flex-col shadow-2xs min-h-[300px]",
+                    isTodayDate
+                      ? "border-blue-400 ring-1 ring-blue-200"
+                      : "border-slate-200/90"
+                  )}
+                >
+                  {/* Column Day Header */}
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-400 leading-none">
+                        {dayName}
+                      </div>
+                      <div className="text-sm font-extrabold text-slate-900 leading-none mt-0.5">
+                        {dayNum} {monthName}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600">
+                        {dayAppts.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onBookSlot(d)}
+                        className="p-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                        title={`Book appointment on ${dayName}`}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Day Appointments List */}
+                  <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[480px]">
+                    {dayAppts.length === 0 ? (
+                      <div className="h-28 flex flex-col items-center justify-center text-[10px] text-slate-400 border border-dashed border-slate-100 rounded-lg">
+                        <span>No Bookings</span>
+                      </div>
+                    ) : (
+                      dayAppts.map((appt) => (
+                        <div
+                          key={appt.appointmentId || appt.id}
+                          className={clsx(
+                            "p-2 rounded-lg border text-xs shadow-2xs space-y-1",
+                            appt.normStatus === "in_progress"
+                              ? "bg-blue-50/80 border-blue-200 border-l-[3.5px] border-l-blue-600"
+                              : appt.normStatus === "completed"
+                              ? "bg-emerald-50/70 border-emerald-200 border-l-[3.5px] border-l-emerald-600"
+                              : "bg-white border-slate-200 border-l-[3.5px] border-l-indigo-600"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] font-bold text-slate-800">
+                              {formatTimeLabel(appt.parsedDate, appt.time)}
+                            </span>
+                            <StatusPill status={appt.status} compact />
                           </div>
-                        )}
-                        <div className="flex items-center justify-end gap-1 pt-1 border-t border-slate-100">
-                          {appt.normStatus !== "completed" && (
+                          <div className="font-bold text-slate-900 truncate">
+                            {appt.clientName}
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate">
+                            ✂️ {appt.serviceName}
+                          </div>
+                          {appt.staffName && (
+                            <div className="text-[9px] font-semibold text-indigo-700 bg-indigo-50/70 px-1.5 py-0.2 rounded w-fit truncate">
+                              👤 {appt.staffName}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end gap-1 pt-1 border-t border-slate-100">
+                            {appt.normStatus !== "completed" && appt.normStatus !== "cancelled" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  navigate("/dashboard/billing", {
+                                    state: { selectedAppointment: appt },
+                                  })
+                                }
+                                className="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] flex items-center gap-0.5 shadow-2xs transition-colors cursor-pointer"
+                                title="Load appointment into Billing"
+                              >
+                                <CreditCard className="w-2.5 h-2.5" />
+                                <span>Load Bill</span>
+                              </button>
+                            )}
+                            {appt.normStatus === "completed" && (
+                              <button
+                                type="button"
+                                onClick={() => navigate("/dashboard/order-history")}
+                                className="px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[9px] transition-colors cursor-pointer"
+                                title="View Invoice in Order History"
+                              >
+                                Invoice
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => onStatusUpdate(appt.appointmentId || appt.id, "completed")}
-                              className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              title="Finish"
+                              onClick={() => onEdit(appt)}
+                              className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50"
                             >
-                              <Check className="w-2.5 h-2.5" />
+                              <Edit className="w-2.5 h-2.5" />
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => onEdit(appt)}
-                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit className="w-2.5 h-2.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDelete(appt)}
-                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                          >
-                            <Trash2 className="w-2.5 h-2.5" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => onDelete(appt)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* 3. MONTH VIEW: Calendar Matrix */}
+      {/* 3. MONTH VIEW: Mobile Touch-Friendly Matrix vs Desktop Detailed Matrix */}
       {scope === "month" && (
         <div className="space-y-3">
-          <div className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
+          <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200/90 shadow-2xs">
             {/* Days of week header */}
-            <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-400 mb-2 pb-1 border-b border-slate-100">
+            <div className="grid grid-cols-7 gap-1 text-center font-bold text-[11px] sm:text-xs text-slate-400 mb-1.5 pb-1 border-b border-slate-100">
               <span>Sun</span>
               <span>Mon</span>
               <span>Tue</span>
@@ -1571,17 +2143,25 @@ const CalendarView = ({
             <div className="grid grid-cols-7 gap-1">
               {monthDays.map(({ date, isCurrentMonth }) => {
                 const isTodayDate = isSameDay(date, new Date());
-                const isSelected = selectedMonthDay ? isSameDay(date, selectedMonthDay) : isSameDay(date, currentDate);
-                const dayAppts = appointmentsWithDates.filter((a) => a.parsedDate && isSameDay(a.parsedDate, date));
+                const isSelected = selectedMonthDay
+                  ? isSameDay(date, selectedMonthDay)
+                  : isSameDay(date, currentDate);
+                const dayAppts = appointmentsWithDates.filter(
+                  (a) => a.parsedDate && isSameDay(a.parsedDate, date)
+                );
 
                 return (
                   <div
                     key={date.toISOString()}
                     onClick={() => setSelectedMonthDay(date)}
                     className={clsx(
-                      "min-h-[72px] sm:min-h-[85px] p-1.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between",
+                      "p-1 sm:p-1.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between",
+                      "h-12 sm:min-h-[85px]",
                       !isCurrentMonth && "opacity-40 bg-slate-50 border-slate-100",
-                      isCurrentMonth && (isSelected ? "bg-blue-50/70 border-blue-400 ring-1 ring-blue-300 shadow-2xs" : "bg-white border-slate-200/80 hover:border-slate-300"),
+                      isCurrentMonth &&
+                        (isSelected
+                          ? "bg-blue-50/70 border-blue-400 ring-1 ring-blue-300 shadow-2xs"
+                          : "bg-white border-slate-200/80 hover:border-slate-300"),
                       isTodayDate && !isSelected && "border-blue-400 bg-blue-50/20"
                     )}
                   >
@@ -1595,13 +2175,31 @@ const CalendarView = ({
                         {date.getDate()}
                       </span>
                       {dayAppts.length > 0 && (
-                        <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700">
+                        <span className="text-[9px] font-extrabold px-1 rounded-full bg-indigo-100 text-indigo-700 leading-tight">
                           {dayAppts.length}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-0.5 mt-1 overflow-hidden">
+                    {/* Mobile Indicator Dots (Visible on mobile only) */}
+                    <div className="sm:hidden flex items-center justify-center gap-0.5 mt-auto">
+                      {dayAppts.slice(0, 3).map((a, idx) => (
+                        <span
+                          key={idx}
+                          className={clsx(
+                            "w-1.5 h-1.5 rounded-full",
+                            a.normStatus === "completed"
+                              ? "bg-emerald-500"
+                              : a.normStatus === "in_progress"
+                              ? "bg-blue-500"
+                              : "bg-indigo-500"
+                          )}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Desktop text snippets (Hidden on mobile) */}
+                    <div className="hidden sm:block space-y-0.5 mt-1 overflow-hidden">
                       {dayAppts.slice(0, 2).map((a) => (
                         <div
                           key={a.appointmentId || a.id}
@@ -1624,80 +2222,53 @@ const CalendarView = ({
 
           {/* Selected Date Detail Panel */}
           {selectedMonthDay && (
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
-              <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Schedule for {selectedMonthDay.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+            <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    {selectedMonthDay.toLocaleDateString("en-IN", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </h3>
-                  <span className="text-xs font-semibold text-slate-500">
+                  <span className="text-[11px] font-semibold text-slate-500 shrink-0">
                     ({activeDayAppointments.length} bookings)
                   </span>
                 </div>
                 <Button
                   size="sm"
                   onClick={() => onBookSlot(selectedMonthDay)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs h-7.5 px-3"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs h-7.5 px-3 shrink-0"
                 >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Book for this day
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Book
                 </Button>
               </div>
 
               {activeDayAppointments.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">
-                  No appointments booked on this date. Click "+ Book for this day" to schedule.
-                </p>
+                <div className="py-6 text-center text-slate-400 space-y-1.5 border border-dashed border-slate-200 rounded-xl">
+                  <Clock className="w-5 h-5 text-slate-300 mx-auto" />
+                  <p className="text-xs font-semibold text-slate-600">
+                    No appointments booked on this date
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Click "+ Book" above to schedule an appointment
+                  </p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   {activeDayAppointments.map((appt) => (
-                    <div
+                    <MobileAppointmentCard
                       key={appt.appointmentId || appt.id}
-                      className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="text-xs font-bold text-slate-900">{appt.clientName}</span>
-                          <StatusPill status={appt.status} compact />
-                        </div>
-                        <div className="text-[11px] text-slate-600 truncate">✂️ {appt.serviceName}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          ⏰ {formatTimeLabel(appt.parsedDate, appt.time)} • 👤 {appt.staffName || "Unassigned"}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-200/60">
-                        <span className="text-xs font-black text-slate-800">
-                          {formatCurrency(appt.amount || appt.total)}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {appt.normStatus !== "completed" && (
-                            <button
-                              type="button"
-                              onClick={() => onStatusUpdate(appt.appointmentId || appt.id, "completed")}
-                              className="p-1 rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                              title="Finish"
-                            >
-                              <Check className="w-3 h-3" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => onEdit(appt)}
-                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDelete(appt)}
-                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      appt={appt}
+                      onStatusUpdate={onStatusUpdate}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      formatCurrency={formatCurrency}
+                      navigate={navigate}
+                    />
                   ))}
                 </div>
               )}
@@ -1706,7 +2277,7 @@ const CalendarView = ({
         </div>
       )}
 
-      {/* Upcoming Appointments Preview Bar */}
+      {/* Upcoming Appointments Preview Bar (Swipeable Carousel on Mobile, Grid on Desktop) */}
       {upcomingAppointments.length > 0 && (
         <div className="bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between gap-2 mb-2">
@@ -1719,21 +2290,32 @@ const CalendarView = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="flex sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 overflow-x-auto pb-2 -mx-1 px-1 sm:overflow-visible no-scrollbar">
             {upcomingAppointments.map((appt) => (
               <div
                 key={appt.appointmentId || appt.id}
-                className="p-2 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-white hover:shadow-2xs transition-all flex flex-col justify-between"
+                className="min-w-[190px] sm:min-w-0 flex-shrink-0 sm:flex-shrink p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-white hover:shadow-2xs transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between text-[10px] font-bold text-blue-700 mb-0.5">
-                    <span>{appt.parsedDate ? appt.parsedDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Upcoming"}</span>
+                    <span>
+                      {appt.parsedDate
+                        ? appt.parsedDate.toLocaleDateString("en-IN", {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "Upcoming"}
+                    </span>
                     <span>{formatTimeLabel(appt.parsedDate, appt.time)}</span>
                   </div>
-                  <div className="font-bold text-xs text-slate-900 truncate">{appt.clientName}</div>
-                  <div className="text-[10px] text-slate-500 truncate">{appt.serviceName}</div>
+                  <div className="font-bold text-xs text-slate-900 truncate">
+                    {appt.clientName}
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate">
+                    ✂️ {appt.serviceName}
+                  </div>
                 </div>
-                <div className="text-[9px] text-indigo-700 font-semibold mt-1 truncate">
+                <div className="text-[9px] text-indigo-700 font-semibold mt-1.5 pt-1 border-t border-slate-200/60 truncate">
                   👤 {appt.staffName || "Stylist"}
                 </div>
               </div>
@@ -2014,40 +2596,56 @@ export default function AppointmentsPage() {
   }, [appointments, statusFilter, searchTerm, barbers]);
 
   return (
-    <div className="p-3 sm:p-4 lg:p-5 space-y-3 font-sans bg-[#f8fafc] min-h-full text-slate-800">
-      {/* 1. Compact Header Bar (Identical to StaffsPage) */}
-      <div className="bg-white px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">
-            Appointments & Queue
-          </h1>
-          <span className="text-[11px] font-semibold text-slate-400 hidden md:inline">
-            ({appointments.length} rostered • {counts.today} today • {counts.inProgress} in service)
-          </span>
+    <div className="p-0 sm:p-2 space-y-2.5 sm:space-y-3 font-sans bg-[#f8fafc] min-h-full text-slate-800 max-w-full overflow-x-hidden">
+      {/* 1. Compact Header Bar (Fully Responsive) */}
+      <div className="bg-white p-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
+            <h1 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 tracking-tight truncate">
+              Appointments & Queue
+            </h1>
+            <span className="text-[11px] font-semibold text-slate-400 hidden lg:inline">
+              ({appointments.length} rostered • {counts.today} today • {counts.inProgress} in service)
+            </span>
+          </div>
+
+          {/* Book button on mobile top right */}
+          <Button
+            size="sm"
+            onClick={() => {
+              setBookingInitialDate(null);
+              setBookingInitialStaffId(null);
+              setShowBookingModal(true);
+            }}
+            className="sm:hidden bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs text-xs h-7.5 px-2.5 shrink-0 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            <span>Book</span>
+          </Button>
         </div>
 
-        {/* Action Buttons & View Mode Tabs */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+        {/* View Mode Tabs + Desktop Book Button */}
+        <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 w-full sm:w-auto justify-center">
             <button
               type="button"
               onClick={() => setActiveMainTab("list")}
               className={clsx(
-                "px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer",
+                "flex-1 sm:flex-none px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                 activeMainTab === "list"
                   ? "bg-white text-blue-700 shadow-2xs"
                   : "text-slate-600 hover:text-slate-900"
               )}
             >
               <List className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Queue & List</span>
+              <span>Queue & List</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveMainTab("calendar")}
               className={clsx(
-                "px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer",
+                "flex-1 sm:flex-none px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                 activeMainTab === "calendar"
                   ? "bg-white text-blue-700 shadow-2xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -2065,7 +2663,7 @@ export default function AppointmentsPage() {
               setBookingInitialStaffId(null);
               setShowBookingModal(true);
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs text-xs h-8 px-3 cursor-pointer transition-colors"
+            className="hidden sm:inline-flex bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs text-xs h-8 px-3 cursor-pointer transition-colors shrink-0"
           >
             <Plus className="w-3.5 h-3.5 mr-1" />
             <span>Book Appointment</span>

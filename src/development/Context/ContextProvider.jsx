@@ -1233,17 +1233,19 @@ const ContextProvider = (props) => {
 
   const updateProduct = async (instId, productId, data) => {
     try {
+      const { productId: _p, institutionId: _i, ...restData } = data || {};
       const response = await apiRequest(put, `/admin/products/${productId}`, {
-        body: { institutionId: instId, ...data },
+        body: { institutionId: instId, ...restData },
       });
+      const updatedItem = response?.updatedItem || { ...data, productId };
       setProducts((prevProducts) =>
-        prevProducts.map((product) =>
+        (prevProducts || []).map((product) =>
           String(product.productId || product.id) === String(productId)
-            ? response.updatedItem
+            ? { ...product, ...updatedItem }
             : product,
         ),
       );
-      return response.updatedItem;
+      return updatedItem;
     } catch (error) {
       console.error("Update Product Error:", error);
       throw error;
