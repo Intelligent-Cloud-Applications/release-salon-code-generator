@@ -395,7 +395,7 @@ export default function BillPreview() {
           {/* Header */}
           <div className="header">{salonName}</div>
           <div className="sub-header" style={{ whiteSpace: 'pre-line' }}>{salonAddress}</div>
-          <div className="info">Contact: {salonContact} <br/> Date: {fmtDT(bill.date)}</div>
+          <div className="info">Contact: {salonContact} <br/> Date & Time: {fmtDT(bill.date)}</div>
           {/* Optional GSTIN */}
           {institutionData?.gstNumber || institutionData?.gstSettings?.gstNumber || institutionData?.gstin || institutionData?.GSTIN ? (
             <div className="info">GSTIN: {institutionData?.gstNumber || institutionData?.gstSettings?.gstNumber || institutionData?.gstin || institutionData?.GSTIN}</div>
@@ -404,10 +404,8 @@ export default function BillPreview() {
 
           {/* Invoice Meta */}
           <div className="muted meta" style={{ display: 'grid', gridTemplateColumns: '110px 1fr' }}>
-            <div>INVOICE ID:</div><div className="bold truncate">{bill.id}</div>
             <div>CUSTOMER NAME:</div><div className="truncate" title={bill.clientName}>{bill.clientName}</div>
             {bill.phoneNumber ? (<><div>MOBILE:</div><div className="truncate">{bill.phoneNumber}</div></>) : null}
-            {barberName ? (<><div>BARBER:</div><div className="truncate" title={String(barberName)}>{String(barberName)}</div></>) : null}
           </div>
 
           <div className="divider" />
@@ -431,9 +429,6 @@ export default function BillPreview() {
                   <tr key={i}>
                     <td className="nm">
                       {it.name}
-                      {it.staff ? (
-                        <div className="muted">{String(it.staff).toUpperCase()}</div>
-                      ) : null}
                     </td>
                     <td className="qt">{it.qty}</td>
                     <td className="rt">{inr(rate)}</td>
