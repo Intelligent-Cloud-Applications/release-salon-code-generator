@@ -85,7 +85,7 @@ const HeroSection = ({
       className="relative w-full min-h-[calc(100dvh-60px)] sm:min-h-[calc(100vh-80px)] flex flex-col justify-between overflow-hidden px-4 sm:px-8 md:px-12 lg:px-14 pt-3 sm:pt-6 pb-6 sm:pb-10"
     >
       {/* Background Model and Stroke Artwork — VISIBLE ON BOTH MOBILE AND DESKTOP */}
-      <div className="absolute inset-y-0 right-0 pointer-events-none select-none z-0 w-[90%] sm:w-[70%] md:w-[48%] lg:w-[58%] xl:w-[62%]">
+      <div className="absolute inset-y-0 right-0 pointer-events-none select-none z-0 w-full sm:w-[70%] md:w-[48%] lg:w-[58%] xl:w-[62%]">
         <img
           src={strokeImgSrc}
           alt=""
@@ -94,7 +94,7 @@ const HeroSection = ({
         <img
           src={modelImgSrc}
           alt="Tekkzy Salon model portrait"
-          className="hero-model absolute bottom-0 right-0 h-[72%] sm:h-[85%] md:h-full w-auto max-w-none object-contain object-right-bottom drop-shadow-sm opacity-90 md:opacity-100"
+          className="hero-model absolute bottom-0 right-1/2 translate-x-1/2 sm:right-0 sm:translate-x-0 h-[72%] sm:h-[85%] md:h-full w-auto max-w-none object-contain object-bottom sm:object-right-bottom drop-shadow-sm opacity-90 md:opacity-100"
         />
 
         {/* Change Model Photo button in Edit Mode */}
