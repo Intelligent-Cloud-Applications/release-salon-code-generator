@@ -225,10 +225,10 @@ export const buildEscPosPayload = (bill, institutionData, printerSettings) => {
   const dateStr = safeDate.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
   const timeStr = safeDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 
-  addText(makeRow("Inv #: " + (bill.id || "N/A"), "Date: " + dateStr));
-  addText(makeRow("Client: " + (bill.clientName || "Walk-in"), "Time: " + timeStr));
-  if (bill.phoneNumber || bill.staff) {
-    addText(makeRow(bill.phoneNumber ? "Ph: " + bill.phoneNumber : "", bill.staff ? "Stylist: " + bill.staff : ""));
+  addText(makeRow("Client: " + (bill.clientName || "Walk-in"), ""));
+  addText(makeRow("Date & Time: " + dateStr + " " + timeStr, ""));
+  if (bill.phoneNumber) {
+    addText(makeRow("Ph: " + bill.phoneNumber, ""));
   }
 
   // Items Table Header
@@ -436,9 +436,9 @@ export const generateThermalReceiptHtml = (bill, institutionData, printerSetting
         <div class="dashed"></div>
 
         <div style="font-size: 10px;">
-          <div class="flex"><span>Inv #: ${bill.id || "N/A"}</span><span>Date: ${dateStr}</span></div>
-          <div class="flex"><span>Client: <b>${bill.clientName || "Walk-in"}</b></span><span>Time: ${timeStr}</span></div>
-          ${bill.phoneNumber ? `<div class="flex"><span>Ph: ${bill.phoneNumber}</span>${bill.staff ? `<span>Stylist: ${bill.staff}</span>` : ""}</div>` : ""}
+          <div class="flex"><span>Client: <b>${bill.clientName || "Walk-in"}</b></span></div>
+          <div class="flex"><span>Date & Time: ${dateStr} ${timeStr}</span></div>
+          ${bill.phoneNumber ? `<div class="flex"><span>Ph: ${bill.phoneNumber}</span></div>` : ""}
         </div>
 
         <div class="dashed"></div>

@@ -195,12 +195,10 @@ export const BillPrintModal = ({
         salonPhone ? `  Tel: ${salonPhone}` : "",
         gstNumber ? `  GSTIN: ${gstNumber}` : "",
         "===============================",
-        `Invoice #: ${bill.id || "INV"}`,
-        `Date: ${dateStr} ${timeStr}`,
+`Date: ${dateStr} ${timeStr}`,
         `Client: ${bill.clientName || "Walk-in"}`,
         bill.phoneNumber ? `Phone: ${bill.phoneNumber}` : "",
-        bill.staff ? `Stylist: ${bill.staff}` : "",
-        "-------------------------------",
+"-------------------------------",
         "ITEMS & SERVICES:",
       ];
 
@@ -432,10 +430,6 @@ export const BillPrintModal = ({
             {/* Bill Meta */}
             <div className="space-y-1 text-[10px] py-2.5 border-b border-dashed border-slate-300">
               <div className="flex justify-between">
-                <span className="text-slate-500">Invoice:</span>
-                <span className="font-bold text-slate-900">#{bill.id || "INV-DRAFT"}</span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-slate-500">Date & Time:</span>
                 <span className="text-slate-800">{formatDate(bill.rawDate || bill.date)} {formatTime(bill.rawDate || bill.date)}</span>
               </div>
@@ -447,12 +441,6 @@ export const BillPrintModal = ({
                 <div className="flex justify-between">
                   <span className="text-slate-500">Phone:</span>
                   <span className="text-slate-800">{bill.phoneNumber}</span>
-                </div>
-              )}
-              {bill.staff && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Stylist:</span>
-                  <span className="font-semibold text-slate-900">{bill.staff}</span>
                 </div>
               )}
             </div>

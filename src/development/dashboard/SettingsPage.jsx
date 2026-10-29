@@ -932,22 +932,16 @@ const SettingsPage = () => {
                 </p>
               </div>
 
-              {/* Invoice Meta */}
+              {/* Bill Meta */}
               <div className="space-y-0.5 text-[10px] pb-2 border-b border-dashed border-slate-300">
                 <div className="flex justify-between">
-                  <span>Inv #: INV-10842</span>
-                  <span>Date: 25 Oct 2026</span>
+                  <span>Client: Priya Sharma</span>
+                  <span className="font-semibold text-emerald-700">PAID</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Client: Priya Sharma</span>
-                  <span>Time: 02:45 PM</span>
+                  <span>Date & Time:</span>
+                  <span>25 Oct 2026 02:45 PM</span>
                 </div>
-                {showStylist && (
-                  <div className="flex justify-between">
-                    <span>Stylist: Rahul Verma</span>
-                    <span>Status: PAID</span>
-                  </div>
-                )}
               </div>
 
               {/* Items Table Mockup */}
